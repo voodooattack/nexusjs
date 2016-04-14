@@ -12,6 +12,7 @@ add_executable(nexus
   globals/console.cpp
   globals/scheduler.cpp
   globals/promise.cpp
+  globals/module.cpp
   globals/system.cpp
 )
 

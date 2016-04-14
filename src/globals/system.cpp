@@ -28,18 +28,22 @@ const JSClassDefinition NX::Globals::System::Class {
 JSValueRef NX::Globals::System::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(object));
-  return JSObjectMake(nx->context(), nx->defineOrGetClass(NX::Globals::System::Class), nullptr);
+  if (nx->globals().find("System") != nx->globals().end())
+    return nx->globals()["System"];
+  return nx->globals()["System"] = JSObjectMake(nx->context(), nx->defineOrGetClass(NX::Globals::System::Class), nullptr);
 }
 
 const JSStaticFunction NX::Globals::System::Methods[] {
   { "import", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(thisObject));
       /* TODO: IMPLEMENT THIS */
       return JSValueMakeUndefined(ctx);
     }, 0
   },
   { "resolve", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(thisObject));
       /* TODO: IMPLEMENT THIS */
       return JSValueMakeUndefined(ctx);
     }, 0
