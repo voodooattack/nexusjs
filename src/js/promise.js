@@ -46,13 +46,23 @@
           return;
         this[rejectValueKey] = value;
         this[stateKey] = REJECTED;
-        this[subscribersKey].forEach(({ resolve, reject, promise }) => {
-          if (reject) {
+        const rejections = this[subscribersKey].filter(v => v.reject);
+        if (rejections.length) {
+          rejections.forEach(({ resolve, reject, promise }) => {
             promise[taskKey] = Scheduler.schedule(function() {
               promise[broadcastResolveKey](reject(value));
             });
+          });
+        } else {
+          const resolves = this[subscribersKey].filter(v => v.resolve);
+          if (resolves.length) {
+            resolves.forEach(({ resolve, reject, promise }) => {
+              promise[taskKey] = Scheduler.schedule(function() {
+                promise[broadcastRejectKey](value);
+              });
+            });
           }
-        });
+        }
       };
       this[taskKey] = Scheduler.schedule(
         executor.bind(null, broadcastResolve.bind(this), broadcastReject.bind(this))
