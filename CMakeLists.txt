@@ -1,6 +1,9 @@
-cmake_minimum_required(VERSION 2.6)
-project(nexusjs)
+cmake_minimum_required(VERSION 3.2)
 
-add_executable(nexusjs main.cpp)
+SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+SET(CMAKE_CXX_STANDARD 14)
 
-install(TARGETS nexusjs RUNTIME DESTINATION bin)
+add_subdirectory(include)
+add_subdirectory(src)
+
+add_subdirectory(tests)
