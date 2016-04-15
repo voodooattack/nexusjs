@@ -39,6 +39,17 @@ namespace NX {
     boost::shared_ptr<NX::Value> operator[] (unsigned int index);
     boost::shared_ptr<NX::Value> operator[] (const char * name);
 
+    void set(const std::string & name, JSValueRef value, JSPropertyAttributes attr = kJSPropertyAttributeNone,
+             JSValueRef * exception = nullptr) {
+      JSStringRef propertyName = JSStringCreateWithUTF8CString(name.c_str());
+      JSObjectSetProperty(myContext, myObject, propertyName, value, attr, exception);
+      JSStringRelease(propertyName);
+    }
+
+    JSObjectRef construct(const std::vector<JSValueRef> & args = std::vector<JSValueRef>(), JSValueRef * exception = nullptr) {
+      return JSObjectCallAsConstructor(myContext, myObject, args.size(), &args[0], exception);
+    }
+
   private:
     JSContextRef myContext;
     JSObjectRef myObject;

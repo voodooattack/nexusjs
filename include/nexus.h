@@ -30,6 +30,7 @@
 #include <boost/thread.hpp>
 
 #include "scheduler.h"
+#include "module.h"
 
 namespace NX
 {
@@ -42,7 +43,6 @@ namespace NX
     int run();
 
     JSContextGroupRef group() { return myContextGroup; }
-    JSGlobalContextRef context() { return threadLocalContext(); }
     JSObjectRef global() { return myGlobal; }
     JSClassRef globalClass() { return myGlobalClass; }
     JSClassRef genericClass() { return myGenericClass; }
@@ -53,15 +53,6 @@ namespace NX
         return myObjectClasses[def.className];
       return myObjectClasses[def.className] = JSClassCreate(&def);
     }
-
-    JSGlobalContextRef threadLocalContext() {
-      if (!myThreadContext.get())
-        myThreadContext.reset(createContext());
-      return reinterpret_cast<JSGlobalContextRef>(myThreadContext.get());
-    }
-    void setThreadLocalContext(JSGlobalContextRef ctx) { myThreadContext.reset(ctx); }
-
-    boost::unordered_map<std::string, JSObjectRef> & globals() { return myGlobals; }
 
   protected:
     bool parseArguments();
@@ -78,13 +69,12 @@ namespace NX
     JSClassRef myGlobalClass, myGenericClass;
     JSContextGroupRef myContextGroup;
     JSObjectRef myGlobal;
+    std::shared_ptr<NX::Module> myMainModule;
     std::string myScriptSource;
     std::string myScriptPath;
     boost::shared_ptr<NX::Scheduler> myScheduler;
     boost::program_options::variables_map myOptions;
     boost::unordered_map<std::string, JSClassRef> myObjectClasses;
-    boost::unordered_map<std::string, JSObjectRef> myGlobals;
-    boost::thread_specific_ptr<void> myThreadContext;
   };
 }
 

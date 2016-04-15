@@ -37,9 +37,8 @@ namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
   argc(argc), argv(argv), myArguments(), myGlobalClass(nullptr), myGenericClass(nullptr),
-  myContextGroup(nullptr), myGlobal(nullptr),
-  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myObjectClasses(),
-  myThreadContext([](void * ctx) { JSGlobalContextRelease(reinterpret_cast<JSGlobalContextRef>(ctx)); })
+  myContextGroup(nullptr), myGlobal(nullptr), myMainModule(nullptr),
+  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myObjectClasses()
 {
   for (unsigned int i = 0; i < argc; i++) {
     myArguments.push_back(argv[i]);
@@ -47,6 +46,7 @@ NX::Nexus::Nexus(int argc, const char ** argv):
   myContextGroup = JSContextGroupCreate();
   myGlobalClass = JSClassCreate(&Global::GlobalClass);
   myGenericClass = JSClassCreate(&kJSClassDefinitionEmpty);
+  myMainModule.reset(new NX::Module(this, myContextGroup, myGlobalClass));
 }
 
 NX::Nexus::~Nexus()
@@ -93,11 +93,11 @@ bool NX::Nexus::parseArguments()
 }
 
 void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
-  NX::Object val(ctx, exception);
+  NX::Object exp(ctx, exception);
   std::ostringstream stream;
   try {
-    stream << val["message"]->toString() << std::endl;
-    stream << "stack trace:\n" << val["stack"]->toString() << std::endl;
+    stream << exp["message"]->toString() << std::endl;
+    stream << "stack trace:\n" << exp["stack"]->toString() << std::endl;
     std::cerr << stream.str();
   } catch(const std::runtime_error & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
@@ -121,29 +121,20 @@ void NX::Nexus::initScheduler()
 }
 
 int NX::Nexus::run() {
-  ScopedContext context(createContext());
   try {
     if (parseArguments()) {
       return 0;
     }
     initScheduler();
-    JSStringRef src = JSStringCreateWithUTF8CString(myScriptSource.c_str());
-    JSStringRef file = JSStringCreateWithUTF8CString(myScriptPath.c_str());
     JSValueRef exception = nullptr;
-    if (!JSCheckScriptSyntax(context, src, file, 1, &exception)) {
-      NX::Nexus::ReportException(context, exception);
-      return 1;
-    }
-    JSValueRef ret = JSEvaluateScript(context, src, myGlobal, file, 1, &exception);
-    JSStringRelease(src);
-    JSStringRelease(file);
+    myMainModule->evaluateScript(myScriptSource, nullptr, myScriptPath, 1, &exception);
     if (!exception) {
       myScheduler->start();
       myScheduler->joinPool();
       myScheduler->join();
       return 0;
     } else {
-      NX::Nexus::ReportException(context, exception);
+      NX::Nexus::ReportException(myMainModule->context(), exception);
       return 1;
     }
   } catch(std::exception & e) {

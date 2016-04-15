@@ -13,10 +13,12 @@ const JSClassDefinition NX::Globals::Scheduler::Class {
 
 JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(object));
-  if (nx->globals().find("Scheduler") != nx->globals().end())
-    return nx->globals()["Scheduler"];
-  return nx->globals()["Scheduler"] = JSObjectMake(nx->context(), nx->defineOrGetClass(NX::Globals::Scheduler::Class), nx->scheduler().get());
+  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(object));
+  if (module->globals().find("Scheduler") != module->globals().end())
+    return module->globals()["Scheduler"];
+  return module->globals()["Scheduler"] = JSObjectMake(module->context(),
+                                                   module->nexus()->defineOrGetClass(NX::Globals::Scheduler::Class),
+                                                   module->nexus()->scheduler().get());
 }
 
 const JSStaticValue NX::Globals::Scheduler::Properties[] {
@@ -33,18 +35,19 @@ const JSStaticValue NX::Globals::Scheduler::Properties[] {
 const JSStaticFunction NX::Globals::Scheduler::Methods[] {
   { "schedule", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
       NX::Scheduler * scheduler = reinterpret_cast<NX::Scheduler*>(JSObjectGetPrivate(thisObject));
       NX::Nexus * nx = scheduler->nexus();
       JSObjectRef fun = argumentCount > 0 ? JSValueToObject(ctx, arguments[0], exception) : nullptr;
       if (fun) {
-        JSValueProtect(nx->threadLocalContext(), fun);
+        JSValueProtect(module->context(), fun);
         NX::AbstractTask * taskPtr = scheduler->scheduleTask([=]() {
           JSValueRef exp = nullptr;
-          JSValueRef ret = JSObjectCallAsFunction(nx->threadLocalContext(), fun, nullptr, 0, nullptr, &exp);
+          JSValueRef ret = JSObjectCallAsFunction(module->context(), fun, nullptr, 0, nullptr, &exp);
           if (exp) {
-            NX::Nexus::ReportException(nx->threadLocalContext(), exp);
+            NX::Nexus::ReportException(module->context(), exp);
           }
-          JSValueUnprotect(nx->threadLocalContext(), fun);
+          JSValueUnprotect(module->context(), fun);
         });
         if (!taskPtr) {
           NX::Value message(ctx, "unable to schedule task");
@@ -52,7 +55,7 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         } else {
           JSStringRef abortName = JSStringCreateWithUTF8CString("abort");
-          JSObjectRef taskObject = JSObjectMake(nx->threadLocalContext(), nx->defineOrGetClass({ 0, 0, "Task" }), taskPtr);
+          JSObjectRef taskObject = JSObjectMake(module->context(), nx->defineOrGetClass({ 0, 0, "Task" }), taskPtr);
           JSObjectSetProperty(ctx, taskObject, abortName, JSObjectMakeFunctionWithCallback(
             ctx, abortName, [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                                size_t argumentCount, const JSValueRef arguments[],

@@ -22,7 +22,6 @@
   });
 }
 {
-
   const p1 = Promise.resolve(3);
   const p2 = 1337;
   const p3 = new Promise(function(resolve, reject) {
@@ -55,4 +54,7 @@
   }, function(reason) {
     console.log(reason);
   });
+}
+{
+//   const p1 = Promise.resolve().then(() => { console.log("con"); return p1 });
 }

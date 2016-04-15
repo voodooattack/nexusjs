@@ -37,7 +37,7 @@
           if (resolve) {
             promise[taskKey] = Scheduler.schedule(function() {
               promise[broadcastResolveKey](resolve(value));
-            });
+            }.bind(this));
           }
         });
       };
@@ -50,8 +50,12 @@
         if (rejections.length) {
           rejections.forEach(({ resolve, reject, promise }) => {
             promise[taskKey] = Scheduler.schedule(function() {
-              promise[broadcastResolveKey](reject(value));
-            });
+              try {
+                promise[broadcastResolveKey](reject(value));
+              } catch(e) {
+                promise[broadcastRejectKey](e);
+              }
+            }.bind(this));
           });
         } else {
           const resolves = this[subscribersKey].filter(v => v.resolve);
@@ -59,7 +63,7 @@
             resolves.forEach(({ resolve, reject, promise }) => {
               promise[taskKey] = Scheduler.schedule(function() {
                 promise[broadcastRejectKey](value);
-              });
+              }.bind(this));
             });
           }
         }

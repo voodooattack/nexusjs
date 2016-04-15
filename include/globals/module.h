@@ -29,6 +29,7 @@ namespace NX
     class Module
     {
       static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
+      static JSValueRef GetInstance(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
     public:
       static constexpr JSStaticValue GetStaticProperty() {
         return JSStaticValue { "Module", &NX::Globals::Module::Get, nullptr, kJSPropertyAttributeNone };

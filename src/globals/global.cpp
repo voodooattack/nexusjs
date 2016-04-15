@@ -54,29 +54,30 @@ boost::unordered_map<int, NX::AbstractTask *> globalTimeouts;
 JSStaticFunction NX::Global::GlobalFunctions[] {
   { "setTimeout",
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(thisObject));
+      NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+      NX::Nexus * nx = module->nexus();
       if (argumentCount < 2) {
         // TODO ERROR
       }
       NX::Value timeout(ctx, arguments[1]);
       std::vector<JSValueRef> saved { arguments[0], arguments[1] };
       std::vector<JSValueRef> args;
-      JSValueProtect(nx->threadLocalContext(), arguments[0]);
+      JSValueProtect(module->context(), arguments[0]);
       for(int i = 2; i < argumentCount; i++) {
-        JSValueProtect(nx->threadLocalContext(), arguments[i]);
+        JSValueProtect(module->context(), arguments[i]);
         args.push_back(arguments[i]);
       }
       NX::AbstractTask * task = nx->scheduler()->scheduleTask(boost::posix_time::milliseconds(timeout.toNumber()), [=]() {
         JSValueRef exp = nullptr;
-        JSValueRef ret = JSObjectCallAsFunction(nx->threadLocalContext(), JSValueToObject(nx->threadLocalContext(), saved[0], &exp),
+        JSValueRef ret = JSObjectCallAsFunction(module->context(), JSValueToObject(module->context(), saved[0], &exp),
                                                 nullptr, args.size(), &args[0], &exp);
         if (exp) {
-          NX::Nexus::ReportException(nx->threadLocalContext(), exp);
+          NX::Nexus::ReportException(module->context(), exp);
         }
         for(auto i : args) {
-          JSValueUnprotect(nx->threadLocalContext(), i);
+          JSValueUnprotect(module->context(), i);
         }
-        JSValueUnprotect(nx->threadLocalContext(), saved[0]);
+        JSValueUnprotect(module->context(), saved[0]);
       });
       {
         boost::mutex::scoped_lock lock(timeoutsMutex);
@@ -99,7 +100,10 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
         boost::mutex::scoped_lock lock(timeoutsMutex);
         if (NX::AbstractTask * task = globalTimeouts[taskId]) {
           task->abort();
+        } else {
+          /* TODO error */
         }
+        globalTimeouts.erase(taskId);
         return JSValueMakeUndefined(ctx);
       }
     }, 0

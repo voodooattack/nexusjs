@@ -18,23 +18,22 @@
  */
 
 #include "nexus.h"
+#include "value.h"
 #include "globals/module.h"
 
 #include "module.js.inc"
 
-static const std::vector<JSChar> moduleJS(module_js, module_js + module_js_len);
-
 JSValueRef NX::Globals::Module::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(object));
-  if (nx->globals().find("Module") != nx->globals().end())
-    return nx->globals()["Module"];
-  JSStringRef script = JSStringCreateWithCharacters(moduleJS.data(), moduleJS.size());
-  JSStringRef scriptName = JSStringCreateWithUTF8CString("module.js");
-  JSValueRef Module = JSEvaluateScript(ctx, script, object, scriptName, 1, exception);
-  JSStringRelease(script);
-  JSStringRelease(scriptName);
+  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+  if (module->globals().find("Module") != module->globals().end())
+    return module->globals()["Module"];
+  JSValueRef Module = module->evaluateScript(std::string(module_js, module_js + module_js_len),
+                                             nullptr, "module.js", 1, exception);
+  JSObjectRef moduleObject = JSValueToObject(JSContextGetGlobalContext(ctx), Module, exception);
+  JSObjectSetPrivate(moduleObject, module);
   if (!*exception)
-    nx->globals()["Module"] = JSValueToObject(ctx, Module, exception);
+    module->globals()["Module"] = moduleObject;
   return Module;
 }
+

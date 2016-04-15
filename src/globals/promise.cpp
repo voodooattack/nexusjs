@@ -26,23 +26,23 @@ static const std::vector<JSChar> promiseJS(promise_js, promise_js + promise_js_l
 
 JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(object));
-  if (nx->globals().find("Promise") != nx->globals().end())
-    return nx->globals()["Promise"];
+  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+  if (module->globals().find("Promise") != module->globals().end())
+    return module->globals()["Promise"];
   JSStringRef script = JSStringCreateWithCharacters(promiseJS.data(), promiseJS.size());
   JSStringRef scriptName = JSStringCreateWithUTF8CString("promise.js");
-  JSValueRef Promise = JSEvaluateScript(ctx, script, object, scriptName, 1, exception);
+  JSValueRef Promise = JSEvaluateScript(module->context(), script, object, scriptName, 1, exception);
   JSStringRelease(script);
   JSStringRelease(scriptName);
   if (!*exception)
-    nx->globals()["Promise"] = JSValueToObject(ctx, Promise, exception);
+    module->globals()["Promise"] = JSValueToObject(module->context(), Promise, exception);
   return Promise;
 }
 
 JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)
 {
-  NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  JSObjectRef Promise = nx->globals()["Promise"];
+  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+  JSObjectRef Promise = module->globals()["Promise"];
   JSValueRef args[] { executor };
-  return JSObjectCallAsConstructor(ctx, Promise, 1, args, exception);
+  return JSObjectCallAsConstructor(module->context(), Promise, 1, args, exception);
 }
