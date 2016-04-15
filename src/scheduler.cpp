@@ -46,9 +46,7 @@ void NX::Scheduler::dispatcher()
   myThreadCount++;
   while (!myService->stopped() && remaining())
   {
-    if (processTasks())
-      boost::this_thread::yield();
-    if (!myService->poll_one())
+    if (processTasks() & !myService->poll_one())
       boost::this_thread::yield();
   }
   myThreadCount--;
@@ -112,15 +110,13 @@ void NX::Scheduler::stop()
 
 void NX::Scheduler::join()
 {
-  if (myThreadGroup.get())
+  if (myThreadGroup)
     myThreadGroup->join_all();
 }
 
-NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task, bool increaseTaskCount)
+NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task)
 {
   myTaskQueue.push(task);
-  if (increaseTaskCount)
-    myTaskCount++;
   balanceThreads();
   return task;
 }
@@ -128,6 +124,7 @@ NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task,
 NX::Task * NX::Scheduler::scheduleTask (NX::Scheduler::CompletionHandler handler)
 {
   NX::Task * task = new NX::Task(handler, this);
+  myTaskCount++;
   scheduleAbstractTask(task);
   return task;
 }
@@ -138,7 +135,7 @@ NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, NX
   boost::shared_ptr<timer_type> timer(new timer_type(*myService));
   myTaskCount++;
   timer->expires_from_now(time);
-  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject, false), timer));
+  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
   taskObject->setCancellationHandler([=]() { timer->cancel(); });
   return taskObject;
 }
@@ -146,6 +143,7 @@ NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, NX
 NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (NX::Scheduler::CompletionHandler handler)
 {
   NX::CoroutineTask * task = new NX::CoroutineTask(handler, this);
+  myTaskCount++;
   scheduleAbstractTask(task);
   return task;
 }
@@ -156,7 +154,7 @@ NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::durat
   boost::shared_ptr<timer_type> timer(new timer_type(*myService));
   myTaskCount++;
   timer->expires_from_now(time);
-  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject, false), timer));
+  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
   taskObject->setCancellationHandler([=]() { timer->cancel(); });
   return taskObject;
 }

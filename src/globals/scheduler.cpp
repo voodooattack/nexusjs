@@ -14,11 +14,11 @@ const JSClassDefinition NX::Globals::Scheduler::Class {
 JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(object));
-  if (module->globals().find("Scheduler") != module->globals().end())
-    return module->globals()["Scheduler"];
-  return module->globals()["Scheduler"] = JSObjectMake(module->context(),
-                                                   module->defineOrGetClass(NX::Globals::Scheduler::Class),
-                                                   module->nexus()->scheduler().get());
+  if (JSObjectRef Scheduler = module->getGlobal("Scheduler"))
+    return Scheduler;
+  return module->setGlobal("Scheduler", JSObjectMake(module->context(),
+                                                     module->defineOrGetClass(NX::Globals::Scheduler::Class),
+                                                     module->nexus()->scheduler().get()));
 }
 
 const JSStaticValue NX::Globals::Scheduler::Properties[] {

@@ -26,14 +26,13 @@
 JSValueRef NX::Globals::Module::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  if (module->globals().find("Module") != module->globals().end())
-    return module->globals()["Module"];
+  if (JSObjectRef Module = module->getGlobal("Module"))
+    return Module;
   JSValueRef Module = module->evaluateScript(std::string(module_js, module_js + module_js_len),
                                              nullptr, "module.js", 1, exception);
-  JSObjectRef moduleObject = JSValueToObject(JSContextGetGlobalContext(ctx), Module, exception);
-  JSObjectSetPrivate(moduleObject, module);
+  JSObjectRef moduleObject = JSValueToObject(module->context(), Module, exception);
   if (!*exception)
-    module->globals()["Module"] = moduleObject;
-  return Module;
+    return module->setGlobal("Module", moduleObject);
+  return JSValueMakeUndefined(ctx);
 }
 

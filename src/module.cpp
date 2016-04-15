@@ -22,16 +22,20 @@
 #include "value.h"
 #include "globals/global.h"
 
-NX::Module::Module (NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
-  myNexus(nx), myGroup (group), myContext (nullptr), myGlobalObject (nullptr), myModuleObject(nullptr), myGlobals()
+NX::Module::Module (NX::Module * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
+  myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
+  myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr),
+  myGenericClass(), myObjectClasses(), myParent(parent), myChildren()
 {
+  if (myParent)
+    myParent->myChildren.push_back(std::shared_ptr<NX::Module>(this));
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
-  myContext = JSGlobalContextCreateInGroup(group, gClass);
+  myContext = group ? JSGlobalContextCreateInGroup(group, gClass) : JSGlobalContextCreate(gClass);
   myGlobalObject = JSContextGetGlobalObject(myContext);
   JSObjectSetPrivate(myGlobalObject, this);
   if (!globalClass)
     JSClassRelease(gClass);
-  myModuleObject = getObject(nullptr);
+  myModuleObject = getModuleObject(nullptr);
   NX::Object(myContext, myGlobalObject).set("module", myModuleObject);
 }
 
@@ -53,7 +57,7 @@ NX::Module::~Module()
   JSClassRelease(myGenericClass);
 }
 
-JSObjectRef NX::Module::getObject(JSValueRef * exception)
+JSObjectRef NX::Module::getModuleObject(JSValueRef * exception)
 {
   if (myModuleObject)
     return myModuleObject;

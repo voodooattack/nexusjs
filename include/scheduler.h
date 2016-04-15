@@ -56,7 +56,7 @@ namespace NX
     void join();
     void joinPool() { dispatcher(); }
 
-    NX::AbstractTask * scheduleAbstractTask(NX::AbstractTask * task, bool increaseTaskCount = true);
+    NX::AbstractTask * scheduleAbstractTask(NX::AbstractTask * task);
 
     NX::Task * scheduleTask(CompletionHandler handler);
     NX::Task * scheduleTask(const duration & time, CompletionHandler handler);
@@ -84,7 +84,7 @@ namespace NX
     bool processTasks();
   private:
     NX::Nexus * myNexus;
-    unsigned int myMaxThreads;
+    boost::atomic<unsigned int> myMaxThreads;
     boost::atomic_uint myThreadCount;
     boost::shared_ptr<boost::asio::io_service> myService;
     boost::shared_ptr<boost::asio::io_service::work> myWork;

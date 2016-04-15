@@ -27,16 +27,16 @@ static const std::vector<JSChar> promiseJS(promise_js, promise_js + promise_js_l
 JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  if (module->globals().find("Promise") != module->globals().end())
-    return module->globals()["Promise"];
+  if (JSObjectRef Promise = module->getGlobal("Promise"))
+    return Promise;
   JSStringRef script = JSStringCreateWithCharacters(promiseJS.data(), promiseJS.size());
   JSStringRef scriptName = JSStringCreateWithUTF8CString("promise.js");
   JSValueRef Promise = JSEvaluateScript(module->context(), script, object, scriptName, 1, exception);
   JSStringRelease(script);
   JSStringRelease(scriptName);
   if (!*exception)
-    module->globals()["Promise"] = JSValueToObject(module->context(), Promise, exception);
-  return Promise;
+    return module->setGlobal("Promise", JSValueToObject(module->context(), Promise, exception));
+  return JSValueMakeUndefined(ctx);
 }
 
 JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)

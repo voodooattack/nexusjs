@@ -43,7 +43,7 @@ NX::Nexus::Nexus(int argc, const char ** argv):
     myArguments.push_back(argv[i]);
   }
   myContextGroup = JSContextGroupCreate();
-  myMainModule.reset(new NX::Module(this, myContextGroup));
+  myMainModule.reset(new NX::Module(nullptr, this, myContextGroup));
 }
 
 NX::Nexus::~Nexus()
@@ -102,7 +102,8 @@ void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
 
 void NX::Nexus::initScheduler()
 {
-  myScheduler.reset(new Scheduler(this, myOptions["concurrency"].as<unsigned int>() - 1));
+  unsigned int concurrency = myOptions["concurrency"].as<unsigned int>();
+  myScheduler.reset(new Scheduler(this, concurrency));
 }
 
 int NX::Nexus::run() {

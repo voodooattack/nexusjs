@@ -71,7 +71,13 @@ namespace NX
     virtual Status status() const { return myStatus; }
     virtual void abort() { myStatus.store(ABORTED); if (myCancellationHandler) myCancellationHandler(); }
     virtual void create() { myStatus.store(CREATED); }
-    virtual void enter() { if (myStatus == ABORTED) return; myStatus.store(ACTIVE); myHandler(); myStatus.store(FINISHED); }
+    virtual void enter() {
+      if (myStatus == ABORTED) return;
+      myStatus.store(ACTIVE);
+      myScheduler->makeCurrent(this);
+      myHandler();
+      myStatus.store(FINISHED);
+    }
     virtual void yield() { throw std::runtime_error("can't yield on a regular task"); }
     virtual void exit() {
       for(auto i : myDependents)

@@ -5,6 +5,6 @@ function task(n) {
   Scheduler.schedule(task.bind(null, n));
 }
 
-for(let i = 0; i < 1024; i++) {
+for(let i = 0; i < 1000000; i++) {
   Scheduler.schedule(task.bind(null, i));
 }

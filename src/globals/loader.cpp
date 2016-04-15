@@ -28,9 +28,9 @@ const JSClassDefinition NX::Globals::Loader::Class {
 JSValueRef NX::Globals::Loader::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  if (module->globals().find("Loader") != module->globals().end())
-    return module->globals()["Loader"];
-  return module->globals()["Loader"] = JSObjectMake(module->context(), module->defineOrGetClass(NX::Globals::Loader::Class), nullptr);
+  if (JSObjectRef Loader = module->getGlobal("Loader"))
+    return Loader;
+  return module->setGlobal("Loader", JSObjectMake(module->context(), module->defineOrGetClass(NX::Globals::Loader::Class), nullptr));
 }
 
 const JSStaticFunction NX::Globals::Loader::Methods[] {

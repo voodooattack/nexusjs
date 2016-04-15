@@ -29,7 +29,7 @@ namespace NX {
   class Module
   {
   public:
-    Module(NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass = nullptr);
+    Module(NX::Module * parent = nullptr, NX::Nexus * nx = nullptr, JSContextGroupRef group = nullptr, JSClassRef globalClass = nullptr);
     virtual ~Module();
 
     JSValueRef evaluateScript(const std::string & src,
@@ -44,12 +44,21 @@ namespace NX {
       return myObjectClasses[def.className] = JSClassCreate(&def);
     }
 
+    bool isDetached() { return myGroup != nullptr; }
+
     boost::unordered_map<std::string, JSObjectRef> & globals() { return myGlobals; }
 
     JSGlobalContextRef context() { return myContext; }
     NX::Nexus * nexus() { return myNexus; }
 
-    JSObjectRef getObject(JSValueRef * exception);
+    JSObjectRef getModuleObject(JSValueRef * exception);
+    JSContextGroupRef group() { return myGroup; }
+
+    JSObjectRef getGlobal(const std::string & name) { return myGlobals[name]; }
+    JSObjectRef setGlobal(const std::string & name, JSObjectRef object) {
+      JSValueProtect(myContext, object);
+      return myGlobals[name] = object;
+    }
 
   protected:
     NX::Nexus * myNexus;
@@ -59,6 +68,8 @@ namespace NX {
     JSClassRef myGenericClass;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
     boost::unordered_map<std::string, JSClassRef> myObjectClasses;
+    NX::Module * myParent;
+    std::vector<std::shared_ptr<NX::Module>> myChildren;
   };
 }
 
