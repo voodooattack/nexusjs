@@ -41,12 +41,16 @@ JSValueRef NX::Module::evaluateScript (const std::string & src, JSObjectRef this
   JSStringRef srcRef = JSStringCreateWithUTF8CString(src.c_str());
   JSStringRef filePathRef = filePath.length() ? JSStringCreateWithUTF8CString(filePath.c_str()) : nullptr;
   JSValueRef ret = JSEvaluateScript(myContext, srcRef, thisObject, filePathRef, lineNo, exception);
+  myGenericClass = JSClassCreate(&kJSClassDefinitionEmpty);
   return ret;
 }
 
 NX::Module::~Module()
 {
   JSGlobalContextRelease(myContext);
+  for(auto & c : myObjectClasses)
+    JSClassRelease(c.second);
+  JSClassRelease(myGenericClass);
 }
 
 JSObjectRef NX::Module::getObject(JSValueRef * exception)

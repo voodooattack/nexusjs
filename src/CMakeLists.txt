@@ -13,7 +13,7 @@ add_executable(nexus
   globals/scheduler.cpp
   globals/promise.cpp
   globals/module.cpp
-  globals/system.cpp
+  globals/loader.cpp
 )
 
 target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES})

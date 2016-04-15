@@ -17,24 +17,24 @@
  *
  */
 
-#ifndef GLOBALS_SYSTEM_H
-#define GLOBALS_SYSTEM_H
+#ifndef GLOBALS_LOADER_H
+#define GLOBALS_LOADER_H
 
 #include <JavaScriptCore.h>
 
 namespace NX {
   namespace Globals {
-    class System
+    class Loader
     {
       static const JSClassDefinition Class;
       static const JSStaticFunction Methods[];
       static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
     public:
       static constexpr JSStaticValue GetStaticProperty() {
-        return JSStaticValue { "System", &NX::Globals::System::Get, nullptr, kJSPropertyAttributeNone };
+        return JSStaticValue { "Loader", &NX::Globals::Loader::Get, nullptr, kJSPropertyAttributeNone };
       }
     };
   }
 }
 
-#endif // GLOBALS_SYSTEM_H
+#endif // GLOBALS_LOADER_H

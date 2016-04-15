@@ -29,7 +29,7 @@ namespace NX {
   class Module
   {
   public:
-    Module(NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass);
+    Module(NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass = nullptr);
     virtual ~Module();
 
     JSValueRef evaluateScript(const std::string & src,
@@ -37,6 +37,12 @@ namespace NX {
                               const std::string & filePath = "",
                               unsigned int lineNo = 1,
                               JSValueRef * exception = nullptr);
+
+    JSClassRef defineOrGetClass(const JSClassDefinition & def) {
+      if (myObjectClasses.find(def.className) != myObjectClasses.end())
+        return myObjectClasses[def.className];
+      return myObjectClasses[def.className] = JSClassCreate(&def);
+    }
 
     boost::unordered_map<std::string, JSObjectRef> & globals() { return myGlobals; }
 
@@ -49,9 +55,10 @@ namespace NX {
     NX::Nexus * myNexus;
     JSContextGroupRef myGroup;
     JSGlobalContextRef myContext;
-    JSObjectRef myGlobalObject;
-    JSObjectRef myModuleObject;
+    JSObjectRef myGlobalObject, myModuleObject;
+    JSClassRef myGenericClass;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
+    boost::unordered_map<std::string, JSClassRef> myObjectClasses;
   };
 }
 

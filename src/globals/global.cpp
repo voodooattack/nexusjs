@@ -25,7 +25,7 @@
 #include "globals/scheduler.h"
 #include "globals/promise.h"
 #include "globals/module.h"
-#include "globals/system.h"
+#include "globals/loader.h"
 
 #include <boost/thread/pthread/mutex.hpp>
 
@@ -116,7 +116,7 @@ JSStaticValue NX::Global::GlobalProperties[] {
   NX::Globals::Scheduler::GetStaticProperty(),
   NX::Globals::Promise::GetStaticProperty(),
   NX::Globals::Module::GetStaticProperty(),
-  NX::Globals::System::GetStaticProperty(),
+  NX::Globals::Loader::GetStaticProperty(),
   { nullptr, nullptr, nullptr, 0 }
 };
 

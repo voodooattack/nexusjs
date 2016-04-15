@@ -17,23 +17,23 @@
  *
  */
 
-#include "globals/system.h"
+#include "globals/loader.h"
 #include "nexus.h"
 
-const JSClassDefinition NX::Globals::System::Class {
-  0, kJSClassAttributeNone, "System", nullptr, nullptr, NX::Globals::System::Methods
+const JSClassDefinition NX::Globals::Loader::Class {
+  0, kJSClassAttributeNone, "Loader", nullptr, nullptr, NX::Globals::Loader::Methods
 };
 
 
-JSValueRef NX::Globals::System::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
+JSValueRef NX::Globals::Loader::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  if (module->globals().find("System") != module->globals().end())
-    return module->globals()["System"];
-  return module->globals()["System"] = JSObjectMake(module->context(), module->nexus()->defineOrGetClass(NX::Globals::System::Class), nullptr);
+  if (module->globals().find("Loader") != module->globals().end())
+    return module->globals()["Loader"];
+  return module->globals()["Loader"] = JSObjectMake(module->context(), module->defineOrGetClass(NX::Globals::Loader::Class), nullptr);
 }
 
-const JSStaticFunction NX::Globals::System::Methods[] {
+const JSStaticFunction NX::Globals::Loader::Methods[] {
   { "import", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));

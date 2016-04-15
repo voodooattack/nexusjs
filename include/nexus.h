@@ -43,21 +43,11 @@ namespace NX
     int run();
 
     JSContextGroupRef group() { return myContextGroup; }
-    JSObjectRef global() { return myGlobal; }
-    JSClassRef globalClass() { return myGlobalClass; }
-    JSClassRef genericClass() { return myGenericClass; }
     boost::shared_ptr<NX::Scheduler> & scheduler() { return myScheduler; }
-
-    JSClassRef defineOrGetClass(const JSClassDefinition & def) {
-      if (myObjectClasses.find(def.className) != myObjectClasses.end())
-        return myObjectClasses[def.className];
-      return myObjectClasses[def.className] = JSClassCreate(&def);
-    }
 
   protected:
     bool parseArguments();
     void initScheduler();
-    JSGlobalContextRef createContext();
   public:
     static void ReportException(JSContextRef ctx, JSValueRef exception);
   private:
@@ -66,15 +56,12 @@ namespace NX
     int argc;
     const char ** argv;
     std::list<std::string> myArguments;
-    JSClassRef myGlobalClass, myGenericClass;
     JSContextGroupRef myContextGroup;
-    JSObjectRef myGlobal;
     std::shared_ptr<NX::Module> myMainModule;
     std::string myScriptSource;
     std::string myScriptPath;
     boost::shared_ptr<NX::Scheduler> myScheduler;
     boost::program_options::variables_map myOptions;
-    boost::unordered_map<std::string, JSClassRef> myObjectClasses;
   };
 }
 

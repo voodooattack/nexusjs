@@ -36,25 +36,18 @@
 namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
-  argc(argc), argv(argv), myArguments(), myGlobalClass(nullptr), myGenericClass(nullptr),
-  myContextGroup(nullptr), myGlobal(nullptr), myMainModule(nullptr),
-  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myObjectClasses()
+  argc(argc), argv(argv), myArguments(), myContextGroup(nullptr), myMainModule(nullptr),
+  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions()
 {
   for (unsigned int i = 0; i < argc; i++) {
     myArguments.push_back(argv[i]);
   }
   myContextGroup = JSContextGroupCreate();
-  myGlobalClass = JSClassCreate(&Global::GlobalClass);
-  myGenericClass = JSClassCreate(&kJSClassDefinitionEmpty);
-  myMainModule.reset(new NX::Module(this, myContextGroup, myGlobalClass));
+  myMainModule.reset(new NX::Module(this, myContextGroup));
 }
 
 NX::Nexus::~Nexus()
 {
-  for(auto & c : myObjectClasses)
-    JSClassRelease(c.second);
-  JSClassRelease(myGenericClass);
-  JSClassRelease(myGlobalClass);
   JSContextGroupRelease(myContextGroup);
 }
 
@@ -105,14 +98,6 @@ void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
 //   stream << val["message"]->toString() << " in \"" <<
 //     boost::filesystem::absolute(val["sourceURL"]->toString()).string() << "\" at line " << val["line"]->toString() << std::endl;
 //   stream << "Stack trace:\n" << val["stack"]->toString() << std::endl;
-}
-
-JSGlobalContextRef NX::Nexus::createContext()
-{
-  JSGlobalContextRef context = JSGlobalContextCreateInGroup(myContextGroup, myGlobalClass);
-  JSObjectRef global = JSContextGetGlobalObject(context);
-  JSObjectSetPrivate(global, this);
-  return context;
 }
 
 void NX::Nexus::initScheduler()
