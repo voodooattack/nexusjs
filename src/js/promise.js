@@ -59,13 +59,11 @@
           });
         } else {
           const resolves = this[subscribersKey].filter(v => v.resolve);
-          if (resolves.length) {
-            resolves.forEach(({ resolve, reject, promise }) => {
-              promise[taskKey] = Scheduler.schedule(function() {
-                promise[broadcastRejectKey](value);
-              }.bind(this));
-            });
-          }
+          resolves.forEach(({ resolve, reject, promise }) => {
+            promise[taskKey] = Scheduler.schedule(function() {
+              promise[broadcastRejectKey](value);
+            }.bind(this));
+          });
         }
       };
       this[taskKey] = Scheduler.schedule(

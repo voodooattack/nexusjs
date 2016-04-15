@@ -61,7 +61,7 @@ bool NX::Nexus::parseArguments()
     ("version,v", "print version and exit")
     ("silent,s", "don't print errors")
     ("concurrency", po::value<unsigned int>(&nThreads)->default_value(boost::thread::hardware_concurrency()),
-      "number of threads in the task scheduler's pool (defaults to the available number of cores)")
+      "maximum threads in the task scheduler's pool (defaults to the available number of cores)")
     ("input-file", po::value<std::string>(), "input file");
   po::positional_options_description p;
   p.add("input-file", -1);

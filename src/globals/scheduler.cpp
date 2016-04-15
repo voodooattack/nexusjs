@@ -23,11 +23,16 @@ JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JS
 
 const JSStaticValue NX::Globals::Scheduler::Properties[] {
   { "threadId", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-    std::ostringstream ss;
-    ss << boost::this_thread::get_id();
-    std::string id = ss.str();
-    return NX::Value(ctx, id).value();
-  }, nullptr, kJSPropertyAttributeReadOnly
+      std::ostringstream ss;
+      ss << boost::this_thread::get_id();
+      std::string id = ss.str();
+      return NX::Value(ctx, id).value();
+    }, nullptr, kJSPropertyAttributeReadOnly
+  },
+  { "concurrency", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Scheduler * scheduler = reinterpret_cast<NX::Scheduler*>(JSObjectGetPrivate(object));
+      return NX::Value(ctx, scheduler->concurrency()).value();
+    }, nullptr, kJSPropertyAttributeReadOnly
   },
   { nullptr, nullptr, nullptr, 0 }
 };

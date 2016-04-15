@@ -49,7 +49,7 @@ void NX::Scheduler::dispatcher()
     if (processTasks())
       boost::this_thread::yield();
     if (!myService->poll_one())
-      boost::this_thread::sleep_for(boost::chrono::microseconds(200));
+      boost::this_thread::yield();
   }
   myThreadCount--;
 }
