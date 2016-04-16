@@ -24,12 +24,13 @@
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 
 namespace NX {
   class Value;
   class Object {
   public:
+    Object(JSContextRef, JSClassRef cls = nullptr);
     Object(JSContextRef context, JSObjectRef obj);
     Object(JSContextRef context, JSValueRef val);
     ~Object();
@@ -45,6 +46,8 @@ namespace NX {
       JSObjectSetProperty(myContext, myObject, propertyName, value, attr, exception);
       JSStringRelease(propertyName);
     }
+
+    JSObjectRef value() { return myObject; }
 
     JSObjectRef construct(const std::vector<JSValueRef> & args = std::vector<JSValueRef>(), JSValueRef * exception = nullptr) {
       return JSObjectCallAsConstructor(myContext, myObject, args.size(), &args[0], exception);

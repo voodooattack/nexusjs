@@ -21,6 +21,7 @@
 #include "object.h"
 #include "value.h"
 #include "globals/global.h"
+#include <nexus.h>
 
 NX::Module::Module (NX::Module * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
   myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
@@ -32,11 +33,13 @@ NX::Module::Module (NX::Module * parent, NX::Nexus * nx, JSContextGroupRef group
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
   myContext = group ? JSGlobalContextCreateInGroup(group, gClass) : JSGlobalContextCreate(gClass);
   myGlobalObject = JSContextGetGlobalObject(myContext);
-  JSObjectSetPrivate(myGlobalObject, this);
   if (!globalClass)
     JSClassRelease(gClass);
-  myModuleObject = getModuleObject(nullptr);
-  NX::Object(myContext, myGlobalObject).set("module", myModuleObject);
+  setGlobal("module", myModuleObject);
+  JSValueRef exception = nullptr;
+  initGlobal(myGlobalObject, &exception);
+  if (exception)
+    nx->ReportException(myContext, exception);
 }
 
 JSValueRef NX::Module::evaluateScript (const std::string & src, JSObjectRef thisObject,
@@ -51,10 +54,12 @@ JSValueRef NX::Module::evaluateScript (const std::string & src, JSObjectRef this
 
 NX::Module::~Module()
 {
-  JSGlobalContextRelease(myContext);
+  for(auto & o : myGlobals)
+    JSValueUnprotect(myContext, o.second);
   for(auto & c : myObjectClasses)
     JSClassRelease(c.second);
   JSClassRelease(myGenericClass);
+  JSGlobalContextRelease(myContext);
 }
 
 JSObjectRef NX::Module::getModuleObject(JSValueRef * exception)
@@ -65,5 +70,17 @@ JSObjectRef NX::Module::getModuleObject(JSValueRef * exception)
   return myModuleObject = moduleObject;
 }
 
+void NX::Module::initGlobal (JSObjectRef object, JSValueRef * exception)
+{
+  JSObjectSetPrivate(object, this);
+  NX::Object global(myContext, object);
+  global.set("module", getModuleObject(exception));
+  if (exception && *exception) return;
+  JSObjectRef systemObject = global["Loader"]->toObject()->construct(std::vector<JSValueRef>(), exception);
+  if (exception && *exception) return;
+  global.set("System", systemObject, kJSPropertyAttributeNone, exception);
+  if (exception && *exception) return;
+  setGlobal("System", systemObject);
+}
 
 

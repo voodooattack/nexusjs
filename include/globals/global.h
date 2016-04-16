@@ -20,7 +20,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 
 namespace NX {
   class Nexus;

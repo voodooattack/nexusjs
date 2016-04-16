@@ -20,7 +20,7 @@
 #ifndef SCOPED_CONTEXT_H
 #define SCOPED_CONTEXT_H
 
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 #include <boost/noncopyable.hpp>
 
 namespace NX {

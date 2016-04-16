@@ -20,7 +20,7 @@
 #ifndef MODULE_H
 #define MODULE_H
 
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 #include <string>
 #include <boost/unordered_map.hpp>
 
@@ -58,6 +58,12 @@ namespace NX {
     JSObjectRef setGlobal(const std::string & name, JSObjectRef object) {
       JSValueProtect(myContext, object);
       return myGlobals[name] = object;
+    }
+
+    void initGlobal(JSObjectRef object, JSValueRef * exception);
+
+    static Module * FromContext(JSContextRef ctx) {
+      return reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
     }
 
   protected:

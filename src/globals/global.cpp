@@ -26,6 +26,7 @@
 #include "globals/promise.h"
 #include "globals/module.h"
 #include "globals/loader.h"
+#include "globals/filesystem.h"
 
 #include <boost/thread/pthread/mutex.hpp>
 
@@ -54,58 +55,77 @@ boost::unordered_map<int, NX::AbstractTask *> globalTimeouts;
 JSStaticFunction NX::Global::GlobalFunctions[] {
   { "setTimeout",
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+      NX::Module * module = Module::FromContext(ctx);
       NX::Nexus * nx = module->nexus();
       if (argumentCount < 2) {
-        // TODO ERROR
+        NX::Value message(ctx, "invalid arguments");
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       }
-      NX::Value timeout(ctx, arguments[1]);
-      std::vector<JSValueRef> saved { arguments[0], arguments[1] };
-      std::vector<JSValueRef> args;
-      JSValueProtect(module->context(), arguments[0]);
-      for(int i = 2; i < argumentCount; i++) {
-        JSValueProtect(module->context(), arguments[i]);
-        args.push_back(arguments[i]);
-      }
-      NX::AbstractTask * task = nx->scheduler()->scheduleTask(boost::posix_time::milliseconds(timeout.toNumber()), [=]() {
-        JSValueRef exp = nullptr;
-        JSValueRef ret = JSObjectCallAsFunction(module->context(), JSValueToObject(module->context(), saved[0], &exp),
-                                                nullptr, args.size(), &args[0], &exp);
-        if (exp) {
-          NX::Nexus::ReportException(module->context(), exp);
+      try {
+        NX::Value timeout(ctx, arguments[1]);
+        std::vector<JSValueRef> saved { arguments[0], arguments[1] };
+        std::vector<JSValueRef> args;
+        JSValueProtect(module->context(), arguments[0]);
+        for(int i = 2; i < argumentCount; i++) {
+          JSValueProtect(module->context(), arguments[i]);
+          args.push_back(arguments[i]);
         }
-        for(auto i : args) {
-          JSValueUnprotect(module->context(), i);
+        NX::AbstractTask * task = nx->scheduler()->scheduleTask(boost::posix_time::milliseconds(timeout.toNumber()), [=]() {
+          JSValueRef exp = nullptr;
+          JSValueRef ret = JSObjectCallAsFunction(module->context(), JSValueToObject(module->context(), saved[0], &exp),
+                                                  nullptr, args.size(), &args[0], &exp);
+          if (exp) {
+            NX::Nexus::ReportException(module->context(), exp);
+          }
+          for(auto i : args) {
+            JSValueUnprotect(module->context(), i);
+          }
+          JSValueUnprotect(module->context(), saved[0]);
+        });
+        {
+          boost::mutex::scoped_lock lock(timeoutsMutex);
+          int id = 1;
+          while(globalTimeouts.find(id) != globalTimeouts.end()) id++;
+          globalTimeouts[id] = task;
+          return JSValueMakeNumber(ctx, id);
         }
-        JSValueUnprotect(module->context(), saved[0]);
-      });
-      {
-        boost::mutex::scoped_lock lock(timeoutsMutex);
-        int id = 1;
-        while(globalTimeouts.find(id) != globalTimeouts.end()) id++;
-        globalTimeouts[id] = task;
-        return JSValueMakeNumber(ctx, id);
+      } catch(const std::exception & e) {
+        NX::Value message(ctx, e.what());
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       }
+      return JSValueMakeUndefined(ctx);
     }, 0
   },
   { "clearTimeout",
-    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Nexus * nx = reinterpret_cast<NX::Nexus*>(JSObjectGetPrivate(thisObject));
+    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Module * module = Module::FromContext(ctx);
+      NX::Nexus * nx = module->nexus();
       if (argumentCount != 1) {
-        // TODO ERROR
+        NX::Value message(ctx, "invalid arguments");
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       }
-      NX::Value timeoutId(ctx, arguments[0]);
-      int taskId = (int)timeoutId.toNumber();
-      {
-        boost::mutex::scoped_lock lock(timeoutsMutex);
-        if (NX::AbstractTask * task = globalTimeouts[taskId]) {
-          task->abort();
-        } else {
-          /* TODO error */
+      try {
+        NX::Value timeoutId(ctx, arguments[0]);
+        int taskId = (int)timeoutId.toNumber();
+        {
+          boost::mutex::scoped_lock lock(timeoutsMutex);
+          if (NX::AbstractTask * task = globalTimeouts[taskId]) {
+            task->abort();
+          } else {
+            /* TODO error */
+          }
+          globalTimeouts.erase(taskId);
         }
-        globalTimeouts.erase(taskId);
-        return JSValueMakeUndefined(ctx);
+      } catch(const std::exception & e) {
+        NX::Value message(ctx, e.what());
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       }
+      return JSValueMakeUndefined(ctx);
     }, 0
   },
   { nullptr, nullptr, 0 }
@@ -115,6 +135,7 @@ JSStaticValue NX::Global::GlobalProperties[] {
   NX::Globals::Console::GetStaticProperty(),
   NX::Globals::Scheduler::GetStaticProperty(),
   NX::Globals::Promise::GetStaticProperty(),
+  NX::Globals::FileSystem::GetStaticProperty(),
   NX::Globals::Module::GetStaticProperty(),
   NX::Globals::Loader::GetStaticProperty(),
   { nullptr, nullptr, nullptr, 0 }

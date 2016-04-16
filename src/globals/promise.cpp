@@ -17,32 +17,28 @@
  *
  */
 
-#include "globals/promise.h"
 #include "nexus.h"
+#include "globals/promise.h"
 
 #include "promise.js.inc"
 
-static const std::vector<JSChar> promiseJS(promise_js, promise_js + promise_js_len);
-
 JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+  NX::Module * module = Module::FromContext(ctx);
   if (JSObjectRef Promise = module->getGlobal("Promise"))
     return Promise;
-  JSStringRef script = JSStringCreateWithCharacters(promiseJS.data(), promiseJS.size());
-  JSStringRef scriptName = JSStringCreateWithUTF8CString("promise.js");
-  JSValueRef Promise = JSEvaluateScript(module->context(), script, object, scriptName, 1, exception);
-  JSStringRelease(script);
-  JSStringRelease(scriptName);
+  JSValueRef Promise = module->evaluateScript(std::string(promise_js, promise_js + promise_js_len),
+                                              nullptr, "promise.js", 1, exception);
+  JSObjectRef promiseObject = JSValueToObject(module->context(), Promise, exception);
   if (!*exception)
-    return module->setGlobal("Promise", JSValueToObject(module->context(), Promise, exception));
+    return module->setGlobal("Promise", promiseObject);
   return JSValueMakeUndefined(ctx);
 }
 
 JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)
 {
-  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  JSObjectRef Promise = module->globals()["Promise"];
+  NX::Module * module = Module::FromContext(ctx);
+  JSObjectRef Promise = module->getGlobal("Promise");
   JSValueRef args[] { executor };
   return JSObjectCallAsConstructor(module->context(), Promise, 1, args, exception);
 }

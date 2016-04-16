@@ -22,7 +22,7 @@
 
 #include <list>
 #include <string>
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 
 #include <boost/unordered_map.hpp>
 #include <boost/program_options.hpp>

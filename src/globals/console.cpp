@@ -25,7 +25,7 @@
 
 JSValueRef NX::Globals::Console::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(object));
+  NX::Module * module = Module::FromContext(ctx);
   if (JSObjectRef console = module->getGlobal("console")) {
     return console;
   }
@@ -35,29 +35,41 @@ JSValueRef NX::Globals::Console::Get (JSContextRef ctx, JSObjectRef object, JSSt
 const JSStaticFunction NX::Globals::Console::Methods[] {
   { "log", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      std::string output;
-      for(int i = 0; i < argumentCount; i++)
-      {
-        output += NX::Value(ctx, arguments[i]).toString();
-        if (i < argumentCount - 1)
-          output += " ";
+      try {
+        std::string output;
+        for(int i = 0; i < argumentCount; i++)
+        {
+          output += NX::Value(ctx, arguments[i]).toString();
+          if (i < argumentCount - 1)
+            output += " ";
+        }
+        output += "\n";
+        std::cout << output;
+      } catch(const std::exception & e) {
+        NX::Value message(ctx, e.what());
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       }
-      output += "\n";
-      std::cout << output;
       return JSValueMakeUndefined(ctx);
     }, 0
   },
   { "error", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      std::string output;
-      for(int i = 0; i < argumentCount; i++)
-      {
-        output += NX::Value(ctx, arguments[i]).toString();
-        if (i < argumentCount - 1)
-          output += " ";
+      try {
+        std::string output;
+        for(int i = 0; i < argumentCount; i++)
+        {
+          output += NX::Value(ctx, arguments[i]).toString();
+          if (i < argumentCount - 1)
+            output += " ";
+        }
+        output += "\n";
+        std::cerr << output;
+      } catch(const std::exception & e) {
+        NX::Value message(ctx, e.what());
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       }
-      output += "\n";
-      std::cerr << output;
       return JSValueMakeUndefined(ctx);
     }, 0
   },

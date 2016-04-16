@@ -17,26 +17,40 @@
  *
  */
 
-#ifndef GLOBALS_SCHEDULER_H
-#define GLOBALS_SCHEDULER_H
+#ifndef CLASSES_STREAM_H
+#define CLASSES_STREAM_H
 
 #include <JavaScript.h>
 
-namespace NX {
+namespace NX
+{
   class Nexus;
-  namespace Globals {
-    class Scheduler
+  class Module;
+  namespace Classes
+  {
+    class Stream
     {
+    private:
       static const JSClassDefinition Class;
       static const JSStaticValue Properties[];
       static const JSStaticFunction Methods[];
-      static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
-    public:
-      static constexpr JSStaticValue GetStaticProperty() {
-        return JSStaticValue { "Scheduler", &NX::Globals::Scheduler::Get, nullptr, kJSPropertyAttributeNone };
+
+      static void Finalize(JSObjectRef object) {
+        NX::Classes::Stream * stream = reinterpret_cast<NX::Classes::Stream *>(JSObjectGetPrivate(object));
+        delete stream;
       }
+
+    public:
+      static JSClassRef createClass(NX::Module * module);
+      static JSValueRef create(NX::Module * module, JSContextRef ctx,
+                               unsigned int argumentsCount, JSValueRef arguments[],
+                               JSValueRef * exception);
+
+    public:
+      Stream() {}
+      virtual ~Stream() {}
     };
   }
 }
 
-#endif // GLOBALS_SCHEDULER_H
+#endif // CLASSES_FILE_H

@@ -22,6 +22,17 @@
 
 #include <stdexcept>
 
+NX::Object::Object (JSContextRef context, JSClassRef cls): myContext(context), myObject(nullptr)
+{
+  JSValueRef exception = nullptr;
+  myObject = JSObjectMake(context, cls, &exception);
+  if (exception) {
+    NX::Value except(myContext, exception);
+    throw std::runtime_error(except.toString());
+  }
+  JSValueProtect(context, myObject);
+}
+
 NX::Object::Object (JSContextRef context, JSObjectRef obj): myContext(context), myObject(obj)
 {
   JSValueProtect(context, obj);

@@ -17,25 +17,26 @@
  *
  */
 
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef GLOBALS_FILESYSTEM_H
+#define GLOBALS_FILESYSTEM_H
 
 #include <JavaScript.h>
-#include <vector>
 
 namespace NX {
-  JSValueRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
-  {
-    JSStringRef strBind = JSStringCreateWithUTF8CString("Function.__proto__.bind");
-    JSValueRef bind = JSEvaluateScript(ctx, strBind, JSContextGetGlobalObject(ctx), nullptr, 0, exception);
-    JSStringRelease(strBind);
-    std::vector<JSValueRef> args;
-    args.push_back(thisObject);
-    for(int i = 0; i < argumentCount; i++)
-        args.push_back(arguments[i]);
-    return JSObjectCallAsFunction(ctx, JSValueToObject(ctx, bind, exception), function, args.size(), &args[0], exception);
+  class Nexus;
+  namespace Globals {
+    class FileSystem
+    {
+      static const JSClassDefinition Class;
+      static const JSStaticFunction Methods[];
+      static const JSStaticValue Properties[];
+      static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
+    public:
+      static constexpr JSStaticValue GetStaticProperty() {
+        return JSStaticValue { "FileSystem", &NX::Globals::FileSystem::Get, nullptr, kJSPropertyAttributeNone };
+      }
+    };
   }
 }
 
-#endif // UTIL_H
+#endif // GLOBALS_FILESYSTEM_H

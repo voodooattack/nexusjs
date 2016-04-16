@@ -13,7 +13,7 @@ const JSClassDefinition NX::Globals::Scheduler::Class {
 
 JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(object));
+  NX::Module * module = Module::FromContext(ctx);
   if (JSObjectRef Scheduler = module->getGlobal("Scheduler"))
     return Scheduler;
   return module->setGlobal("Scheduler", JSObjectMake(module->context(),
@@ -40,7 +40,7 @@ const JSStaticValue NX::Globals::Scheduler::Properties[] {
 const JSStaticFunction NX::Globals::Scheduler::Methods[] {
   { "schedule", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+      NX::Module * module = Module::FromContext(ctx);
       NX::Scheduler * scheduler = reinterpret_cast<NX::Scheduler*>(JSObjectGetPrivate(thisObject));
       JSObjectRef fun = argumentCount > 0 ? JSValueToObject(ctx, arguments[0], exception) : nullptr;
       if (fun) {

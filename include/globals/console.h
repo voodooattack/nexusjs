@@ -20,7 +20,7 @@
 #ifndef GLOBALS_CONSOLE_H
 #define GLOBALS_CONSOLE_H
 
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 
 namespace NX {
   class Nexus;

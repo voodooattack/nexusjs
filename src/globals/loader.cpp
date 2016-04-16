@@ -17,8 +17,11 @@
  *
  */
 
-#include "globals/loader.h"
 #include "nexus.h"
+#include "globals/loader.h"
+#include "globals/promise.h"
+
+#include <boost/asio.hpp>
 
 const JSClassDefinition NX::Globals::Loader::Class {
   0, kJSClassAttributeNone, "Loader", nullptr, nullptr, NX::Globals::Loader::Methods
@@ -34,16 +37,29 @@ JSValueRef NX::Globals::Loader::Get (JSContextRef ctx, JSObjectRef object, JSStr
 }
 
 const JSStaticFunction NX::Globals::Loader::Methods[] {
+  { "importSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Module * module = Module::FromContext(ctx);
+
+      return JSValueMakeUndefined(ctx);
+    }, 0
+  },
   { "import", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-      /* TODO: IMPLEMENT THIS */
-      return JSValueMakeUndefined(ctx);
+      NX::Module * module = Module::FromContext(ctx);
+
+      JSObjectRef loadFunction = JSObjectMakeFunctionWithCallback(ctx, nullptr,
+        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
+      {
+        /* TODO: FINISH THIS */
+      });;
+      return Promise::createPromise(ctx, loadFunction, exception);
     }, 0
   },
   { "resolve", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+      NX::Module * module = Module::FromContext(ctx);
       /* TODO: IMPLEMENT THIS */
       return JSValueMakeUndefined(ctx);
     }, 0

@@ -21,7 +21,7 @@
 #ifndef GLOBALS_PROMISE_H
 #define GLOBALS_PROMISE_H
 
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 
 namespace NX {
   class Nexus;

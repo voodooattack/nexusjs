@@ -20,7 +20,7 @@
 #ifndef GLOBALS_LOADER_H
 #define GLOBALS_LOADER_H
 
-#include <JavaScriptCore.h>
+#include <JavaScript.h>
 
 namespace NX {
   namespace Globals {

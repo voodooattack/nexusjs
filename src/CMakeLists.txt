@@ -14,6 +14,9 @@ add_executable(nexus
   globals/promise.cpp
   globals/module.cpp
   globals/loader.cpp
+  globals/filesystem.cpp
+  classes/stream.cpp
+  classes/file.cpp
 )
 
 target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES})
@@ -22,5 +25,3 @@ target_include_directories(nexus PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BIN
 link_directories(${Boost_LIBRARY_DIRS})
 
 install(TARGETS nexus RUNTIME DESTINATION bin)
-
-
