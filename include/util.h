@@ -24,7 +24,7 @@
 #include <vector>
 
 namespace NX {
-  JSValueRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+  JSObjectRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                             size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
   {
     JSStringRef strBind = JSStringCreateWithUTF8CString("Function.__proto__.bind");
@@ -34,7 +34,8 @@ namespace NX {
     args.push_back(thisObject);
     for(int i = 0; i < argumentCount; i++)
         args.push_back(arguments[i]);
-    return JSObjectCallAsFunction(ctx, JSValueToObject(ctx, bind, exception), function, args.size(), &args[0], exception);
+    return JSValueToObject(ctx,
+      JSObjectCallAsFunction(ctx, JSValueToObject(ctx, bind, exception), function, args.size(), &args[0], exception), exception);
   }
 }
 

@@ -38,7 +38,7 @@ JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSSt
 JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)
 {
   NX::Module * module = Module::FromContext(ctx);
-  JSObjectRef Promise = module->getGlobal("Promise");
+  JSObjectRef Promise = module->getOrInitGlobal("Promise");
   JSValueRef args[] { executor };
-  return JSObjectCallAsConstructor(module->context(), Promise, 1, args, exception);
+  return JSObjectCallAsConstructor(ctx, Promise, 1, args, exception);
 }

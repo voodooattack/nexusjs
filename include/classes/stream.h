@@ -36,15 +36,15 @@ namespace NX
       static const JSStaticFunction Methods[];
 
       static void Finalize(JSObjectRef object) {
-        NX::Classes::Stream * stream = reinterpret_cast<NX::Classes::Stream *>(JSObjectGetPrivate(object));
-        delete stream;
+        delete FromObject(object);
+      }
+
+      static NX::Classes::Stream * FromObject(JSObjectRef object) {
+        return reinterpret_cast<NX::Classes::Stream *>(JSObjectGetPrivate(object));
       }
 
     public:
       static JSClassRef createClass(NX::Module * module);
-      static JSValueRef create(NX::Module * module, JSContextRef ctx,
-                               unsigned int argumentsCount, JSValueRef arguments[],
-                               JSValueRef * exception);
 
     public:
       Stream() {}

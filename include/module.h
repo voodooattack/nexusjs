@@ -54,7 +54,25 @@ namespace NX {
     JSObjectRef getModuleObject(JSValueRef * exception);
     JSContextGroupRef group() { return myGroup; }
 
-    JSObjectRef getGlobal(const std::string & name) { return myGlobals[name]; }
+    JSObjectRef getGlobal(const std::string & name) {
+      return myGlobals[name];
+    }
+
+    JSObjectRef getOrInitGlobal(const std::string & name) {
+      if (!myGlobals[name]) {
+        JSStringRef propName = JSStringCreateWithUTF8CString(name.c_str());
+        JSValueRef value = JSObjectGetProperty(myContext, JSContextGetGlobalObject(myContext), propName, nullptr);
+        JSStringRelease(propName);
+        if (value) {
+          JSObjectRef object = JSValueToObject(myContext, value, nullptr);
+          if (object)
+            return myGlobals[name] = object;
+        }
+        return nullptr;
+      }
+      return myGlobals[name];
+    }
+
     JSObjectRef setGlobal(const std::string & name, JSObjectRef object) {
       JSValueProtect(myContext, object);
       return myGlobals[name] = object;

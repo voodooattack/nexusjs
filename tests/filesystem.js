@@ -1,3 +1,3 @@
-const file = new FileSystem.File("test_file", FileSystem.OpenMode.Write);
+const file = new FileSystem.File("test_file", FileSystem.OpenMode.Read);
 
-console.log(file);
+file.readAsString().then(v => console.log(v));

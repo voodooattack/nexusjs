@@ -62,6 +62,10 @@ namespace NX
       File(NX::Module * owner, const std::string & fileName, std::fstream::openmode mode);
       virtual ~File() { }
 
+      JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
+      JSValueRef readAsString(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+                              size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
     private:
       NX::Module * myOwner;
       std::fstream myStream;
