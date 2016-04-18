@@ -20,9 +20,8 @@
 #include "value.h"
 #include "context.h"
 #include "object.h"
+#include "util.h"
 #include "classes/context.h"
-#include <boost/concept_check.hpp>
-
 
 JSClassRef NX::Classes::Context::createClass (NX::Context * context)
 {
@@ -92,12 +91,31 @@ NX::Classes::Context::~Context() {
 
 }
 
+#include <iostream>
+
+JSValueRef NX::Classes::Context::exports(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
+{
+  return myContext->exports();
+}
+
 const JSClassDefinition NX::Classes::Context::Class {
   0, kJSClassAttributeNone, "Context", nullptr, NX::Classes::Context::Properties,
   NX::Classes::Context::Methods, nullptr, NX::Classes::Context::Finalize
 };
 
 const JSStaticValue NX::Classes::Context::Properties[] {
+  { "exports", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = NX::Context::FromJsContext(ctx);
+      NX::Classes::Context * thisContext = FromObject(object);
+      if (!thisContext) {
+        NX::Value message(ctx, "invalid `this` value");
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return JSValueMakeUndefined(ctx);
+      }
+      return thisContext->exports(ctx, object, propertyName, exception);
+    }, nullptr, kJSPropertyAttributeReadOnly
+  },
   { nullptr, nullptr, nullptr, 0 }
 };
 

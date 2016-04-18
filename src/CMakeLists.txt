@@ -8,7 +8,7 @@ find_package(Iconv REQUIRED)
 include(FindJavaScriptCore)
 
 add_executable(nexus
-  main.cpp nexus.cpp scheduler.cpp task.cpp object.cpp value.cpp context.cpp
+  main.cpp nexus.cpp scheduler.cpp task.cpp object.cpp value.cpp context.cpp util.cpp
   globals/global.cpp
   globals/console.cpp
   globals/scheduler.cpp

@@ -23,20 +23,13 @@
 #include <JavaScript.h>
 #include <vector>
 
-namespace NX {
-  JSObjectRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
-  {
-    JSStringRef strBind = JSStringCreateWithUTF8CString("Function.__proto__.bind");
-    JSValueRef bind = JSEvaluateScript(ctx, strBind, JSContextGetGlobalObject(ctx), nullptr, 0, exception);
-    JSStringRelease(strBind);
-    std::vector<JSValueRef> args;
-    args.push_back(thisObject);
-    for(int i = 0; i < argumentCount; i++)
-        args.push_back(arguments[i]);
-    return JSValueToObject(ctx,
-      JSObjectCallAsFunction(ctx, JSValueToObject(ctx, bind, exception), function, args.size(), &args[0], exception), exception);
-  }
-}
+namespace NX
+{
 
+  JSObjectRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
+
+  JSObjectRef JSCopyObjectShallow(JSContextRef source, JSContextRef dest, JSObjectRef object, JSValueRef * exception);
+  
+}
 #endif // UTIL_H

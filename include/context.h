@@ -24,6 +24,9 @@
 #include <string>
 #include <boost/unordered_map.hpp>
 
+#include "object.h"
+#include "value.h"
+
 namespace NX {
   class Nexus;
   class Context
@@ -75,6 +78,10 @@ namespace NX {
       return myGlobals[name];
     }
 
+    JSObjectRef exports() {
+      return NX::Object(myContext, myGlobalObject)["module"]->toObject()->operator[]("exports")->toObject()->value();
+    }
+
     JSObjectRef setGlobal(const std::string & name, JSObjectRef object) {
       JSValueProtect(myContext, object);
       return myGlobals[name] = object;
@@ -90,7 +97,7 @@ namespace NX {
     NX::Nexus * myNexus;
     JSContextGroupRef myGroup;
     JSGlobalContextRef myContext;
-    JSObjectRef myGlobalObject, myModuleObject;
+    JSObjectRef myGlobalObject, myModuleObject, myExports;
     JSClassRef myGenericClass;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
     boost::unordered_map<std::string, JSClassRef> myObjectClasses;
