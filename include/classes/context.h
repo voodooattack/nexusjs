@@ -17,45 +17,50 @@
  *
  */
 
-#ifndef CLASSES_STREAM_H
-#define CLASSES_STREAM_H
+#ifndef CLASSES_CONTEXT_H
+#define CLASSES_CONTEXT_H
 
 #include <JavaScript.h>
+#include <boost/shared_ptr.hpp>
 
-namespace NX
-{
-  class Nexus;
+namespace NX {
   class Context;
-  namespace Classes
-  {
-    class Stream
+  namespace Classes {
+    class Context
     {
     private:
       static const JSClassDefinition Class;
       static const JSStaticValue Properties[];
       static const JSStaticFunction Methods[];
 
+      static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                     const JSValueRef arguments[], JSValueRef* exception);
+
       static void Finalize(JSObjectRef object) {
         delete FromObject(object);
       }
 
-      static NX::Classes::Stream * FromObject(JSObjectRef object) {
-        return reinterpret_cast<NX::Classes::Stream *>(JSObjectGetPrivate(object));
+    public:
+      static JSClassRef createClass(NX::Context * context);
+      static JSObjectRef getConstructor(NX::Context * context);
+
+      static NX::Classes::Context * FromObject(JSObjectRef object) {
+        /* Two-step cast is important. */
+        NX::Classes::Context * context = reinterpret_cast<NX::Classes::Context *>(JSObjectGetPrivate(object));
+        return context;
       }
 
     public:
-      static JSClassRef createClass(NX::Context * module);
+      Context(NX::Context * parent, JSObjectRef globalOverrides = nullptr);
+      virtual ~Context();
 
-      virtual JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) = 0;
-      virtual JSValueRef readAsString(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) = 0;
+      JSValueRef eval(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
 
-    public:
-      Stream() {}
-      virtual ~Stream() {}
+    private:
+      boost::shared_ptr<NX::Context> myContext;
     };
   }
 }
 
-#endif // CLASSES_FILE_H
+#endif // CLASSES_CONTEXT_H

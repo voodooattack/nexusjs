@@ -46,9 +46,9 @@ namespace NX
       }
 
     public:
-      static JSClassRef createClass(NX::Context * module);
-      static JSObjectRef getConstructor(NX::Context * module);
-      static JSValueRef create(NX::Context * module, JSContextRef ctx,
+      static JSClassRef createClass(NX::Context * context);
+      static JSObjectRef getConstructor(NX::Context * context);
+      static JSValueRef create(NX::Context * context, JSContextRef ctx,
                                unsigned int argumentsCount, JSValueRef arguments[],
                                JSValueRef * exception);
 
@@ -65,10 +65,10 @@ namespace NX
       File(NX::Context * owner, const std::string & fileName, std::fstream::openmode mode);
       virtual ~File() { }
 
-      JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
-      JSValueRef readAsString(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                              size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
+      virtual JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+                                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
+      virtual JSValueRef readAsString(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+                                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
     void module();
     private:
       NX::Context * myOwner;

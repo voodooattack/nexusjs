@@ -58,6 +58,8 @@ namespace NX {
       return myGlobals[name];
     }
 
+    JSObjectRef globalObject() { return myGlobalObject; }
+
     JSObjectRef getOrInitGlobal(const std::string & name) {
       if (!myGlobals[name]) {
         JSStringRef propName = JSStringCreateWithUTF8CString(name.c_str());
@@ -93,7 +95,6 @@ namespace NX {
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
     boost::unordered_map<std::string, JSClassRef> myObjectClasses;
     NX::Context * myParent;
-    std::vector<std::shared_ptr<NX::Context>> myChildren;
   };
 }
 

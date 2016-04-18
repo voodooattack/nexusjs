@@ -16,8 +16,10 @@ add_executable(nexus
   globals/module.cpp
   globals/loader.cpp
   globals/filesystem.cpp
+  globals/context.cpp
   classes/stream.cpp
   classes/file.cpp
+  classes/context.cpp
 )
 
 target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICONV_LIBRARIES})

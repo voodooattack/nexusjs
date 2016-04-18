@@ -26,10 +26,8 @@
 NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
   myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
   myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr),
-  myGenericClass(), myObjectClasses(), myParent(parent), myChildren()
+  myGenericClass(), myObjectClasses(), myParent(parent)
 {
-  if (myParent)
-    myParent->myChildren.push_back(std::shared_ptr<NX::Context>(this));
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
   myContext = group ? JSGlobalContextCreateInGroup(group, gClass) : JSGlobalContextCreate(gClass);
   myGlobalObject = JSContextGetGlobalObject(myContext);
