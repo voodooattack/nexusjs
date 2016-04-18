@@ -28,7 +28,7 @@
 namespace NX
 {
   class Nexus;
-  class Module;
+  class Context;
   namespace Classes
   {
     class File: public NX::Classes::Stream
@@ -46,9 +46,9 @@ namespace NX
       }
 
     public:
-      static JSClassRef createClass(NX::Module * module);
-      static JSObjectRef getConstructor(NX::Module * module);
-      static JSValueRef create(NX::Module * module, JSContextRef ctx,
+      static JSClassRef createClass(NX::Context * module);
+      static JSObjectRef getConstructor(NX::Context * module);
+      static JSValueRef create(NX::Context * module, JSContextRef ctx,
                                unsigned int argumentsCount, JSValueRef arguments[],
                                JSValueRef * exception);
 
@@ -62,15 +62,16 @@ namespace NX
       static char * convert (const char * from_charset, const char * to_charset, const char * input);
 
     public:
-      File(NX::Module * owner, const std::string & fileName, std::fstream::openmode mode);
+      File(NX::Context * owner, const std::string & fileName, std::fstream::openmode mode);
       virtual ~File() { }
 
       JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                       size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
       JSValueRef readAsString(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                               size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
+    void module();
     private:
-      NX::Module * myOwner;
+      NX::Context * myOwner;
       std::fstream myStream;
     };
   }

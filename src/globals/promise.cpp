@@ -24,21 +24,21 @@
 
 JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  if (JSObjectRef Promise = module->getGlobal("Promise"))
+  NX::Context * context = Context::FromJsContext(ctx);
+  if (JSObjectRef Promise = context->getGlobal("Promise"))
     return Promise;
-  JSValueRef Promise = module->evaluateScript(std::string(promise_js, promise_js + promise_js_len),
+  JSValueRef Promise = context->evaluateScript(std::string(promise_js, promise_js + promise_js_len),
                                               nullptr, "promise.js", 1, exception);
-  JSObjectRef promiseObject = JSValueToObject(module->context(), Promise, exception);
+  JSObjectRef promiseObject = JSValueToObject(context->toJSContext(), Promise, exception);
   if (!*exception)
-    return module->setGlobal("Promise", promiseObject);
+    return context->setGlobal("Promise", promiseObject);
   return JSValueMakeUndefined(ctx);
 }
 
 JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  JSObjectRef Promise = module->getOrInitGlobal("Promise");
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSObjectRef Promise = context->getOrInitGlobal("Promise");
   JSValueRef args[] { executor };
   return JSObjectCallAsConstructor(ctx, Promise, 1, args, exception);
 }

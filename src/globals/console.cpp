@@ -25,11 +25,11 @@
 
 JSValueRef NX::Globals::Console::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  if (JSObjectRef console = module->getGlobal("console")) {
+  NX::Context * context = Context::FromJsContext(ctx);
+  if (JSObjectRef console = context->getGlobal("console")) {
     return console;
   }
-  return module->setGlobal("console", JSObjectMake(module->context(), module->defineOrGetClass(NX::Globals::Console::Class), nullptr));
+  return context->setGlobal("console", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::Console::Class), nullptr));
 }
 
 const JSStaticFunction NX::Globals::Console::Methods[] {

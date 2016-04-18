@@ -18,18 +18,18 @@
  */
 
 #include "nexus.h"
-#include "module.h"
+#include "context.h"
 #include "object.h"
 #include "globals/filesystem.h"
 #include "classes/file.h"
 
 JSValueRef NX::Globals::FileSystem::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  if (JSObjectRef FileSystem = module->getGlobal("FileSystem")) {
+  NX::Context * context = Context::FromJsContext(ctx);
+  if (JSObjectRef FileSystem = context->getGlobal("FileSystem")) {
     return FileSystem;
   }
-  return module->setGlobal("FileSystem", JSObjectMake(module->context(), module->defineOrGetClass(NX::Globals::FileSystem::Class), nullptr));
+  return context->setGlobal("FileSystem", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::FileSystem::Class), nullptr));
 }
 
 const JSClassDefinition NX::Globals::FileSystem::Class {
@@ -38,17 +38,17 @@ const JSClassDefinition NX::Globals::FileSystem::Class {
 
 const JSStaticValue NX::Globals::FileSystem::Properties[] {
   { "File", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
-      if (JSObjectRef File = module->getGlobal("File"))
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("File"))
         return File;
-      JSObjectRef constructor = NX::Classes::File::getConstructor(module);
-      module->setGlobal("File", constructor);
+      JSObjectRef constructor = NX::Classes::File::getConstructor(context);
+      context->setGlobal("File", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "OpenMode", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
-      if (JSObjectRef OpenMode = module->getGlobal("FileSystem.OpenMode"))
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef OpenMode = context->getGlobal("FileSystem.OpenMode"))
         return OpenMode;
       NX::Object modes(ctx);
       modes.set("Read", JSValueMakeNumber(ctx, std::fstream::in));
@@ -57,7 +57,7 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
       modes.set("End", JSValueMakeNumber(ctx, std::fstream::ate));
       modes.set("Append", JSValueMakeNumber(ctx, std::fstream::app));
       modes.set("Truncate", JSValueMakeNumber(ctx, std::fstream::trunc));
-      return module->setGlobal("FileSystem.OpenMode", modes.value());
+      return context->setGlobal("FileSystem.OpenMode", modes.value());
     }, nullptr, kJSPropertyAttributeNone
   },
   { nullptr, nullptr, nullptr, 0 }
@@ -66,14 +66,14 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
 const JSStaticFunction NX::Globals::FileSystem::Methods[] {
   { "exists", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       /* TODO: IMPLEMENT THIS */
       return JSValueMakeUndefined(ctx);
     }, 0
   },
   { "resolve", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       /* TODO: IMPLEMENT THIS */
       return JSValueMakeUndefined(ctx);
     }, 0

@@ -18,21 +18,21 @@
  */
 
 #include "nexus.h"
-#include "module.h"
+#include "context.h"
 #include "globals/module.h"
 
 #include "module.js.inc"
 
 JSValueRef NX::Globals::Module::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = NX::Module::FromContext(ctx);
-  if (JSObjectRef Module = module->getGlobal("Module"))
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  if (JSObjectRef Module = context->getGlobal("Module"))
     return Module;
-  JSValueRef Module = module->evaluateScript(std::string(module_js, module_js + module_js_len),
+  JSValueRef Module = context->evaluateScript(std::string(module_js, module_js + module_js_len),
                                              nullptr, "module.js", 1, exception);
-  JSObjectRef moduleObject = JSValueToObject(module->context(), Module, exception);
+  JSObjectRef moduleObject = JSValueToObject(context->toJSContext(), Module, exception);
   if (!*exception)
-    return module->setGlobal("Module", moduleObject);
+    return context->setGlobal("Module", moduleObject);
   return JSValueMakeUndefined(ctx);
 }
 

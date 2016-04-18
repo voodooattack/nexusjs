@@ -43,7 +43,7 @@ NX::Nexus::Nexus(int argc, const char ** argv):
     myArguments.push_back(argv[i]);
   }
   myContextGroup = JSContextGroupCreate();
-  myMainModule.reset(new NX::Module(nullptr, this, myContextGroup));
+  myMainModule.reset(new NX::Context(nullptr, this, myContextGroup));
 }
 
 NX::Nexus::~Nexus()
@@ -120,7 +120,7 @@ int NX::Nexus::run() {
       myScheduler->join();
       return 0;
     } else {
-      NX::Nexus::ReportException(myMainModule->context(), exception);
+      NX::Nexus::ReportException(myMainModule->toJSContext(), exception);
       return 1;
     }
   } catch(std::exception & e) {

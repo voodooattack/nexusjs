@@ -30,23 +30,23 @@ const JSClassDefinition NX::Globals::Loader::Class {
 
 JSValueRef NX::Globals::Loader::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Module * module = reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-  if (JSObjectRef Loader = module->getGlobal("Loader"))
+  NX::Context * context = reinterpret_cast<NX::Context*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+  if (JSObjectRef Loader = context->getGlobal("Loader"))
     return Loader;
-  return module->setGlobal("Loader", JSObjectMake(module->context(), module->defineOrGetClass(NX::Globals::Loader::Class), nullptr));
+  return context->setGlobal("Loader", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::Loader::Class), nullptr));
 }
 
 const JSStaticFunction NX::Globals::Loader::Methods[] {
   { "importSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
 
       return JSValueMakeUndefined(ctx);
     }, 0
   },
   { "import", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
 
       JSObjectRef loadFunction = JSObjectMakeFunctionWithCallback(ctx, nullptr,
         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -59,7 +59,7 @@ const JSStaticFunction NX::Globals::Loader::Methods[] {
   },
   { "resolve", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       /* TODO: IMPLEMENT THIS */
       return JSValueMakeUndefined(ctx);
     }, 0

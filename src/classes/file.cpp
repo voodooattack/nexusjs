@@ -1,4 +1,4 @@
-#include "module.h"
+#include "context.h"
 #include "value.h"
 #include "object.h"
 #include "nexus.h"
@@ -11,24 +11,24 @@
 #include <iconv.h>
 #include <errno.h>
 
-JSClassRef NX::Classes::File::createClass (NX::Module * module)
+JSClassRef NX::Classes::File::createClass (NX::Context * context)
 {
-  JSClassRef Stream = NX::Classes::Stream::createClass(module);
+  JSClassRef Stream = NX::Classes::Stream::createClass(context);
   JSClassDefinition FileDef = NX::Classes::File::Class;
   FileDef.parentClass = Stream;
-  return module->defineOrGetClass(FileDef);
+  return context->defineOrGetClass(FileDef);
 }
 
-JSObjectRef NX::Classes::File::getConstructor (NX::Module * module)
+JSObjectRef NX::Classes::File::getConstructor (NX::Context * context)
 {
-  return JSObjectMakeConstructor(module->context(), NX::Classes::File::createClass(module), NX::Classes::File::Constructor);
+  return JSObjectMakeConstructor(context->toJSContext(), NX::Classes::File::createClass(context), NX::Classes::File::Constructor);
 }
 
 JSObjectRef NX::Classes::File::Constructor (JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
                                             const JSValueRef arguments[], JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  JSClassRef fileClass = createClass(module);
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSClassRef fileClass = createClass(context);
   if (argumentCount != 2) {
     NX::Value message(ctx, "invalid arguments");
     JSValueRef args[] { message.value(), nullptr };
@@ -38,7 +38,7 @@ JSObjectRef NX::Classes::File::Constructor (JSContextRef ctx, JSObjectRef constr
   try {
     /* It is important we cast to Stream here, the stream finalizer expects a Stream pointer, not a File pointer. */
     return JSObjectMake(ctx, fileClass, dynamic_cast<NX::Classes::Stream*>(new NX::Classes::File(
-      module,
+                           context,
       NX::Value(ctx, arguments[0]).toString(),
       (std::iostream::openmode)NX::Value(ctx, arguments[1]).toNumber()
     )));
@@ -50,7 +50,7 @@ JSObjectRef NX::Classes::File::Constructor (JSContextRef ctx, JSObjectRef constr
   return JSObjectMake(ctx, nullptr, nullptr);
 }
 
-NX::Classes::File::File (NX::Module * owner, const std::string & fileName,
+NX::Classes::File::File (NX::Context * owner, const std::string & fileName,
                          std::fstream::openmode mode):
   myOwner (owner), myStream (fileName, mode)
 {
@@ -60,18 +60,18 @@ NX::Classes::File::File (NX::Module * owner, const std::string & fileName,
 JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                                     size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  JSObjectRef executor = JSBindFunction(module->context(), JSObjectMakeFunctionWithCallback(module->context(), nullptr,
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
       [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
       size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
     {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-      JSValueProtect(module->context(), thisObject);
+      JSValueProtect(context->toJSContext(), thisObject);
       for(int i = 0; i < argumentCount; i++)
-        JSValueProtect(module->context(), arguments[i]);
+        JSValueProtect(context->toJSContext(), arguments[i]);
       NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
-      boost::shared_ptr<NX::Scheduler> scheduler = module->nexus()->scheduler();
+      boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = 4096;
       std::size_t length = 0;
       std::fstream & is(file->myStream);
@@ -87,7 +87,7 @@ JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef functi
         is.seekg (0, std::ios_base::beg);
       }
       scheduler->scheduleCoroutine([=]() {
-        JSContextRef ctx = module->context();
+        JSContextRef ctx = context->toJSContext();
         try {
           std::fstream & is(file->myStream);
           char * buffer = new char[length];
@@ -112,7 +112,7 @@ JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef functi
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
             }
             for(int i = 0; i < argumentCount; i++)
-              JSValueUnprotect(module->context(), arguments[i]);
+              JSValueUnprotect(context->toJSContext(), arguments[i]);
             JSValueUnprotect(ctx, thisObject);
           });
         } catch (const std::exception & e) {
@@ -122,7 +122,7 @@ JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef functi
             JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
             JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
             for(int i = 0; i < argumentCount; i++)
-              JSValueUnprotect(module->context(), arguments[i]);
+              JSValueUnprotect(context->toJSContext(), arguments[i]);
             JSValueUnprotect(ctx, thisObject);
           });
         }
@@ -138,18 +138,18 @@ JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef functi
 JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                                     size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  NX::Module * module = Module::FromContext(ctx);
-  JSObjectRef executor = JSBindFunction(module->context(), JSObjectMakeFunctionWithCallback(module->context(), nullptr,
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
       [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
       size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
     {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-      JSValueProtect(module->context(), thisObject);
+      JSValueProtect(context->toJSContext(), thisObject);
       for(int i = 0; i < argumentCount; i++)
-        JSValueProtect(module->context(), arguments[i]);
+        JSValueProtect(context->toJSContext(), arguments[i]);
       NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
-      boost::shared_ptr<NX::Scheduler> scheduler = module->nexus()->scheduler();
+      boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = 4096;
       std::size_t length = 0;
       std::fstream & is(file->myStream);
@@ -163,7 +163,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
           JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
           for(int i = 0; i < argumentCount; i++)
-            JSValueUnprotect(module->context(), arguments[i]);
+            JSValueUnprotect(context->toJSContext(), arguments[i]);
           JSValueUnprotect(ctx, thisObject);
           return JSValueMakeUndefined(ctx);
         }
@@ -180,7 +180,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
         is.seekg (0, std::ios_base::beg);
       }
       scheduler->scheduleCoroutine([=]() {
-        JSContextRef ctx = module->context();
+        JSContextRef ctx = context->toJSContext();
         try {
           std::fstream & is(file->myStream);
           iconv_t cd = iconv_open("WCHAR_T", encoding.c_str());
@@ -193,7 +193,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
               JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
               for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(module->context(), arguments[i]);
+                JSValueUnprotect(context->toJSContext(), arguments[i]);
               JSValueUnprotect(ctx, thisObject);
             });
             return;
@@ -242,7 +242,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
             }
             for(int i = 0; i < argumentCount; i++)
-              JSValueUnprotect(module->context(), arguments[i]);
+              JSValueUnprotect(context->toJSContext(), arguments[i]);
             JSValueUnprotect(ctx, thisObject);
           });
         } catch (const std::exception & e) {
@@ -252,7 +252,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
             JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
             JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
             for(int i = 0; i < argumentCount; i++)
-              JSValueUnprotect(module->context(), arguments[i]);
+              JSValueUnprotect(context->toJSContext(), arguments[i]);
             JSValueUnprotect(ctx, thisObject);
           });
         }
@@ -264,64 +264,6 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
   JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, executor, exception);
   return promise;
 }
-
-// JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-//                                             size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
-// {
-//   NX::Module * module = Module::FromContext(ctx);
-//   JSValueProtect(ctx, thisObject);
-//   JSObjectRef executor = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
-//       [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-//       size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
-//     {
-//       NX::Module * module = Module::FromContext(ctx);
-//       NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
-//
-//       JSValueRef exp = nullptr;
-//       try {
-//         char * buffer = nullptr;
-//         std::size_t length = 0;
-//         std::fstream & is(file->myStream);
-//         if (argumentCount >= 1)
-//         {
-//           length = NX::Value(ctx, arguments[0]).toNumber();
-//           is.seekg (0, std::ios_base::end);
-//           length = std::min(length, (std::size_t)is.tellg());
-//           is.seekg (0, std::ios_base::beg);
-//         } else {
-//           is.seekg (0, std::ios_base::end);
-//           length = is.tellg();
-//           is.seekg (0, std::ios_base::beg);
-//         }
-//         buffer = new char [length];
-//         is.read (buffer, length);
-//         std::wstring dest(buffer, buffer + length - 1);
-//         delete buffer;
-//         JSStringRef stringBuffer = JSStringCreateWithCharacters((const JSChar *)dest.c_str(), dest.length() * 2);
-//         JSValueRef string = JSValueMakeString(ctx, stringBuffer);
-//         JSStringRelease(stringBuffer);
-//         JSValueUnprotect(ctx, thisObject);
-//         if (exp)
-//         {
-//           JSValueRef args[] { exp };
-//           return JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args, exception);
-//         } else {
-//           JSValueRef args[] { string };
-//           return JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
-//         }
-//       } catch (const std::exception & e) {
-//         NX::Value message(ctx, e.what());
-//         JSValueRef args1[] { message.value(), nullptr };
-//         JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-//         return JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[1], exception), nullptr, 1, args2, exception);
-//       }
-//     }), thisObject, argumentCount, arguments, exception);
-//   if (exception && *exception)
-//     return JSValueMakeUndefined(ctx);
-//   JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, executor, exception);
-//   return promise;
-// }
-
 
 const JSClassDefinition NX::Classes::File::Class {
   0, kJSClassAttributeNone, "File", nullptr, NX::Classes::File::Properties,
@@ -335,7 +277,7 @@ const JSStaticValue NX::Classes::File::Properties[] {
 const JSStaticFunction NX::Classes::File::Methods[] {
   { "readAsBuffer", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
       if (!file) {
         NX::Value message(ctx, "invalid File instance");
@@ -348,7 +290,7 @@ const JSStaticFunction NX::Classes::File::Methods[] {
   },
   { "readAsString", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
+      NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
       if (!file) {
         NX::Value message(ctx, "invalid File instance");

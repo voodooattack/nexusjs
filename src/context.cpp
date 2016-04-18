@@ -17,19 +17,19 @@
  *
  */
 
-#include "module.h"
+#include "nexus.h"
+#include "context.h"
 #include "object.h"
 #include "value.h"
 #include "globals/global.h"
-#include <nexus.h>
 
-NX::Module::Module (NX::Module * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
+NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
   myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
   myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr),
   myGenericClass(), myObjectClasses(), myParent(parent), myChildren()
 {
   if (myParent)
-    myParent->myChildren.push_back(std::shared_ptr<NX::Module>(this));
+    myParent->myChildren.push_back(std::shared_ptr<NX::Context>(this));
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
   myContext = group ? JSGlobalContextCreateInGroup(group, gClass) : JSGlobalContextCreate(gClass);
   myGlobalObject = JSContextGetGlobalObject(myContext);
@@ -42,7 +42,7 @@ NX::Module::Module (NX::Module * parent, NX::Nexus * nx, JSContextGroupRef group
     nx->ReportException(myContext, exception);
 }
 
-JSValueRef NX::Module::evaluateScript (const std::string & src, JSObjectRef thisObject,
+JSValueRef NX::Context::evaluateScript (const std::string & src, JSObjectRef thisObject,
                                        const std::string & filePath, unsigned int lineNo, JSValueRef * exception)
 {
   JSStringRef srcRef = JSStringCreateWithUTF8CString(src.c_str());
@@ -52,7 +52,7 @@ JSValueRef NX::Module::evaluateScript (const std::string & src, JSObjectRef this
   return ret;
 }
 
-NX::Module::~Module()
+NX::Context::~Context()
 {
   for(auto & o : myGlobals)
     JSValueUnprotect(myContext, o.second);
@@ -62,7 +62,7 @@ NX::Module::~Module()
   JSGlobalContextRelease(myContext);
 }
 
-JSObjectRef NX::Module::getModuleObject(JSValueRef * exception)
+JSObjectRef NX::Context::getModuleObject(JSValueRef * exception)
 {
   if (myModuleObject)
     return myModuleObject;
@@ -70,7 +70,7 @@ JSObjectRef NX::Module::getModuleObject(JSValueRef * exception)
   return myModuleObject = moduleObject;
 }
 
-void NX::Module::initGlobal (JSObjectRef object, JSValueRef * exception)
+void NX::Context::initGlobal (JSObjectRef object, JSValueRef * exception)
 {
   JSObjectSetPrivate(object, this);
   NX::Object global(myContext, object);

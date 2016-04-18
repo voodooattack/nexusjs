@@ -26,11 +26,11 @@
 
 namespace NX {
   class Nexus;
-  class Module
+  class Context
   {
   public:
-    Module(NX::Module * parent = nullptr, NX::Nexus * nx = nullptr, JSContextGroupRef group = nullptr, JSClassRef globalClass = nullptr);
-    virtual ~Module();
+    Context(NX::Context * parent = nullptr, NX::Nexus * nx = nullptr, JSContextGroupRef group = nullptr, JSClassRef globalClass = nullptr);
+    virtual ~Context();
 
     JSValueRef evaluateScript(const std::string & src,
                               JSObjectRef thisObject = nullptr,
@@ -48,7 +48,7 @@ namespace NX {
 
     boost::unordered_map<std::string, JSObjectRef> & globals() { return myGlobals; }
 
-    JSGlobalContextRef context() { return myContext; }
+    JSGlobalContextRef toJSContext() { return myContext; }
     NX::Nexus * nexus() { return myNexus; }
 
     JSObjectRef getModuleObject(JSValueRef * exception);
@@ -80,8 +80,8 @@ namespace NX {
 
     void initGlobal(JSObjectRef object, JSValueRef * exception);
 
-    static Module * FromContext(JSContextRef ctx) {
-      return reinterpret_cast<NX::Module*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+    static Context * FromJsContext(JSContextRef ctx) {
+      return reinterpret_cast<NX::Context*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
     }
 
   protected:
@@ -92,8 +92,8 @@ namespace NX {
     JSClassRef myGenericClass;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
     boost::unordered_map<std::string, JSClassRef> myObjectClasses;
-    NX::Module * myParent;
-    std::vector<std::shared_ptr<NX::Module>> myChildren;
+    NX::Context * myParent;
+    std::vector<std::shared_ptr<NX::Context>> myChildren;
   };
 }
 

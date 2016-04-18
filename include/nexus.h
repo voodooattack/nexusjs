@@ -30,7 +30,7 @@
 #include <boost/thread.hpp>
 
 #include "scheduler.h"
-#include "module.h"
+#include "context.h"
 
 namespace NX
 {
@@ -57,7 +57,7 @@ namespace NX
     const char ** argv;
     std::list<std::string> myArguments;
     JSContextGroupRef myContextGroup;
-    std::shared_ptr<NX::Module> myMainModule;
+    std::shared_ptr<NX::Context> myMainModule;
     std::string myScriptSource;
     std::string myScriptPath;
     boost::shared_ptr<NX::Scheduler> myScheduler;

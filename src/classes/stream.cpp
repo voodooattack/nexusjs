@@ -1,9 +1,9 @@
-#include "module.h"
+#include "context.h"
 #include "classes/stream.h"
 
-JSClassRef NX::Classes::Stream::createClass (NX::Module * module)
+JSClassRef NX::Classes::Stream::createClass (NX::Context * context)
 {
-  return module->defineOrGetClass(NX::Classes::Stream::Class);
+  return context->defineOrGetClass(NX::Classes::Stream::Class);
 }
 
 const JSClassDefinition NX::Classes::Stream::Class {

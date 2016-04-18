@@ -55,8 +55,8 @@ boost::unordered_map<int, NX::AbstractTask *> globalTimeouts;
 JSStaticFunction NX::Global::GlobalFunctions[] {
   { "setTimeout",
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
-      NX::Nexus * nx = module->nexus();
+      NX::Context * context = Context::FromJsContext(ctx);
+      NX::Nexus * nx = context->nexus();
       if (argumentCount < 2) {
         NX::Value message(ctx, "invalid arguments");
         JSValueRef args[] { message.value(), nullptr };
@@ -66,22 +66,22 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
         NX::Value timeout(ctx, arguments[1]);
         std::vector<JSValueRef> saved { arguments[0], arguments[1] };
         std::vector<JSValueRef> args;
-        JSValueProtect(module->context(), arguments[0]);
+        JSValueProtect(context->toJSContext(), arguments[0]);
         for(int i = 2; i < argumentCount; i++) {
-          JSValueProtect(module->context(), arguments[i]);
+          JSValueProtect(context->toJSContext(), arguments[i]);
           args.push_back(arguments[i]);
         }
         NX::AbstractTask * task = nx->scheduler()->scheduleTask(boost::posix_time::milliseconds(timeout.toNumber()), [=]() {
           JSValueRef exp = nullptr;
-          JSValueRef ret = JSObjectCallAsFunction(module->context(), JSValueToObject(module->context(), saved[0], &exp),
+          JSValueRef ret = JSObjectCallAsFunction(context->toJSContext(), JSValueToObject(context->toJSContext(), saved[0], &exp),
                                                   nullptr, args.size(), &args[0], &exp);
           if (exp) {
-            NX::Nexus::ReportException(module->context(), exp);
+            NX::Nexus::ReportException(context->toJSContext(), exp);
           }
           for(auto i : args) {
-            JSValueUnprotect(module->context(), i);
+            JSValueUnprotect(context->toJSContext(), i);
           }
-          JSValueUnprotect(module->context(), saved[0]);
+          JSValueUnprotect(context->toJSContext(), saved[0]);
         });
         {
           boost::mutex::scoped_lock lock(timeoutsMutex);
@@ -101,8 +101,8 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
   { "clearTimeout",
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Module * module = Module::FromContext(ctx);
-      NX::Nexus * nx = module->nexus();
+      NX::Context * context = Context::FromJsContext(ctx);
+      NX::Nexus * nx = context->nexus();
       if (argumentCount != 1) {
         NX::Value message(ctx, "invalid arguments");
         JSValueRef args[] { message.value(), nullptr };

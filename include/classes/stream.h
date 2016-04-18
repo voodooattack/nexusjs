@@ -25,7 +25,7 @@
 namespace NX
 {
   class Nexus;
-  class Module;
+  class Context;
   namespace Classes
   {
     class Stream
@@ -44,7 +44,7 @@ namespace NX
       }
 
     public:
-      static JSClassRef createClass(NX::Module * module);
+      static JSClassRef createClass(NX::Context * module);
 
     public:
       Stream() {}
