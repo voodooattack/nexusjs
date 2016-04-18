@@ -107,7 +107,7 @@
           Scheduler.schedule(allOrReject.bind(this, resolve, reject));
         }
       }
-      return new Promise(allOrReject);
+      return new Promise(allOrReject.bind(this));
     }
     static race(collection) {
       function firstOrReject(resolve, reject) {
@@ -121,7 +121,7 @@
           Scheduler.schedule(firstOrReject.bind(this, resolve, reject));
         }
       }
-      return new Promise(firstOrReject);
+      return new Promise(firstOrReject.bind(this));
     }
   }
 })();

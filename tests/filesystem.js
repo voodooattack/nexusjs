@@ -1,3 +1,3 @@
-const file = new FileSystem.File("test_file", FileSystem.OpenMode.Read);
+const file = new FileSystem.File("../../tests/filesystem.js", FileSystem.OpenMode.Read);
 
-file.readAsString().then(v => console.log(v));
+file.readAsString('UTF8').then(v => console.log("~" + v + "~")).catch(e => console.log("error " + e));

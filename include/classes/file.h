@@ -58,6 +58,9 @@ namespace NX
         return dynamic_cast<NX::Classes::File *>(stream);
       }
 
+    protected:
+      static char * convert (const char * from_charset, const char * to_charset, const char * input);
+
     public:
       File(NX::Module * owner, const std::string & fileName, std::fstream::openmode mode);
       virtual ~File() { }

@@ -69,7 +69,8 @@ bool NX::Scheduler::processTasks()
     if (myCurrentTask->status() != NX::AbstractTask::ABORTED) {
       if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::INACTIVE)
         myCurrentTask->create();
-      if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::CREATED)
+      if (myCurrentTask.get() &&(myCurrentTask->status() == NX::AbstractTask::CREATED ||
+                                 myCurrentTask->status() == NX::AbstractTask::PENDING))
         myCurrentTask->enter();
       if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::PENDING)
       {

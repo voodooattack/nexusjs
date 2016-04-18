@@ -77,7 +77,7 @@ std::string NX::Value::toString()
   std::string str (len, ' ');
   len = JSStringGetUTF8CString (strRef, &str[0], len);
   JSStringRelease (strRef);
-  str.resize (len);
+  str.resize (len-1);
   return str;
 }
 
