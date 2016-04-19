@@ -45,7 +45,7 @@ JSObjectRef NX::Classes::Context::Constructor (JSContextRef ctx, JSObjectRef con
     return JSObjectMake(ctx, nullptr, nullptr);
   }
   try {
-    return JSObjectMake(ctx, contextClass, new NX::Classes::Context(context, NX::Object(ctx, arguments[0]).value()));
+    return JSObjectMake(ctx, contextClass, new NX::Classes::Context(context, argumentCount ? NX::Object(ctx, arguments[0]).value() : nullptr));
   } catch(const std::exception & e) {
     NX::Value message(ctx, e.what());
     JSValueRef args[] { message.value(), nullptr };
@@ -79,12 +79,10 @@ NX::Classes::Context::Context(NX::Context * parent, JSObjectRef globalOverrides)
   }
 }
 
-JSValueRef NX::Classes::Context::eval(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+JSValueRef NX::Classes::Context::eval(JSContextRef ctx, JSObjectRef thisObject, const std::string & source,
+                                      const std::string & fileName, unsigned int lineNo, JSValueRef * exception)
 {
-  NX::Context * context = NX::Context::FromJsContext(ctx);
-  NX::Classes::Context * thisContext = FromObject(thisObject);
-  return myContext->evaluateScript(NX::Value(ctx, arguments[0]).toString());
+  return myContext->evaluateScript(source, nullptr, fileName, lineNo, exception);
 }
 
 NX::Classes::Context::~Context() {
@@ -122,15 +120,25 @@ const JSStaticValue NX::Classes::Context::Properties[] {
 const JSStaticFunction NX::Classes::Context::Methods[] {
   { "eval", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
-      NX::Classes::Context * thisContext = FromObject(thisObject);
-      if (!thisContext || argumentCount == 0 || JSValueGetType(ctx, arguments[0]) != kJSTypeString) {
-        NX::Value message(ctx, "invalid arguments");
+      try {
+        NX::Context * context = NX::Context::FromJsContext(ctx);
+        NX::Classes::Context * thisContext = NX::Classes::Context::FromObject(thisObject);
+        std::string source, fileName;
+        unsigned int lineNo;
+        source = NX::Value(ctx, arguments[0]).toString();
+        if (argumentCount >= 2) {
+          fileName = NX::Value(ctx, arguments[1]).toString();
+        }
+        if (argumentCount >= 3) {
+          lineNo = NX::Value(ctx, arguments[2]).toNumber();
+        }
+        return thisContext->eval(ctx, nullptr, source, fileName, lineNo, exception);
+      } catch(const std::exception & e) {
+        NX::Value message(ctx, e.what());
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
       }
-      return thisContext->eval(ctx, function, thisObject, argumentCount, arguments, exception);
+      return JSValueMakeUndefined(ctx);
     }, 0
   },
   { nullptr, nullptr, 0 }

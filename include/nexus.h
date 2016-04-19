@@ -57,7 +57,7 @@ namespace NX
     const char ** argv;
     std::list<std::string> myArguments;
     JSContextGroupRef myContextGroup;
-    std::shared_ptr<NX::Context> myMainModule;
+    std::shared_ptr<NX::Context> myMainContext;
     std::string myScriptSource;
     std::string myScriptPath;
     boost::shared_ptr<NX::Scheduler> myScheduler;

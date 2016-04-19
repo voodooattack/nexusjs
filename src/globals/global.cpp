@@ -130,18 +130,57 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
       return JSValueMakeUndefined(ctx);
     }, 0
   },
+  { "__valueProtect",
+    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+         for(int i = 0; i < argumentCount; i++)
+          JSValueProtect(JSContextGetGlobalContext(ctx), arguments[i]);
+         return JSValueMakeUndefined(ctx);
+       }, 0
+  },
+  { "__valueUnprotect",
+    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+         NX::Context * context = Context::FromJsContext(ctx);
+         for(int i = 0; i < argumentCount; i++)
+           JSValueUnprotect(JSContextGetGlobalContext(ctx), arguments[i]);
+         return JSValueMakeUndefined(ctx);
+       }, 0
+  },
   { nullptr, nullptr, 0 }
 };
 
 JSStaticValue NX::Global::GlobalProperties[] {
+  { "Nexus", &NX::Global::NexusGet, nullptr, kJSPropertyAttributeNone },
   NX::Globals::Console::GetStaticProperty(),
-  NX::Globals::Scheduler::GetStaticProperty(),
   NX::Globals::Promise::GetStaticProperty(),
-  NX::Globals::FileSystem::GetStaticProperty(),
-  NX::Globals::Context::GetStaticProperty(),
-  NX::Globals::Module::GetStaticProperty(),
   NX::Globals::Loader::GetStaticProperty(),
   { nullptr, nullptr, nullptr, 0 }
 };
 
+JSValueRef NX::Global::NexusGet (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
+{
+  NX::Context * context = Context::FromJsContext(ctx);
+  if (JSObjectRef nexus = context->getGlobal("Nexus")) {
+    return nexus;
+  }
+  return context->setGlobal("Nexus", JSObjectMake(context->toJSContext(),
+                                                  context->defineOrGetClass(NX::Global::NexusClass), nullptr));
+}
+
 JSClassDefinition NX::Global::GlobalClass = NX::Global::InitGlobalClass();
+
+JSStaticFunction NX::Global::NexusFunctions[] {
+  { nullptr, nullptr, 0 }
+};
+
+JSStaticValue NX::Global::NexusProperties[] {
+  NX::Globals::Scheduler::GetStaticProperty(),
+  NX::Globals::FileSystem::GetStaticProperty(),
+  NX::Globals::Context::GetStaticProperty(),
+  NX::Globals::Module::GetStaticProperty(),
+};
+
+JSClassDefinition NX::Global::NexusClass {
+  0, kJSClassAttributeNone, "Nexus", nullptr, NX::Global::NexusProperties, NX::Global::NexusFunctions
+};

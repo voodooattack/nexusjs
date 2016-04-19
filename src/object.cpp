@@ -57,6 +57,7 @@ NX::Object::~Object()
 
 boost::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
 {
+  if (!myObject) return boost::shared_ptr<NX::Value>(nullptr);
   JSStringRef nameRef = JSStringCreateWithUTF8CString(name);
   JSValueRef val = JSObjectGetProperty(myContext, myObject, nameRef, nullptr);
   JSStringRelease(nameRef);

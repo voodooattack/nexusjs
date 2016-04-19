@@ -68,7 +68,7 @@ namespace NX {
         JSStringRef propName = JSStringCreateWithUTF8CString(name.c_str());
         JSValueRef value = JSObjectGetProperty(myContext, JSContextGetGlobalObject(myContext), propName, nullptr);
         JSStringRelease(propName);
-        if (value) {
+        if (!JSValueIsUndefined(myContext, value)) {
           JSObjectRef object = JSValueToObject(myContext, value, nullptr);
           if (object)
             return myGlobals[name] = object;
@@ -78,8 +78,8 @@ namespace NX {
       return myGlobals[name];
     }
 
-    JSObjectRef exports() {
-      return NX::Object(myContext, myGlobalObject)["module"]->toObject()->operator[]("exports")->toObject()->value();
+    JSValueRef exports() {
+      return NX::Object(myContext, myModuleObject)["exports"]->value();
     }
 
     JSObjectRef setGlobal(const std::string & name, JSObjectRef object) {
@@ -90,14 +90,15 @@ namespace NX {
     void initGlobal(JSObjectRef object, JSValueRef * exception);
 
     static Context * FromJsContext(JSContextRef ctx) {
-      return reinterpret_cast<NX::Context*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+      return reinterpret_cast<NX::Context*>(JSObjectGetPrivate(
+        JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
     }
 
   protected:
     NX::Nexus * myNexus;
     JSContextGroupRef myGroup;
     JSGlobalContextRef myContext;
-    JSObjectRef myGlobalObject, myModuleObject, myExports;
+    JSObjectRef myGlobalObject, myModuleObject;
     JSClassRef myGenericClass;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
     boost::unordered_map<std::string, JSClassRef> myObjectClasses;

@@ -26,13 +26,13 @@
 JSValueRef NX::Globals::Module::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  if (JSObjectRef Module = context->getGlobal("Module"))
+  if (JSObjectRef Module = context->getGlobal("Nexus.Module"))
     return Module;
   JSValueRef Module = context->evaluateScript(std::string(module_js, module_js + module_js_len),
                                              nullptr, "module.js", 1, exception);
   JSObjectRef moduleObject = JSValueToObject(context->toJSContext(), Module, exception);
   if (!*exception)
-    return context->setGlobal("Module", moduleObject);
+    return context->setGlobal("Nexus.Module", moduleObject);
   return JSValueMakeUndefined(ctx);
 }
 

@@ -30,10 +30,16 @@ namespace NX {
     Global();
     ~Global();
   public:
+    static JSValueRef NexusGet (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
     static constexpr JSClassDefinition InitGlobalClass();
+
     static JSStaticFunction GlobalFunctions[];
     static JSStaticValue GlobalProperties[];
     static JSClassDefinition GlobalClass;
+
+    static JSStaticFunction NexusFunctions[];
+    static JSStaticValue NexusProperties[];
+    static JSClassDefinition NexusClass;
   };
 }
 

@@ -1,3 +1,4 @@
 
-System.import("promise.js")
-  .then(p => console.log(p));
+const mod = new Nexus.Module('../../tests/module_testA.js');
+
+console.log(mod.exports.test);

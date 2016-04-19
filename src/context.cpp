@@ -25,12 +25,13 @@
 
 NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
   myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
-  myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr), myExports(nullptr),
+  myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr),
   myGenericClass(), myObjectClasses(), myParent(parent)
 {
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
   myContext = myGroup ? JSGlobalContextCreateInGroup(myGroup, gClass) : JSGlobalContextCreate(gClass);
   myGlobalObject = JSContextGetGlobalObject(myContext);
+  myGenericClass = JSClassCreate(&kJSClassDefinitionEmpty);
   if (!globalClass)
     JSClassRelease(gClass);
   JSValueRef exception = nullptr;
@@ -45,13 +46,11 @@ JSValueRef NX::Context::evaluateScript (const std::string & src, JSObjectRef thi
   JSStringRef srcRef = JSStringCreateWithUTF8CString(src.c_str());
   JSStringRef filePathRef = filePath.length() ? JSStringCreateWithUTF8CString(filePath.c_str()) : nullptr;
   JSValueRef ret = JSEvaluateScript(myContext, srcRef, thisObject, filePathRef, lineNo, exception);
-  myGenericClass = JSClassCreate(&kJSClassDefinitionEmpty);
   return ret;
 }
 
 NX::Context::~Context()
 {
-  JSValueUnprotect(myContext, myExports);
   JSValueUnprotect(myContext, myModuleObject);
   for(auto & o : myGlobals)
     JSValueUnprotect(myContext, o.second);
@@ -65,24 +64,29 @@ JSObjectRef NX::Context::getModuleObject(JSValueRef * exception)
 {
   if (myModuleObject)
     return myModuleObject;
-  JSObjectRef moduleObject = NX::Object(myContext, myGlobalObject)["Module"]->toObject()->construct(std::vector<JSValueRef>(), exception);
+  JSObjectRef Module = NX::Object(myContext, getOrInitGlobal("Nexus"))["Module"]->toObject()->value();
+  JSObjectRef moduleObject = NX::Object(myContext, Module).construct(std::vector<JSValueRef>(), exception);
   JSValueProtect(myContext, moduleObject);
-  myExports = NX::Object(myContext, moduleObject)["exports"]->toObject()->value();
-  JSValueProtect(myContext, myExports);
   return myModuleObject = moduleObject;
 }
 
 void NX::Context::initGlobal (JSObjectRef object, JSValueRef * exception)
 {
-  JSObjectSetPrivate(object, this);
-  NX::Object global(myContext, object);
-  global.set("module", getModuleObject(exception));
-  if (exception && *exception) return;
-  JSObjectRef systemObject = global["Loader"]->toObject()->construct(std::vector<JSValueRef>(), exception);
-  if (exception && *exception) return;
-  global.set("System", systemObject, kJSPropertyAttributeNone, exception);
-  if (exception && *exception) return;
-  setGlobal("System", systemObject);
+//   try {
+    JSObjectSetPrivate(object, this);
+    NX::Object global(myContext, object);
+    global.set("module", getModuleObject(exception));
+    if (exception && *exception) return;
+    JSObjectRef systemObject = global["Loader"]->toObject()->construct(std::vector<JSValueRef>(), exception);
+    if (exception && *exception) return;
+    global.set("System", systemObject, kJSPropertyAttributeNone, exception);
+    if (exception && *exception) return;
+    setGlobal("System", systemObject);
+//   } catch(const std::runtime_error & e) {
+//     NX::Value message(myContext, e.what());
+//     JSValueRef args[] { message.value(), nullptr };
+//     *exception = JSObjectMakeError(myContext, 1, args, nullptr);
+//   }
 }
 
 

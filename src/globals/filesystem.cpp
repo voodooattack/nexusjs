@@ -26,10 +26,10 @@
 JSValueRef NX::Globals::FileSystem::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef FileSystem = context->getGlobal("FileSystem")) {
+  if (JSObjectRef FileSystem = context->getGlobal("Nexus.FileSystem")) {
     return FileSystem;
   }
-  return context->setGlobal("FileSystem", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::FileSystem::Class), nullptr));
+  return context->setGlobal("Nexus.FileSystem", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::FileSystem::Class), nullptr));
 }
 
 const JSClassDefinition NX::Globals::FileSystem::Class {
@@ -48,7 +48,7 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
     nullptr, kJSPropertyAttributeNone },
   { "OpenMode", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef OpenMode = context->getGlobal("FileSystem.OpenMode"))
+      if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.OpenMode"))
         return OpenMode;
       NX::Object modes(ctx);
       modes.set("Read", JSValueMakeNumber(ctx, std::fstream::in));
@@ -57,7 +57,7 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
       modes.set("End", JSValueMakeNumber(ctx, std::fstream::ate));
       modes.set("Append", JSValueMakeNumber(ctx, std::fstream::app));
       modes.set("Truncate", JSValueMakeNumber(ctx, std::fstream::trunc));
-      return context->setGlobal("FileSystem.OpenMode", modes.value());
+      return context->setGlobal("Nexus.FileSystem.OpenMode", modes.value());
     }, nullptr, kJSPropertyAttributeNone
   },
   { nullptr, nullptr, nullptr, 0 }

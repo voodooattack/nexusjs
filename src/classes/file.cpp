@@ -8,6 +8,8 @@
 #include "classes/file.h"
 #include "globals/promise.h"
 
+#include <boost/filesystem.hpp>
+
 #include <iconv.h>
 #include <errno.h>
 
@@ -54,38 +56,35 @@ NX::Classes::File::File (NX::Context * owner, const std::string & fileName,
                          std::fstream::openmode mode):
   myOwner (owner), myStream (fileName, mode)
 {
-
+  if (!boost::filesystem::exists(fileName))
+    throw std::runtime_error("file not found");
+  myStream.seekg(0, std::ios_base::beg);
 }
 
-JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                                    size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef thisObject, std::size_t length)
 {
   NX::Context * context = Context::FromJsContext(ctx);
+  std::fstream & is(myStream);
+  if (length == (std::size_t)-1) {
+    std::streampos pos = is.tellg();
+    is.seekg (0, std::ios_base::end);
+    length = is.tellg() - pos;
+    is.seekg (pos, std::ios_base::beg);
+  }
+  JSValueRef argsForBind[] { JSValueMakeNumber(ctx, length) };
   JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
       [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
       size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
     {
       NX::Context * context = Context::FromJsContext(ctx);
       std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
+      NX:Classes::File * file = NX::Classes::File::FromObject(thisObject);
       JSValueProtect(context->toJSContext(), thisObject);
       for(int i = 0; i < argumentCount; i++)
         JSValueProtect(context->toJSContext(), arguments[i]);
-      NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
       boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = 4096;
-      std::size_t length = 0;
-      std::fstream & is(file->myStream);
-      if (argumentCount >= 1)
-      {
-        length = NX::Value(ctx, arguments[0]).toNumber();
-        is.seekg (0, std::ios_base::end);
-        length = std::min(length, (std::size_t)is.tellg());
-        is.seekg (0, std::ios_base::beg);
-      } else {
-        is.seekg (0, std::ios_base::end);
-        length = is.tellg();
-        is.seekg (0, std::ios_base::beg);
-      }
+      std::size_t length = JSValueToNumber(ctx, arguments[0], exception);
       scheduler->scheduleCoroutine([=]() {
         JSContextRef ctx = context->toJSContext();
         try {
@@ -100,15 +99,12 @@ JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef functi
             JSValueRef exp = nullptr;
             JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, length,
               [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, &exp);
-            JSObjectRef array = nullptr;
-            if (!exp)
-              array = JSObjectMakeTypedArrayWithArrayBuffer(ctx, kJSTypedArrayTypeInt8Array, arrayBuffer, &exp);
             if (exp)
             {
               JSValueRef args[] { exp };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args, exception);
             } else {
-              JSValueRef args[] { array };
+              JSValueRef args[] { arrayBuffer };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
             }
             for(int i = 0; i < argumentCount; i++)
@@ -128,17 +124,22 @@ JSValueRef NX::Classes::File::readAsBuffer (JSContextRef ctx, JSObjectRef functi
         }
       });
       return JSValueMakeUndefined(ctx);
-    }), thisObject, argumentCount, arguments, exception);
-  if (exception && *exception)
-    return JSValueMakeUndefined(ctx);
-  JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, executor, exception);
+    }), thisObject, 1, argsForBind, nullptr);
+  JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, executor, nullptr);
   return promise;
 }
 
-JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                                    size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef thisObject, const std::string & encoding, std::size_t length)
 {
   NX::Context * context = Context::FromJsContext(ctx);
+  std::fstream & is(myStream);
+  if (length == (std::size_t)-1) {
+    std::streampos pos = is.tellg();
+    is.seekg (0, std::ios_base::end);
+    length = is.tellg() - pos;
+    is.seekg (pos, std::ios_base::beg);
+  }
+  JSValueRef argsForBind[] { NX::Value(ctx, encoding).value(), JSValueMakeNumber(ctx, length) };
   JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
       [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
       size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
@@ -153,7 +154,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
       std::size_t chunkSize = 4096;
       std::size_t length = 0;
       std::fstream & is(file->myStream);
-      std::string encoding = "UTF8";
+      std::string encoding;
       if (argumentCount >= 3) {
         try {
           encoding = NX::Value(ctx, arguments[0]).toString();
@@ -171,19 +172,21 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
       if (argumentCount >= 4 && JSValueGetType(ctx, arguments[1]) == kJSTypeNumber)
       {
         length = NX::Value(ctx, arguments[1]).toNumber();
+        std::fstream::pos_type pos = is.tellg();
         is.seekg (0, std::ios_base::end);
-        length = std::min(length, (std::size_t)is.tellg());
-        is.seekg (0, std::ios_base::beg);
+        length = std::min(length, (std::size_t)is.tellg() - pos);
+        is.seekg (pos, std::ios_base::beg);
       } else {
+        std::fstream::pos_type pos = is.tellg();
         is.seekg (0, std::ios_base::end);
-        length = is.tellg();
-        is.seekg (0, std::ios_base::beg);
+        length = is.tellg() - pos;
+        is.seekg (pos, std::ios_base::beg);
       }
       scheduler->scheduleCoroutine([=]() {
         JSContextRef ctx = context->toJSContext();
         try {
           std::fstream & is(file->myStream);
-          iconv_t cd = iconv_open("WCHAR_T", encoding.c_str());
+          iconv_t cd = iconv_open("UTF8", encoding.c_str());
           if (cd == (iconv_t) -1)
           {
             scheduler->scheduleTask([=]() {
@@ -199,7 +202,7 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
             return;
           }
           std::string buffer(length, 0);
-          std::wstring out(length * 2, 0);
+          std::string out(length, 0);
           size_t outWritten = 0;
           for(std::size_t i = 0; i < length; i += chunkSize)
           {
@@ -208,14 +211,14 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
             size_t justRead = is.gcount();
             while(1) {
               errno = 0;
-              size_t outBytesLeft = out.size() * 2 - outWritten;
+              size_t outBytesLeft = out.size() - outWritten;
               size_t outBytesBeforeWriting = outBytesLeft;
               char * outBuf = (char*)(&out[0]) + outWritten;
               size_t value = 0;
               value = iconv(cd, &pointer, &justRead, &outBuf, &outBytesLeft);
               if (value == (size_t) -1) {
                 if (errno == E2BIG) {
-                  out.resize(out.size() + outBytesLeft / 2, 0);
+                  out.resize(out.size() + outBytesLeft, 0);
                 } else {
                   break;
                 }
@@ -226,11 +229,11 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
             };
             scheduler->yield();
           }
-          out.resize(outWritten / 2);
+          out.resize(outWritten);
           iconv_close(cd);
           scheduler->scheduleTask([=]() {
             JSValueRef exp = nullptr;
-            JSStringRef stringBuffer = JSStringCreateWithCharacters((const JSChar *)out.c_str(), out.size() * 2);
+            JSStringRef stringBuffer = JSStringCreateWithUTF8CString(out.c_str());
             JSValueRef string = JSValueMakeString(ctx, stringBuffer);
             JSStringRelease(stringBuffer);
             if (exp)
@@ -258,12 +261,91 @@ JSValueRef NX::Classes::File::readAsString (JSContextRef ctx, JSObjectRef functi
         }
       });
       return JSValueMakeUndefined(ctx);
-    }), thisObject, argumentCount, arguments, exception);
-  if (exception && *exception)
-    return JSValueMakeUndefined(ctx);
-  JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, executor, exception);
+    }), thisObject, 2, argsForBind, nullptr);
+  JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, executor, nullptr);
   return promise;
 }
+
+JSValueRef NX::Classes::File::readAsBufferSync (JSContextRef ctx, JSObjectRef thisObject, std::size_t length, JSValueRef * exception)
+{
+  std::fstream & is(myStream);
+  if (length == (std::size_t)-1) {
+    std::fstream::pos_type pos = is.tellg();
+    is.seekg (0, std::ios_base::end);
+    length = is.tellg() - pos;
+    is.seekg (pos, std::ios_base::beg);
+  }
+  JSValueRef ret = nullptr;
+  try {
+    char * buffer = new char[length];
+    is.read(buffer, length);
+    length = is.gcount();
+    ret = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, length,
+          [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, exception);
+  } catch(const std::exception & e) {
+    NX::Value message(ctx, e.what());
+    JSValueRef args[] { message.value(), nullptr };
+    *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+  }
+  return ret ? ret : JSValueMakeUndefined(ctx);
+}
+
+JSValueRef NX::Classes::File::readAsStringSync (JSContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string & encoding,
+                                                std::size_t length, JSValueRef * exception)
+{
+  std::fstream & is(myStream);
+  if (length == (std::size_t)-1) {
+    std::streampos pos = is.tellg();
+    is.seekg (0, std::ios_base::end);
+    length = std::min(length, (std::size_t)is.tellg() - pos);
+    is.seekg (pos, std::ios_base::beg);
+  }
+  JSValueRef ret = nullptr;
+  try {
+    std::string buffer;
+    std::string out;
+    buffer.resize(length);
+    out.resize(length);
+    is.read(&buffer[0], length);
+    iconv_t cd = iconv_open("UTF8", encoding.c_str());
+    if (cd == (iconv_t) -1)
+    {
+      throw std::runtime_error("conversion from '" + encoding + "' to unicode not possible.");
+    }
+    size_t justRead = is.gcount(), outWritten = 0;
+    buffer.resize(justRead);
+    while(1) {
+      errno = 0;
+      size_t outBytesLeft = out.size() - outWritten;
+      size_t outBytesBeforeWriting = outBytesLeft;
+      char * outBuf = (char*)(&out[0]) + outWritten;
+      size_t value = 0;
+      char * pointer = &buffer[0];
+      value = iconv(cd, &pointer, &justRead, &outBuf, &outBytesLeft);
+      if (value == (size_t) -1) {
+        if (errno == E2BIG) {
+          out.resize(out.size() + outBytesLeft, 0);
+        } else {
+          break;
+        }
+      } else {
+        outWritten += outBytesBeforeWriting - outBytesLeft;
+        break;
+      }
+    };
+    out.resize(outWritten);
+    iconv_close(cd);
+    JSStringRef stringBuffer = JSStringCreateWithUTF8CString(out.c_str());
+    ret = JSValueMakeString(ctx, stringBuffer);
+    JSStringRelease(stringBuffer);
+  } catch(const std::exception & e) {
+    NX::Value message(ctx, e.what());
+    JSValueRef args[] { message.value(), nullptr };
+    *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+  }
+  return ret ? ret : JSValueMakeUndefined(ctx);
+}
+
 
 const JSClassDefinition NX::Classes::File::Class {
   0, kJSClassAttributeNone, "File", nullptr, NX::Classes::File::Properties,
@@ -275,31 +357,5 @@ const JSStaticValue NX::Classes::File::Properties[] {
 };
 
 const JSStaticFunction NX::Classes::File::Methods[] {
-  { "readAsBuffer", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
-      if (!file) {
-        NX::Value message(ctx, "invalid File instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      return file->readAsBuffer(ctx, function, thisObject, argumentCount, arguments, exception);
-    }, 0
-  },
-  { "readAsString", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::File * file = NX::Classes::File::FromObject(thisObject);
-      if (!file) {
-        NX::Value message(ctx, "invalid File instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      return file->readAsString(ctx, function, thisObject, argumentCount, arguments, exception);
-    }, 0
-  },
   { nullptr, nullptr, 0 }
 };

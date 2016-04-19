@@ -36,14 +36,14 @@
 namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
-  argc(argc), argv(argv), myArguments(), myContextGroup(nullptr), myMainModule(nullptr),
+  argc(argc), argv(argv), myArguments(), myContextGroup(nullptr), myMainContext(nullptr),
   myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions()
 {
   for (unsigned int i = 0; i < argc; i++) {
     myArguments.push_back(argv[i]);
   }
   myContextGroup = JSContextGroupCreate();
-  myMainModule.reset(new NX::Context(nullptr, this, myContextGroup));
+  myMainContext.reset(new NX::Context(nullptr, this, myContextGroup));
 }
 
 NX::Nexus::~Nexus()
@@ -113,14 +113,14 @@ int NX::Nexus::run() {
     }
     initScheduler();
     JSValueRef exception = nullptr;
-    myMainModule->evaluateScript(myScriptSource, nullptr, myScriptPath, 1, &exception);
+    myMainContext->evaluateScript(myScriptSource, nullptr, myScriptPath, 1, &exception);
     if (!exception) {
       myScheduler->start();
       myScheduler->joinPool();
       myScheduler->join();
       return 0;
     } else {
-      NX::Nexus::ReportException(myMainModule->toJSContext(), exception);
+      NX::Nexus::ReportException(myMainContext->toJSContext(), exception);
       return 1;
     }
   } catch(std::exception & e) {

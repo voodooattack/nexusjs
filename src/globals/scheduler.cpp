@@ -14,9 +14,9 @@ const JSClassDefinition NX::Globals::Scheduler::Class {
 JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef Scheduler = context->getGlobal("Scheduler"))
+  if (JSObjectRef Scheduler = context->getGlobal("Nexus.Scheduler"))
     return Scheduler;
-  return context->setGlobal("Scheduler", JSObjectMake(context->toJSContext(),
+  return context->setGlobal("Nexus.Scheduler", JSObjectMake(context->toJSContext(),
                                                      context->defineOrGetClass(NX::Globals::Scheduler::Class),
                                                      context->nexus()->scheduler().get()));
 }

@@ -54,8 +54,8 @@ namespace NX {
       Context(NX::Context * parent, JSObjectRef globalOverrides = nullptr);
       virtual ~Context();
 
-      JSValueRef eval(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
+      JSValueRef eval(JSContextRef ctx, JSObjectRef thisObject, const std::string & source,
+                      const std::string & fileName, unsigned int lineNo, JSValueRef * exception);
       JSValueRef exports(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
 
       boost::shared_ptr<NX::Context> context() { return myContext; }

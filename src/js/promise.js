@@ -18,9 +18,9 @@
           if (value[stateKey] !== PENDING) {
             if (value[resolveValueKey])
             {
-              Scheduler.schedule(this[broadcastResolveKey].bind(this, value[resolveValueKey]));
+              Nexus.Scheduler.schedule(this[broadcastResolveKey].bind(this, value[resolveValueKey]));
             } else if (value[rejectValueKey]) {
-              Scheduler.schedule(this[broadcastRejectKey].bind(this, value[rejectValueKey]));
+              Nexus.Scheduler.schedule(this[broadcastRejectKey].bind(this, value[rejectValueKey]));
             }
           } else {
             value[subscribersKey].push({
@@ -35,7 +35,7 @@
         this[stateKey] = RESOLVED;
         this[subscribersKey].forEach(({ resolve, reject, promise }) => {
           if (resolve) {
-            promise[taskKey] = Scheduler.schedule(function() {
+            promise[taskKey] = Nexus.Scheduler.schedule(function() {
               promise[broadcastResolveKey](resolve(value));
             }.bind(this));
           }
@@ -49,7 +49,7 @@
         const rejections = this[subscribersKey].filter(v => v.reject);
         if (rejections.length) {
           rejections.forEach(({ resolve, reject, promise }) => {
-            promise[taskKey] = Scheduler.schedule(function() {
+            promise[taskKey] = Nexus.Scheduler.schedule(function() {
               try {
                 promise[broadcastResolveKey](reject(value));
               } catch(e) {
@@ -60,13 +60,13 @@
         } else {
           const resolves = this[subscribersKey].filter(v => v.resolve);
           resolves.forEach(({ resolve, reject, promise }) => {
-            promise[taskKey] = Scheduler.schedule(function() {
+            promise[taskKey] = Nexus.Scheduler.schedule(function() {
               promise[broadcastRejectKey](value);
             }.bind(this));
           });
         }
       };
-      this[taskKey] = Scheduler.schedule(
+      this[taskKey] = Nexus.Scheduler.schedule(
         executor.bind(null, broadcastResolve.bind(this), broadcastReject.bind(this))
       );
     }
@@ -104,7 +104,7 @@
         } else if (filtered.length === collection.length) {
           return resolve(collection.map(v => v instanceof Promise ? v[resolveValueKey] : v));
         } else {
-          Scheduler.schedule(allOrReject.bind(this, resolve, reject));
+          Nexus.Scheduler.schedule(allOrReject.bind(this, resolve, reject));
         }
       }
       return new Promise(allOrReject.bind(this));
@@ -118,7 +118,7 @@
         } else if (filtered.length) {
           return resolve(filtered[0]);
         } else {
-          Scheduler.schedule(firstOrReject.bind(this, resolve, reject));
+          Nexus.Scheduler.schedule(firstOrReject.bind(this, resolve, reject));
         }
       }
       return new Promise(firstOrReject.bind(this));

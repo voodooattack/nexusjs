@@ -26,9 +26,8 @@ namespace NX {
   namespace Globals {
     class Loader
     {
-      static const JSClassDefinition Class;
-      static const JSStaticFunction Methods[];
       static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
+      static JSValueRef GetInstance(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
     public:
       static constexpr JSStaticValue GetStaticProperty() {
         return JSStaticValue { "Loader", &NX::Globals::Loader::Get, nullptr, kJSPropertyAttributeNone };

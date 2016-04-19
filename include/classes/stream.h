@@ -46,10 +46,14 @@ namespace NX
     public:
       static JSClassRef createClass(NX::Context * module);
 
-      virtual JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) = 0;
-      virtual JSValueRef readAsString(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                                      size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) = 0;
+      virtual JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef thisObject, std::size_t length) = 0;
+      virtual JSValueRef readAsString(JSContextRef ctx, JSObjectRef thisObject, const std::string & encoding,
+                                      std::size_t length) = 0;
+
+      virtual JSValueRef readAsBufferSync(JSContextRef ctx, JSObjectRef thisObject, std::size_t length,
+                                          JSValueRef * exception) = 0;
+      virtual JSValueRef readAsStringSync(JSContextRef ctx, JSObjectRef thisObject, const std::string & encoding,
+                                      std::size_t length, JSValueRef * exception) = 0;
 
     public:
       Stream() {}

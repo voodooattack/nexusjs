@@ -18,51 +18,21 @@
  */
 
 #include "nexus.h"
+#include "context.h"
 #include "globals/loader.h"
-#include "globals/promise.h"
 
-#include <boost/asio.hpp>
-
-const JSClassDefinition NX::Globals::Loader::Class {
-  0, kJSClassAttributeNone, "Loader", nullptr, nullptr, NX::Globals::Loader::Methods
-};
-
+#include "loader.js.inc"
 
 JSValueRef NX::Globals::Loader::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
-  NX::Context * context = reinterpret_cast<NX::Context*>(JSObjectGetPrivate(JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
+  NX::Context * context = NX::Context::FromJsContext(ctx);
   if (JSObjectRef Loader = context->getGlobal("Loader"))
     return Loader;
-  return context->setGlobal("Loader", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::Loader::Class), nullptr));
+  JSValueRef Loader = context->evaluateScript(std::string(loader_js, loader_js + loader_js_len),
+                                              nullptr, "loader.js", 1, exception);
+  JSObjectRef loaderObject = JSValueToObject(context->toJSContext(), Loader, exception);
+  if (!*exception)
+    return context->setGlobal("Loader", loaderObject);
+  return JSValueMakeUndefined(ctx);
 }
 
-const JSStaticFunction NX::Globals::Loader::Methods[] {
-  { "importSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-
-      return JSValueMakeUndefined(ctx);
-    }, 0
-  },
-  { "import", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-
-      JSObjectRef loadFunction = JSObjectMakeFunctionWithCallback(ctx, nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
-      {
-        /* TODO: FINISH THIS */
-      });;
-      return Promise::createPromise(ctx, loadFunction, exception);
-    }, 0
-  },
-  { "resolve", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      /* TODO: IMPLEMENT THIS */
-      return JSValueMakeUndefined(ctx);
-    }, 0
-  },
-  { nullptr, nullptr, 0 }
-};
