@@ -252,7 +252,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         });
         return JSValueMakeUndefined(ctx);
       }), thisObject, 1, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(ctx, executor, exception);
+      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
     }, 0
   },
   { "readSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -363,7 +363,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
         });
         return JSValueMakeUndefined(ctx);
       }), thisObject, 1, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(ctx, executor, exception);
+      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
     }, 0
   },
   { "writeSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -473,7 +473,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
         });
         return JSValueMakeUndefined(ctx);
       }), thisObject, 2, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(ctx, executor, exception);
+      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
     }, 0
   },
   { "seekSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -586,7 +586,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
         });
         return JSValueMakeUndefined(ctx);
       }), thisObject, 2, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(ctx, executor, exception);
+      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
     }, 0
   },
   { "writeSeek", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -659,7 +659,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
         });
         return JSValueMakeUndefined(ctx);
       }), thisObject, 2, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(ctx, executor, exception);
+      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
     }, 0
   },
   { "readSeekSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,

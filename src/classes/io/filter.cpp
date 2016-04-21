@@ -49,7 +49,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         if (argumentCount == 0) {
           throw std::runtime_error("must supply buffer to process");
         } else {
-          if (!JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
+          if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
             throw std::runtime_error("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
@@ -75,17 +75,23 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         NX::Context * context = NX::Context::FromJsContext(ctx);
         std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
         NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
+        if (!filter) {
+          NX::Value message(ctx, "filter object does not implement process()");
+          JSValueRef args[] { message.value(), nullptr };
+          *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+          return JSValueMakeUndefined(ctx);
+        }
         JSValueProtect(context->toJSContext(), thisObject);
         for(int i = 0; i < argumentCount; i++)
           JSValueProtect(context->toJSContext(), arguments[i]);
         boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
         std::size_t chunkSize = 4096;
         JSObjectRef arrayBuffer= NX::Object(ctx, arguments[0]).value();
+        char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
+        std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
         scheduler->scheduleCoroutine([=]() {
           JSContextRef ctx = context->toJSContext();
           try {
-            const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
-            std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
             std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
             std::size_t outPos = 0;
             char * newBuffer = (char *)malloc(outLengthEstimatedTotal);
@@ -96,9 +102,9 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             }
             if (outPos != outLengthEstimatedTotal)
               newBuffer = (char *)realloc(newBuffer, outPos);
+            scheduler->scheduleTask([=]() {
             JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outPos,
               [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
-            scheduler->scheduleTask([=]() {
               JSValueRef args[] { outputArrayBuffer };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
               for(int i = 0; i < argumentCount; i++)
@@ -127,11 +133,14 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
+        if (!filter) {
+          throw std::runtime_error("filter object does not implement processSync()");
+        }
         JSObjectRef arrayBuffer = nullptr;
         if (argumentCount == 0) {
           throw std::runtime_error("must supply buffer to write");
         } else {
-          if (!JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
+          if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
             throw std::runtime_error("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
@@ -146,7 +155,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             }
           }
         }
-        const char * buffer =  (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
+        char * buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
         std::size_t estimatedOutLength = filter->processBuffer(buffer, length);
         char * newBuffer = (char *)malloc(estimatedOutLength);

@@ -38,14 +38,27 @@ namespace NX
           delete FromObject(object);
         }
       protected:
-        Filter(const NX::Object & source): mySource(source) {}
+        Filter() {}
+
+        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                       const JSValueRef arguments[], JSValueRef* exception)
+        {
+          NX::Context * context = NX::Context::FromJsContext(ctx);
+          JSClassRef filterClass = context->defineOrGetClass(NX::Classes::IO::Filter::Class);
+          return JSObjectMake(ctx, filterClass, nullptr);
+        }
+
       public:
         virtual ~Filter() {}
 
-        virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0) = 0;
+        virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0) = 0;
 
         static NX::Classes::IO::Filter * FromObject(JSObjectRef obj) {
           return reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
+        }
+
+        static JSObjectRef getConstructor(NX::Context * context) {
+          return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Filter::Constructor);
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -53,9 +66,6 @@ namespace NX
         static JSClassDefinition Class;
         static JSStaticFunction Methods[];
         static JSStaticValue Properties[];
-
-      private:
-        NX::Object mySource;
       };
     }
   }

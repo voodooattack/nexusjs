@@ -37,6 +37,7 @@ namespace NX {
     Object(JSContextRef context, JSObjectRef obj);
     Object(JSContextRef context, JSValueRef val);
     Object(JSContextRef context, time_t val);
+    Object(const Object & other);
     ~Object();
 
     std::string toString();

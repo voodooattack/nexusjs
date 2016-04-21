@@ -19,7 +19,12 @@
 
 #include "context.h"
 #include "globals/io.h"
+
+#include "classes/io/filter.h"
+#include "classes/io/stream.h"
 #include "classes/io/devices/file.h"
+#include "classes/io/filters/encoding.h"
+#include "classes/io/filters/utf8stringfilter.h"
 
 JSValueRef NX::Globals::IO::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
@@ -37,12 +42,57 @@ const JSClassDefinition NX::Globals::IO::Class {
 };
 
 const JSStaticValue NX::Globals::IO::Properties[] {
+  { "Filter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.Filter"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::Filter::getConstructor(context);
+      context->setGlobal("IO.Filter", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
   { "FileSourceDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef File = context->getGlobal("IO.FileSourceDevice"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::FileSourceDevice::getConstructor(context);
       context->setGlobal("IO.FileSourceDevice", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "ReadableStream", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.ReadableStream"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::ReadableStream::getConstructor(context);
+      context->setGlobal("IO.ReadableStream", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "WritableStream", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.WritableStream"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::WritableStream::getConstructor(context);
+      context->setGlobal("IO.WritableStream", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "EncodingConversionFilter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.EncodingConversionFilter"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::EncodingConversionFilter::getConstructor(context);
+      context->setGlobal("IO.EncodingConversionFilter", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "UTF8StringFilter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.UTF8StringFilter"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::UTF8StringFilter::getConstructor(context);
+      context->setGlobal("IO.UTF8StringFilter", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },

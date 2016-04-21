@@ -59,11 +59,14 @@
           });
         } else {
           const resolves = this[subscribersKey].filter(v => v.resolve);
-          resolves.forEach(({ resolve, reject, promise }) => {
-            promise[taskKey] = Nexus.Scheduler.schedule(function() {
-              promise[broadcastRejectKey](value);
-            }.bind(this));
-          });
+          if (resolves.length)
+            resolves.forEach(({ resolve, reject, promise }) => {
+              promise[taskKey] = Nexus.Scheduler.schedule(function() {
+                promise[broadcastRejectKey](value);
+              }.bind(this));
+            });
+          else
+            throw value;
         }
       };
       this[taskKey] = Nexus.Scheduler.schedule(

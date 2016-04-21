@@ -68,9 +68,25 @@ namespace NX
         static void Finalize(JSObjectRef object) {
         }
 
+        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                       const JSValueRef arguments[], JSValueRef* exception)
+        {
+          NX::Context * context = NX::Context::FromJsContext(ctx);
+          JSClassRef _class = context->defineOrGetClass(NX::Classes::IO::ReadableStream::Class);
+          try {
+            if (argumentCount < 1) {
+              throw std::runtime_error("missing parameter device in call to ReadableStream constructor");
+            }
+            return JSObjectMake(ctx, _class, new ReadableStream(NX::Object(context->toJSContext(), arguments[0])));
+          } catch(const std::exception & e) {
+            JSWrapException(ctx, e, exception);
+            return JSObjectMake(ctx, nullptr, nullptr);
+          }
+        }
+
       public:
         ReadableStream(const NX::Object & device): myDevice(device) { }
-        virtual ~ReadableStream() {}
+        virtual ~ReadableStream() { }
 
         static JSClassRef createClass(NX::Context * context);
 
@@ -78,18 +94,18 @@ namespace NX
           return reinterpret_cast<NX::Classes::IO::ReadableStream *>(JSObjectGetPrivate(object));
         }
 
+        static JSObjectRef getConstructor(NX::Context * context) {
+          return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::ReadableStream::Constructor);
+        }
+
         JSObjectRef sourceDevice() { return myDevice; }
 
       public:
 
-        virtual JSValueRef readAsBuffer(JSContextRef ctx, JSObjectRef thisObject, std::size_t length);
-        virtual JSValueRef readAsString(JSContextRef ctx, JSObjectRef thisObject, const std::string & encoding,
-                                        std::size_t length);
+        virtual JSValueRef read(JSContextRef ctx, JSObjectRef thisObject, std::size_t length);
 
-        virtual JSValueRef readAsBufferSync(JSContextRef ctx, JSObjectRef thisObject, std::size_t length,
+        virtual JSValueRef readSync(JSContextRef ctx, JSObjectRef thisObject, std::size_t length,
                                             JSValueRef * exception);
-        virtual JSValueRef readAsStringSync(JSContextRef ctx, JSObjectRef thisObject, const std::string & encoding,
-                                        std::size_t length, JSValueRef * exception);
 
         virtual JSValueRef pushReadFilter(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef readFilter,
                                           JSValueRef * exception)
@@ -126,6 +142,22 @@ namespace NX
         static void Finalize(JSObjectRef object) {
         }
 
+        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                       const JSValueRef arguments[], JSValueRef* exception)
+        {
+          NX::Context * context = NX::Context::FromJsContext(ctx);
+          JSClassRef _class = context->defineOrGetClass(NX::Classes::IO::WritableStream::Class);
+          try {
+            if (argumentCount < 1) {
+              throw std::runtime_error("missing parameter device in call to WritableStream constructor");
+            }
+            return JSObjectMake(ctx, _class, new WritableStream(NX::Object(context->toJSContext(), arguments[0])));
+          } catch(const std::exception & e) {
+            JSWrapException(ctx, e, exception);
+            return JSObjectMake(ctx, nullptr, nullptr);
+          }
+        }
+
       public:
         WritableStream(const NX::Object & device): myDevice(device) {}
         virtual ~WritableStream() {}
@@ -138,13 +170,14 @@ namespace NX
 
         JSObjectRef sinkDevice() { return myDevice; }
 
-      public:
-        virtual JSValueRef writeString(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef writable, const std::string & encoding);
-        virtual JSValueRef writeBuffer(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer);
+        static JSObjectRef getConstructor(NX::Context * context) {
+          return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::WritableStream::Constructor);
+        }
 
-        virtual JSValueRef writeStringSync(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef writable, const std::string & encoding,
-                                          JSValueRef * exception);
-        virtual JSValueRef writeBufferSync(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer, JSValueRef * exception);
+
+      public:
+        virtual JSValueRef write(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer);
+        virtual JSValueRef writeSync(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer, JSValueRef * exception);
 
         virtual JSValueRef pushWriteFilter(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef writeFilter,
                                           JSValueRef * exception)

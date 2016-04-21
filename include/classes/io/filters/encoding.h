@@ -27,13 +27,38 @@ namespace NX {
     namespace IO {
       class EncodingConversionFilter: public NX::Classes::IO::Filter
       {
+        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                       const JSValueRef arguments[], JSValueRef* exception)
+        {
+          NX::Context * context = NX::Context::FromJsContext(ctx);
+          JSClassRef filterClass = createClass(context);
+          try {
+            if (argumentCount != 2)
+              throw std::runtime_error("invalid arguments");
+            std::string from(NX::Value(ctx, arguments[0]).toString());
+            std::string to(NX::Value(ctx, arguments[1]).toString());
+            return JSObjectMake(ctx, filterClass, new EncodingConversionFilter(from, to));
+          } catch(const std::exception & e) {
+            JSWrapException(ctx, e, exception);
+            return JSObjectMake(ctx, nullptr, nullptr);
+          }
+        }
+
       public:
-        EncodingConversionFilter (const NX::Object & source,
-                                  const std::string & fromEncoding,
+        EncodingConversionFilter (const std::string & fromEncoding,
                                   const std::string & toEncoding);
         virtual ~EncodingConversionFilter() {}
 
-        virtual std::size_t processBuffer( char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 );
+        virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 );
+
+        static NX::Classes::IO::EncodingConversionFilter * FromObject(JSObjectRef obj) {
+          auto filter = reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
+          return dynamic_cast<EncodingConversionFilter*>(filter);
+        }
+
+        static JSObjectRef getConstructor(NX::Context * context) {
+          return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::EncodingConversionFilter::Constructor);
+        }
 
       protected:
         std::string myEncodingFrom, myEncodingTo;

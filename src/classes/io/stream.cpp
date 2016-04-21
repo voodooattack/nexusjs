@@ -46,21 +46,24 @@ JSClassRef NX::Classes::IO::ReadableStream::createClass (NX::Context * context)
   return context->defineOrGetClass(def);
 }
 
-JSValueRef NX::Classes::IO::ReadableStream::readAsBuffer (JSContextRef ctx, JSObjectRef thisObject, std::size_t length)
+JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef thisObject, std::size_t length)
 {
-  try {
-    JSValueRef promise = myDevice["read"]->toObject()->call(myDevice, std::vector<JSValueRef> { NX::Value(ctx, length).value() }, nullptr);
-    for(auto & i : myFilters)
-      promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise).value(), std::vector<JSValueRef> {
-        NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, nullptr)
-      });
-    return promise;
-  } catch(const std::exception & e) {
-    return JSWrapException(ctx, e, nullptr);
+  JSValueRef exception = nullptr;
+  JSValueRef promise = myDevice["read"]->toObject()->call(myDevice, std::vector<JSValueRef> { NX::Value(ctx, length).value() }, &exception);
+  if (exception) {
+    throw std::runtime_error(NX::Value(ctx, exception).toString());
   }
+  for(auto & i : myFilters) {
+    promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise).value(), std::vector<JSValueRef> {
+      NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, &exception)
+    });
+    if (exception)
+      throw std::runtime_error(NX::Value(ctx, exception).toString());
+  }
+  return promise;
 }
 
-JSValueRef NX::Classes::IO::ReadableStream::readAsBufferSync (JSContextRef ctx, JSObjectRef thisObject,
+JSValueRef NX::Classes::IO::ReadableStream::readSync (JSContextRef ctx, JSObjectRef thisObject,
                                                               std::size_t length, JSValueRef * exception)
 {
   try {
@@ -78,18 +81,6 @@ JSValueRef NX::Classes::IO::ReadableStream::readAsBufferSync (JSContextRef ctx, 
   }
 }
 
-JSValueRef NX::Classes::IO::ReadableStream::readAsString (JSContextRef ctx, JSObjectRef thisObject,
-                                                          const std::string & encoding, std::size_t length)
-{
-
-}
-
-JSValueRef NX::Classes::IO::ReadableStream::readAsStringSync (JSContextRef ctx, JSObjectRef thisObject,
-                                                              const std::string & encoding, std::size_t length,
-                                                              JSValueRef * exception)
-{
-
-}
 
 JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
 {
@@ -98,29 +89,16 @@ JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
   return context->defineOrGetClass(def);
 }
 
-JSValueRef NX::Classes::IO::WritableStream::writeBuffer (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
+JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
 {
 
 }
 
-JSValueRef NX::Classes::IO::WritableStream::writeBufferSync (JSContextRef ctx, JSObjectRef thisObject,
+JSValueRef NX::Classes::IO::WritableStream::writeSync (JSContextRef ctx, JSObjectRef thisObject,
                                                              JSObjectRef buffer, JSValueRef * exception)
 {
 
 }
-
-JSValueRef NX::Classes::IO::WritableStream::writeString (JSContextRef ctx, JSObjectRef thisObject,
-                                                         JSObjectRef writable, const std::string & encoding)
-{
-
-}
-
-JSValueRef NX::Classes::IO::WritableStream::writeStringSync (JSContextRef ctx, JSObjectRef thisObject,
-                                                             JSObjectRef writable, const std::string & encoding, JSValueRef * exception)
-{
-
-}
-
 
 const JSClassDefinition NX::Classes::IO::ReadableStream::Class {
   0, kJSClassAttributeNone, "ReadableStream", nullptr, NX::Classes::IO::ReadableStream::Properties,
@@ -132,12 +110,12 @@ const JSStaticValue NX::Classes::IO::ReadableStream::Properties[] {
 };
 
 const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
-  { "readAsBuffer", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+  { "read", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
       if (!stream) {
-        NX::Value message(ctx, "invalid ReadableStream instance");
+        NX::Value message(ctx, "read not implemented on ReadableStream instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
@@ -150,43 +128,19 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
           return JSValueMakeUndefined(ctx);
         }
       }
-      return stream->readAsBuffer(ctx, thisObject, length);
-    }, 0
-  },
-  { "readAsString", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
-      if (!stream) {
-        NX::Value message(ctx, "invalid ReadableStream instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      std::size_t length = (std::size_t)-1;
-      std::string encoding("UTF8");
       try {
-        if (argumentCount >= 1) {
-          length = NX::Value(ctx, arguments[0]).toNumber();
-        }
-        if (argumentCount >= 2) {
-          encoding = NX::Value(ctx, arguments[1]).toString();
-        }
+        return stream->read(ctx, thisObject, length);
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
+        return JSWrapException(ctx, e, exception);
       }
-      return stream->readAsString(ctx, thisObject, encoding, length);
     }, 0
   },
-  { "readAsBufferSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+  { "readSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
       if (!stream) {
-        NX::Value message(ctx, "invalid ReadableStream instance");
+        NX::Value message(ctx, "readSync not implemented on ReadableStream instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
@@ -196,7 +150,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
         if (argumentCount >= 1) {
           length = NX::Value(ctx, arguments[0]).toNumber();
         }
-        return stream->readAsBufferSync(ctx, thisObject, length, exception);
+        return stream->readSync(ctx, thisObject, length, exception);
       } catch(const std::exception & e) {
         NX::Value message(ctx, e.what());
         JSValueRef args[] { message.value(), nullptr };
@@ -205,32 +159,24 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
       return JSValueMakeUndefined(ctx);
     }, 0
   },
-  { "readAsStringSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+  { "pushFilter", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
       if (!stream) {
-        NX::Value message(ctx, "invalid ReadableStream instance");
+        NX::Value message(ctx, "read not implemented on ReadableStream instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
       }
-      std::size_t length = (std::size_t)-1;
-      std::string encoding("UTF8");
       try {
-        if (argumentCount >= 1) {
-          length = NX::Value(ctx, arguments[0]).toNumber();
-        }
-        if (argumentCount >= 2) {
-          encoding = NX::Value(ctx, arguments[1]).toString();
-        }
-        return stream->readAsStringSync(ctx, thisObject, encoding, length, exception);
+        if (argumentCount != 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
+          throw std::runtime_error("invalid arguments");
+        JSObjectRef filter = NX::Object(ctx, arguments[0]);
+        return stream->pushReadFilter(ctx, thisObject, filter, exception);
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return JSWrapException(ctx, e, exception);
       }
-      return JSValueMakeUndefined(ctx);
     }, 0
   },
   { nullptr, nullptr, 0 }

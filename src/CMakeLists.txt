@@ -23,6 +23,7 @@ add_executable(nexus
   classes/io/device.cpp
   classes/io/devices/file.cpp
   classes/io/filters/encoding.cpp
+  classes/io/filters/utf8stringfilter.cpp
   classes/context.cpp
 )
 

@@ -22,15 +22,13 @@
 #include <iconv.h>
 #include <errno.h>
 
-NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const NX::Object & source,
-                                                                     const std::string & fromEncoding,
+NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const std::string & fromEncoding,
                                                                      const std::string & toEncoding)
-  : Filter (source), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding)
+  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding)
 {
   iconv_t cd = iconv_open(myEncodingFrom.c_str(), myEncodingTo.c_str());
-  if (cd = (iconv_t)-1)
-    throw std::runtime_error("invalid parameters specified while converting from '" +
-      myEncodingFrom + "' to '" + myEncodingTo + "'");
+  if (cd == (iconv_t)-1)
+    throw std::runtime_error("invalid encoding specified while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
   iconv_close(cd);
 }
 
@@ -40,14 +38,16 @@ std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buf
   errno = 0;
   iconv_t cd = iconv_open(myEncodingFrom.c_str(), myEncodingTo.c_str());
   size_t outBytesBeforeWriting = outLength;
-  if (cd = (iconv_t)-1)
-    throw std::runtime_error("invalid parameters specified while converting from '" +
-      myEncodingFrom + "' to '" + myEncodingTo + "'");
+  if (cd == (iconv_t)-1)
+    throw std::runtime_error("invalid encoding specified while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
   size_t result = iconv(cd, &buffer, &length, &dest, &outLength);
   iconv_close(cd);
-  if (result == (size_t)-1) {
+  if (result == (size_t)-1 && errno) {
     if (errno == E2BIG) {
       return length * 2;
+    } else if (errno = EILSEQ) {
+      throw std::runtime_error("illegal byte sequence while converting from '" +
+        myEncodingFrom + "' to '" + myEncodingTo + "'");
     } else {
       throw std::runtime_error("an error occurred while converting from '" +
         myEncodingFrom + "' to '" + myEncodingTo + "'");

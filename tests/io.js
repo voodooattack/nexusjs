@@ -1,5 +1,9 @@
-const reader = new Nexus.IO.FileSourceDevice('Makefile');
+const device = new Nexus.IO.FileSourceDevice('Makefile');
+const stream = new Nexus.IO.ReadableStream(device);
 
-const promise1 = reader.seek(0, 'begin').then(v => reader.read(1000000));
+stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-8"));
+stream.pushFilter(new Nexus.IO.UTF8StringFilter());
 
-promise1.then(v => console.log("p1: got output from device: length == ", new Uint8Array(v).length)).catch(e => console.error(e));
+const p = stream.read(100000);
+
+p.then(v => console.log("buffer: " + v));
