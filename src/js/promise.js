@@ -47,6 +47,7 @@
         this[rejectValueKey] = value;
         this[stateKey] = REJECTED;
         const rejections = this[subscribersKey].filter(v => v.reject);
+        const resolves = this[subscribersKey].filter(v => v.resolve);
         if (rejections.length) {
           rejections.forEach(({ resolve, reject, promise }) => {
             promise[taskKey] = Nexus.Scheduler.schedule(function() {
@@ -57,17 +58,14 @@
               }
             }.bind(this));
           });
-        } else {
-          const resolves = this[subscribersKey].filter(v => v.resolve);
-          if (resolves.length)
+        } else if (resolves.length) {
             resolves.forEach(({ resolve, reject, promise }) => {
               promise[taskKey] = Nexus.Scheduler.schedule(function() {
                 promise[broadcastRejectKey](value);
               }.bind(this));
             });
-          else
-            throw value;
-        }
+        } /*else*/
+//             throw value;
       };
       this[taskKey] = Nexus.Scheduler.schedule(
         executor.bind(null, broadcastResolve.bind(this), broadcastReject.bind(this))

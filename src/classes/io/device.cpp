@@ -32,7 +32,8 @@ JSClassRef NX::Classes::IO::Device::createClass (NX::Context * context)
 {
   JSClassDefinition def = kJSClassDefinitionEmpty;
   def.className = "Device";
-  def.staticValues = Properties;
+  def.staticValues = NX::Classes::IO::Device::Properties;
+  def.staticFunctions = NX::Classes::IO::Device::Methods;
   return context->defineOrGetClass (def);
 }
 
@@ -167,10 +168,57 @@ JSStaticValue NX::Classes::IO::Device::Properties[] {
 JSStaticFunction NX::Classes::IO::Device::Methods[] {
 //   { "lock", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
 //     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-//   }, nullptr, 0 },
+//       NX::Classes::IO::Device * dev = NX::Classes::IO::Device::FromObject(thisObject);
+//       NX::Context * context = NX::Context::FromJsContext(ctx);
+//       JSValueProtect(context->toJSContext(), thisObject);
+//       JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), ScopedString("lock"),
+//         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+//           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
+//       {
+//         NX::Context * context = NX::Context::FromJsContext(ctx);
+//         ctx = context->toJSContext();
+//         NX::Classes::IO::Device * dev = NX::Classes::IO::Device::FromObject(thisObject);
+//         try {
+//           dev->deviceLock();
+//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[0], exception), nullptr, 0, nullptr, exception);
+//         } catch (const std::exception & e) {
+//           NX::Value message(ctx, e.what());
+//           JSValueRef args1[] { message.value(), nullptr };
+//           JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
+//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[1], exception), nullptr, 1, args2, exception);
+//         }
+//         JSValueUnprotect(ctx, thisObject);
+//         return JSValueMakeUndefined(ctx);
+//       }), thisObject, 0, nullptr, nullptr);
+//       return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+//     }, 0
+//   },
 //   { "unlock", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
 //     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-//   }, nullptr, 0 },
+//       NX::Context * context = NX::Context::FromJsContext(ctx);
+//       JSValueProtect(context->toJSContext(), thisObject);
+//       JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), ScopedString("unlock"),
+//         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+//           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
+//       {
+//         NX::Context * context = NX::Context::FromJsContext(ctx);
+//         ctx = context->toJSContext();
+//         NX::Classes::IO::Device * dev = NX::Classes::IO::Device::FromObject(thisObject);
+//         try {
+//           dev->deviceUnlock();
+//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[0], exception), nullptr, 0, nullptr, exception);
+//         } catch (const std::exception & e) {
+//           NX::Value message(ctx, e.what());
+//           JSValueRef args1[] { message.value(), nullptr };
+//           JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
+//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[1], exception), nullptr, 1, args2, exception);
+//         }
+//         JSValueUnprotect(ctx, thisObject);
+//         return JSValueMakeUndefined(ctx);
+//       }), thisObject, 0, nullptr, nullptr);
+//       return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+//     }, 0
+//   },
   { nullptr, nullptr, 0 }
 };
 
@@ -212,14 +260,12 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
             std::size_t readSoFar = 0;
             while(!dev->deviceReady())
               scheduler->yield();
-            dev->deviceLock();
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
               readSoFar += dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
               scheduler->yield();
               if (dev->eof()) break;
             }
-            dev->deviceUnlock();
             if (readSoFar != length)
               buffer = (char *)realloc(buffer, readSoFar);
             scheduler->scheduleTask([=]() {
@@ -271,9 +317,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         char * buffer = (char * )malloc(length);
         std::size_t readSoFar = 0;
         while(!dev->deviceReady()) {}
-        dev->deviceLock();
         readSoFar = dev->deviceRead(buffer, length);
-        dev->deviceUnlock();
         if (readSoFar != length)
           buffer = (char *)realloc(buffer, readSoFar);
         JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
@@ -335,13 +379,11 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
             while(!dev->deviceReady())
               scheduler->yield();
-            dev->deviceLock();
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
               dev->deviceWrite(buffer + i, std::min(chunkSize, length - i));
               scheduler->yield();
             }
-            dev->deviceUnlock();
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
@@ -393,9 +435,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
         const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
         while(!dev->deviceReady()) {}
-        dev->deviceLock();
         dev->deviceWrite(buffer, length);
-        dev->deviceUnlock();
         return JSValueMakeNumber(ctx, length);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
@@ -449,9 +489,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
               pos = End;
             while(!dev->deviceReady())
               scheduler->yield();
-            dev->deviceLock();
             std::size_t newOffset = dev->deviceSeek(offset, pos);
-            dev->deviceUnlock();
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 2, args, exception);
@@ -502,9 +540,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
           while(!dev->deviceReady()) {}
-          dev->deviceLock();
           std::size_t newOffset = dev->deviceSeek(offset.toNumber(), pos);
-          dev->deviceUnlock();
           return NX::Value(ctx, newOffset).value();
         }
       } catch(const std::exception & e) {
@@ -562,9 +598,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
               pos = End;
             while(!dev->deviceReady())
               scheduler->yield();
-            dev->deviceLock();
             std::size_t newOffset = dev->deviceReadSeek(offset.toNumber(), pos);
-            dev->deviceUnlock();
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 2, args, exception);
@@ -635,9 +669,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
               pos = End;
             while(!dev->deviceReady())
               scheduler->yield();
-            dev->deviceLock();
             std::size_t newOffset = dev->deviceWriteSeek(offset.toNumber(), pos);
-            dev->deviceUnlock();
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 2, args, exception);
@@ -688,9 +720,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
           while(!dev->deviceReady()) {}
-          dev->deviceLock();
           std::size_t newOffset = dev->deviceReadSeek(offset.toNumber(), pos);
-          dev->deviceUnlock();
           return NX::Value(ctx, newOffset).value();
         }
       } catch(const std::exception & e) {
@@ -724,9 +754,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
           while(!dev->deviceReady()) {}
-          dev->deviceLock();
           std::size_t newOffset = dev->deviceWriteSeek(offset.toNumber(), pos);
-          dev->deviceUnlock();
           return NX::Value(ctx, newOffset).value();
         }
       } catch(const std::exception & e) {

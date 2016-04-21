@@ -103,9 +103,7 @@ namespace NX
       public:
 
         virtual JSValueRef read(JSContextRef ctx, JSObjectRef thisObject, std::size_t length);
-
-        virtual JSValueRef readSync(JSContextRef ctx, JSObjectRef thisObject, std::size_t length,
-                                            JSValueRef * exception);
+        virtual JSValueRef readSync(JSContextRef ctx, JSObjectRef thisObject, std::size_t length, JSValueRef * exception);
 
         virtual JSValueRef pushReadFilter(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef readFilter,
                                           JSValueRef * exception)

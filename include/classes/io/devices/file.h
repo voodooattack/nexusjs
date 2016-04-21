@@ -22,7 +22,6 @@
 
 #include <JavaScript.h>
 #include <fstream>
-#include <boost/thread/mutex.hpp>
 
 #include "classes/io/device.h"
 
@@ -58,17 +57,15 @@ namespace NX
           return dynamic_cast<NX::Classes::IO::FileSourceDevice*>(context);
         }
 
-        virtual void deviceLock() { myMutex.lock(); }
         virtual std::size_t deviceRead ( char * dest, std::size_t length ) {
           myStream.read(dest, length);
           return myStream.gcount();
         }
+        
         virtual bool deviceReady() const { return !myStream.bad(); }
         virtual std::size_t deviceSeek ( std::size_t pos, Position from ) { myStream.seekg(pos, (std::ios::seekdir)from); }
-        virtual void deviceUnlock() { myMutex.unlock(); }
         virtual bool eof() const { return myStream.eof(); }
         virtual std::size_t sourceSize() {
-          deviceLock();
           std::size_t size = 0;
           std::streampos current = myStream.tellg();
           myStream.seekg(0, std::ios::beg);
@@ -76,18 +73,16 @@ namespace NX
           myStream.seekg(0, std::ios::end);
           std::streampos end = myStream.tellg();
           myStream.seekg(current, std::ios::beg);
-          deviceUnlock();
           return end - beg;
         }
       private:
         std::ifstream myStream;
-        boost::mutex myMutex;
       };
 
       class FileSinkDevice: public virtual SeekableSinkDevice {
 
       };
-      
+
       class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
 
       };

@@ -46,8 +46,6 @@ namespace NX
         virtual ~Device() {}
 
         virtual bool deviceReady() const = 0;
-        virtual void deviceLock() = 0;
-        virtual void deviceUnlock() = 0;
 
         static NX::Classes::IO::Device * FromObject(JSObjectRef obj) {
           return reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
