@@ -20,6 +20,7 @@
 #include "nexus.h"
 #include "value.h"
 #include "task.h"
+#include "scoped_string.h"
 
 #include "globals/global.h"
 #include "globals/console.h"
@@ -29,6 +30,7 @@
 #include "globals/loader.h"
 #include "globals/filesystem.h"
 #include "globals/context.h"
+#include "globals/io.h"
 
 #include <boost/thread/pthread/mutex.hpp>
 
@@ -175,7 +177,22 @@ JSStaticFunction NX::Global::NexusFunctions[] {
 };
 
 JSStaticValue NX::Global::NexusProperties[] {
+  { "Globals", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
+    NX::Context * context = Context::FromJsContext(ctx);
+    JSObjectRef globals = JSObjectMake(ctx, context->genericClass(), nullptr);
+    boost::unordered_map<std::string, JSValueRef> props {
+      { "entryPoint", NX::Value(ctx, context->nexus()->scriptPath()).value() }
+    };
+    for(int i = 0; i < props.size(); i++) {
+      auto prop = props.begin();
+      std::advance(prop, i);;
+      NX::ScopedString name(prop->first);
+      JSObjectSetProperty(ctx, globals, name, prop->second, kJSPropertyAttributeNone, nullptr);
+    }
+    return globals;
+  }, nullptr, kJSPropertyAttributeNone },
   NX::Globals::Scheduler::GetStaticProperty(),
+  NX::Globals::IO::GetStaticProperty(),
   NX::Globals::FileSystem::GetStaticProperty(),
   NX::Globals::Context::GetStaticProperty(),
   NX::Globals::Module::GetStaticProperty(),

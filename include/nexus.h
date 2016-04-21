@@ -44,6 +44,7 @@ namespace NX
 
     JSContextGroupRef group() { return myContextGroup; }
     boost::shared_ptr<NX::Scheduler> & scheduler() { return myScheduler; }
+    const std::string & scriptPath() { return myScriptPath; }
 
   protected:
     bool parseArguments();
@@ -57,7 +58,7 @@ namespace NX
     const char ** argv;
     std::list<std::string> myArguments;
     JSContextGroupRef myContextGroup;
-    std::shared_ptr<NX::Context> myMainContext;
+    NX::Context * myMainContext;
     std::string myScriptSource;
     std::string myScriptPath;
     boost::shared_ptr<NX::Scheduler> myScheduler;

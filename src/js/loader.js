@@ -4,9 +4,14 @@
     constructor(globalObject) {
       this[globalKey] = globalObject || {};
     }
-    import(name, referrer) {
+    resolve(name, referrer) {
       return new Promise((resolve, reject) {
         
+      });
+    }
+    import(name, referrer) {
+      return new Promise((resolve, reject) {
+
       });
     }
   }

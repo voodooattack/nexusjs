@@ -26,6 +26,7 @@
 
 #include "object.h"
 #include "value.h"
+#include "scoped_string.h"
 
 namespace NX {
   class Nexus;
@@ -65,9 +66,8 @@ namespace NX {
 
     JSObjectRef getOrInitGlobal(const std::string & name) {
       if (!myGlobals[name]) {
-        JSStringRef propName = JSStringCreateWithUTF8CString(name.c_str());
+        NX::ScopedString propName(name);
         JSValueRef value = JSObjectGetProperty(myContext, JSContextGetGlobalObject(myContext), propName, nullptr);
-        JSStringRelease(propName);
         if (!JSValueIsUndefined(myContext, value)) {
           JSObjectRef object = JSValueToObject(myContext, value, nullptr);
           if (object)
@@ -77,6 +77,8 @@ namespace NX {
       }
       return myGlobals[name];
     }
+
+    JSClassRef genericClass() { return myGenericClass; }
 
     JSValueRef exports() {
       return NX::Object(myContext, myModuleObject)["exports"]->value();

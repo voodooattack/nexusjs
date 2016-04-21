@@ -17,8 +17,11 @@ add_executable(nexus
   globals/loader.cpp
   globals/filesystem.cpp
   globals/context.cpp
-  classes/stream.cpp
-  classes/file.cpp
+  globals/io.cpp
+  classes/io/stream.cpp
+  classes/io/filter.cpp
+  classes/io/device.cpp
+  classes/io/file.cpp
   classes/context.cpp
 )
 

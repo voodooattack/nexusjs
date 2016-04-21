@@ -1,5 +1,6 @@
 #include "value.h"
 #include "object.h"
+#include "scoped_string.h"
 
 #include <stdexcept>
 
@@ -17,10 +18,9 @@ NX::Value::Value (JSContextRef context, JSStringRef strRef): myContext(context),
 
 NX::Value::Value (JSContextRef context, const std::string & str): myContext(context), myVal(nullptr)
 {
-  JSStringRef strRef = JSStringCreateWithUTF8CString(str.c_str());
+  NX::ScopedString strRef(str);
   myVal = JSValueMakeString(myContext, strRef);
   JSValueProtect(context, myVal);
-  JSStringRelease(strRef);
 }
 
 NX::Value::Value (JSContextRef context, double value): myContext(context), myVal(nullptr)

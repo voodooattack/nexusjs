@@ -15,7 +15,7 @@ foreach(FILE ${JS_SOURCES})
   )
   add_custom_command(
     OUTPUT  "${CMAKE_BINARY_DIR}/generated/${BASE_NAME}.inc"
-    COMMAND xxd -i "${BASE_NAME}" "${CMAKE_BINARY_DIR}/generated/${BASE_NAME}.inc"
+    COMMAND ${XXD_EXECUTABLE} -i "${BASE_NAME}" "${CMAKE_BINARY_DIR}/generated/${BASE_NAME}.inc"
     DEPENDS ${FILE}
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/generated/"
   )

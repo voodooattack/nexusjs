@@ -17,20 +17,27 @@
  *
  */
 
-#ifndef UTIL_H
-#define UTIL_H
+
+#ifndef GLOBALS_IO_H
+#define GLOBALS_IO_H
 
 #include <JavaScript.h>
-#include <vector>
 
-namespace NX
-{
-
-  JSObjectRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
-
-  JSObjectRef JSCopyObjectShallow(JSContextRef source, JSContextRef dest, JSObjectRef object, JSValueRef * exception);
-
-  JSValueRef JSWrapException(JSContextRef ctx, const std::exception & e, JSValueRef * exception);
+namespace NX {
+  class Nexus;
+  namespace Globals {
+    class IO
+    {
+      static const JSClassDefinition Class;
+      static const JSStaticFunction Methods[];
+      static const JSStaticValue Properties[];
+      static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
+    public:
+      static constexpr JSStaticValue GetStaticProperty() {
+        return JSStaticValue { "IO", &NX::Globals::IO::Get, nullptr, kJSPropertyAttributeNone };
+      }
+    };
+  }
 }
-#endif // UTIL_H
+
+#endif // GLOBALS_IO_H

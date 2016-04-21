@@ -58,7 +58,7 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
           JSValueRef args[] { message.value(), nullptr };
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         } else {
-          JSStringRef abortName = JSStringCreateWithUTF8CString("abort");
+          NX::ScopedString abortName("abort");
           JSObjectRef taskObject = JSObjectMake(context->toJSContext(), context->defineOrGetClass({ 0, 0, "Task" }), taskPtr);
           JSObjectSetProperty(ctx, taskObject, abortName, JSObjectMakeFunctionWithCallback(
             ctx, abortName, [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,

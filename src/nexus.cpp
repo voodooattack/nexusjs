@@ -43,11 +43,12 @@ NX::Nexus::Nexus(int argc, const char ** argv):
     myArguments.push_back(argv[i]);
   }
   myContextGroup = JSContextGroupCreate();
-  myMainContext.reset(new NX::Context(nullptr, this, myContextGroup));
+  myMainContext = new NX::Context(nullptr, this, myContextGroup);
 }
 
 NX::Nexus::~Nexus()
 {
+  delete myMainContext;
   JSContextGroupRelease(myContextGroup);
 }
 

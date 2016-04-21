@@ -17,20 +17,24 @@
  *
  */
 
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef STRING_H
+#define STRING_H
 
 #include <JavaScript.h>
-#include <vector>
+#include <boost/noncopyable.hpp>
+#include <string>
 
-namespace NX
-{
+namespace NX {
+  class ScopedString: public boost::noncopyable {
+  public:
+    ScopedString(const char * str): myString(nullptr) { myString = JSStringCreateWithUTF8CString(str); }
+    ScopedString(const std::string & str): myString(nullptr) { myString = JSStringCreateWithUTF8CString(str.c_str()); }
+    ~ScopedString () { JSStringRelease(myString); }
 
-  JSObjectRef JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception);
-
-  JSObjectRef JSCopyObjectShallow(JSContextRef source, JSContextRef dest, JSObjectRef object, JSValueRef * exception);
-
-  JSValueRef JSWrapException(JSContextRef ctx, const std::exception & e, JSValueRef * exception);
+    operator JSStringRef() { return myString; }
+  private:
+    JSStringRef myString;
+  };
 }
-#endif // UTIL_H
+
+#endif // STRING_H

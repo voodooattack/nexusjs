@@ -22,6 +22,7 @@
 #include "object.h"
 #include "value.h"
 #include "globals/global.h"
+#include "scoped_string.h"
 
 NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
   myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
@@ -30,8 +31,11 @@ NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef gr
 {
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
   myContext = myGroup ? JSGlobalContextCreateInGroup(myGroup, gClass) : JSGlobalContextCreate(gClass);
+  myContext = JSGlobalContextRetain(myContext);
   myGlobalObject = JSContextGetGlobalObject(myContext);
-  myGenericClass = JSClassCreate(&kJSClassDefinitionEmpty);
+  JSClassDefinition genericClassDef = kJSClassDefinitionEmpty;
+  genericClassDef.className = "Object";
+  myGenericClass = JSClassCreate(&genericClassDef);
   if (!globalClass)
     JSClassRelease(gClass);
   JSValueRef exception = nullptr;
@@ -43,9 +47,10 @@ NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef gr
 JSValueRef NX::Context::evaluateScript (const std::string & src, JSObjectRef thisObject,
                                        const std::string & filePath, unsigned int lineNo, JSValueRef * exception)
 {
-  JSStringRef srcRef = JSStringCreateWithUTF8CString(src.c_str());
-  JSStringRef filePathRef = filePath.length() ? JSStringCreateWithUTF8CString(filePath.c_str()) : nullptr;
-  JSValueRef ret = JSEvaluateScript(myContext, srcRef, thisObject, filePathRef, lineNo, exception);
+  NX::ScopedString srcRef(src);
+  NX::ScopedString filePathRef(filePath);
+  JSValueRef ret = JSEvaluateScript(myContext, srcRef, thisObject,
+                                    filePath.length() ? (JSStringRef)filePathRef : nullptr, lineNo, exception);
   return ret;
 }
 
@@ -77,11 +82,10 @@ void NX::Context::initGlobal (JSObjectRef object, JSValueRef * exception)
     NX::Object global(myContext, object);
     global.set("module", getModuleObject(exception));
     if (exception && *exception) return;
-    JSObjectRef systemObject = global["Loader"]->toObject()->construct(std::vector<JSValueRef>(), exception);
-    if (exception && *exception) return;
-    global.set("System", systemObject, kJSPropertyAttributeNone, exception);
-    if (exception && *exception) return;
-    setGlobal("System", systemObject);
+//     JSObjectRef systemObject = global["Loader"]->toObject()->construct(std::vector<JSValueRef>(), exception);
+//     if (exception && *exception) return;
+//     global.set("System", systemObject, kJSPropertyAttributeNone, exception);
+//     if (exception && *exception) return;
 //   } catch(const std::runtime_error & e) {
 //     NX::Value message(myContext, e.what());
 //     JSValueRef args[] { message.value(), nullptr };

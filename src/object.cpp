@@ -19,6 +19,7 @@
 
 #include "object.h"
 #include "value.h"
+#include "scoped_string.h"
 
 #include <stdexcept>
 
@@ -35,7 +36,7 @@ NX::Object::Object (JSContextRef context, JSClassRef cls): myContext(context), m
 
 NX::Object::Object (JSContextRef context, JSObjectRef obj): myContext(context), myObject(obj)
 {
-  JSValueProtect(context, obj);
+  JSValueProtect(myContext, obj);
 }
 
 NX::Object::Object (JSContextRef context, JSValueRef val): myContext(context), myObject(nullptr)
@@ -46,7 +47,21 @@ NX::Object::Object (JSContextRef context, JSValueRef val): myContext(context), m
     NX::Value except(myContext, exception);
     throw std::runtime_error(except.toString());
   }
-  JSValueProtect(context, myObject);
+  JSValueProtect(myContext, myObject);
+}
+
+NX::Object::Object (JSContextRef context, time_t val): myContext(context), myObject(nullptr)
+{
+  JSValueRef args[] {
+    NX::Value(myContext, val * 1000).value()
+  };
+  JSValueRef exception = nullptr;
+  myObject = JSObjectMakeDate(myContext, 1, args, &exception);
+  if (exception) {
+    NX::Value except(myContext, exception);
+    throw std::runtime_error(except.toString());
+  }
+  JSValueProtect(myContext, myObject);
 }
 
 
@@ -58,9 +73,8 @@ NX::Object::~Object()
 boost::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
 {
   if (!myObject) return boost::shared_ptr<NX::Value>(nullptr);
-  JSStringRef nameRef = JSStringCreateWithUTF8CString(name);
+  NX::ScopedString nameRef(name);
   JSValueRef val = JSObjectGetProperty(myContext, myObject, nameRef, nullptr);
-  JSStringRelease(nameRef);
   return boost::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
 
