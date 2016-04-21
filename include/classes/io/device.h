@@ -115,7 +115,7 @@ namespace NX
           NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
           return dynamic_cast<NX::Classes::IO::SeekableSourceDevice *>(dev);
         }
-
+        virtual std::size_t sourceSize() = 0;
         static JSClassRef createClass(NX::Context * context);
       };
 
@@ -124,7 +124,7 @@ namespace NX
           NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
           return dynamic_cast<NX::Classes::IO::SeekableSinkDevice *>(dev);
         }
-
+        virtual std::size_t sinkSize() = 0;
         static JSClassRef createClass(NX::Context * context);
       };
 

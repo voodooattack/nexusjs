@@ -37,12 +37,12 @@ namespace NX
         static void Finalize(JSObjectRef object) {
           delete FromObject(object);
         }
-      public:
+      protected:
         Filter(const NX::Object & source): mySource(source) {}
       public:
         virtual ~Filter() {}
 
-        virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0);
+        virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0) = 0;
 
         static NX::Classes::IO::Filter * FromObject(JSObjectRef obj) {
           return reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));

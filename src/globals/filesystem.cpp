@@ -21,7 +21,6 @@
 #include "context.h"
 #include "object.h"
 #include "globals/filesystem.h"
-#include "classes/io/file.h"
 
 #include <boost/filesystem.hpp>
 
@@ -50,20 +49,20 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
 //       return constructor;
 //     },
 //     nullptr, kJSPropertyAttributeNone },
-  { "OpenMode", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.OpenMode"))
-        return OpenMode;
-      NX::Object modes(ctx);
-      modes.set("Read", JSValueMakeNumber(ctx, std::fstream::in));
-      modes.set("Write", JSValueMakeNumber(ctx, std::fstream::out));
-      modes.set("Binary", JSValueMakeNumber(ctx, std::fstream::binary));
-      modes.set("End", JSValueMakeNumber(ctx, std::fstream::ate));
-      modes.set("Append", JSValueMakeNumber(ctx, std::fstream::app));
-      modes.set("Truncate", JSValueMakeNumber(ctx, std::fstream::trunc));
-      return context->setGlobal("Nexus.FileSystem.OpenMode", modes.value());
-    }, nullptr, kJSPropertyAttributeNone
-  },
+//   { "OpenMode", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+//       NX::Context * context = Context::FromJsContext(ctx);
+//       if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.OpenMode"))
+//         return OpenMode;
+//       NX::Object modes(ctx);
+//       modes.set("Read", JSValueMakeNumber(ctx, std::fstream::in));
+//       modes.set("Write", JSValueMakeNumber(ctx, std::fstream::out));
+//       modes.set("Binary", JSValueMakeNumber(ctx, std::fstream::binary));
+//       modes.set("End", JSValueMakeNumber(ctx, std::fstream::ate));
+//       modes.set("Append", JSValueMakeNumber(ctx, std::fstream::app));
+//       modes.set("Truncate", JSValueMakeNumber(ctx, std::fstream::trunc));
+//       return context->setGlobal("Nexus.FileSystem.OpenMode", modes.value());
+//     }, nullptr, kJSPropertyAttributeNone
+//   },
   { "Permissions", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.Permissions"))

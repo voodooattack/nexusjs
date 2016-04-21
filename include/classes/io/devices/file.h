@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef CLASSES_IO_FILE_H
-#define CLASSES_IO_FILE_H
+#ifndef CLASSES_IO_DEVICES_FILE_H
+#define CLASSES_IO_DEVICES_FILE_H
 
 #include <JavaScript.h>
 #include <fstream>
@@ -47,8 +47,7 @@ namespace NX
         static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
                                        const JSValueRef arguments[], JSValueRef* exception);
 
-        static void Finalize(JSObjectRef object) {
-        }
+        static void Finalize(JSObjectRef object) { }
 
       public:
         static JSClassRef createClass(NX::Context * context);
@@ -68,7 +67,18 @@ namespace NX
         virtual std::size_t deviceSeek ( std::size_t pos, Position from ) { myStream.seekg(pos, (std::ios::seekdir)from); }
         virtual void deviceUnlock() { myMutex.unlock(); }
         virtual bool eof() const { return myStream.eof(); }
-
+        virtual std::size_t sourceSize() {
+          deviceLock();
+          std::size_t size = 0;
+          std::streampos current = myStream.tellg();
+          myStream.seekg(0, std::ios::beg);
+          std::streampos beg = myStream.tellg();
+          myStream.seekg(0, std::ios::end);
+          std::streampos end = myStream.tellg();
+          myStream.seekg(current, std::ios::beg);
+          deviceUnlock();
+          return end - beg;
+        }
       private:
         std::ifstream myStream;
         boost::mutex myMutex;
@@ -77,6 +87,7 @@ namespace NX
       class FileSinkDevice: public virtual SeekableSinkDevice {
 
       };
+      
       class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
 
       };
@@ -84,4 +95,4 @@ namespace NX
   }
 }
 
-#endif // CLASSES_IO_FILE_H
+#endif // CLASSES_IO_DEVICES_FILE_H

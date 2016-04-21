@@ -19,7 +19,7 @@
 
 #include "context.h"
 #include "globals/io.h"
-#include "classes/io/file.h"
+#include "classes/io/devices/file.h"
 
 JSValueRef NX::Globals::IO::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {

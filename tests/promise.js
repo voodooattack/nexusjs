@@ -55,6 +55,6 @@
     console.log(reason);
   });
 }
-{
-//   const p1 = Promise.resolve().then(() => { console.log("con"); return p1 });
-}
+// {
+// //   const p1 = Promise.resolve().then(() => { console.log("con"); return p1 });
+// }

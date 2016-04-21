@@ -19,10 +19,13 @@
 
 #include "util.h"
 #include "classes/io/device.h"
-#include "classes/io/file.h"
+#include "classes/io/devices/file.h"
+#include <boost/filesystem.hpp>
 
-
-NX::Classes::IO::FileSourceDevice::FileSourceDevice (const std::string & path): myStream(path, std::ifstream::binary) { }
+NX::Classes::IO::FileSourceDevice::FileSourceDevice (const std::string & path): myStream(path, std::ifstream::binary) {
+  if (!boost::filesystem::exists(path))
+    throw std::runtime_error("file '" + path + "' not found");
+}
 
 JSObjectRef NX::Classes::IO::FileSourceDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                             size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)

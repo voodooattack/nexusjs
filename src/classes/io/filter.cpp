@@ -80,22 +80,24 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
           JSValueProtect(context->toJSContext(), arguments[i]);
         boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
         std::size_t chunkSize = 4096;
+        JSObjectRef arrayBuffer= NX::Object(ctx, arguments[0]).value();
         scheduler->scheduleCoroutine([=]() {
-          NX::Object arrayBuffer(ctx, arguments[0]);
           JSContextRef ctx = context->toJSContext();
           try {
             const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
             std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
             std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
             std::size_t outPos = 0;
-            char * newBuffer = new char[outLengthEstimatedTotal];
+            char * newBuffer = (char *)malloc(outLengthEstimatedTotal);
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
               outPos += filter->processBuffer(buffer + i, std::min(chunkSize, length - i), newBuffer + outPos, outLengthEstimatedTotal - outPos);
               scheduler->yield();
             }
+            if (outPos != outLengthEstimatedTotal)
+              newBuffer = (char *)realloc(newBuffer, outPos);
             JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outPos,
-              [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, exception);
+              [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { outputArrayBuffer };
               JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
@@ -146,11 +148,13 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         }
         const char * buffer =  (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
-        std::size_t outLength = filter->processBuffer(buffer, length);
-        char * newBuffer = new char[outLength];
-        outLength = filter->processBuffer(buffer, length, newBuffer, outLength);
+        std::size_t estimatedOutLength = filter->processBuffer(buffer, length);
+        char * newBuffer = (char *)malloc(estimatedOutLength);
+        std::size_t outLength = filter->processBuffer(buffer, length, newBuffer, estimatedOutLength);
+        if (outLength != estimatedOutLength)
+          newBuffer = (char *)realloc(newBuffer, outLength);
         JSObjectRef output = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outLength,
-          [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, exception);
+          [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
         return output;
       } catch( const std::exception & e) {
         return JSWrapException(ctx, e, exception);

@@ -21,7 +21,8 @@ add_executable(nexus
   classes/io/stream.cpp
   classes/io/filter.cpp
   classes/io/device.cpp
-  classes/io/file.cpp
+  classes/io/devices/file.cpp
+  classes/io/filters/encoding.cpp
   classes/context.cpp
 )
 

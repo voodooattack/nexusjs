@@ -208,19 +208,23 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         scheduler->scheduleCoroutine([=]() {
           JSContextRef ctx = context->toJSContext();
           try {
-            char * buffer = new char[length];
+            char * buffer = (char *)malloc(length);
+            std::size_t readSoFar = 0;
             while(!dev->deviceReady())
               scheduler->yield();
             dev->deviceLock();
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
-              dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
+              readSoFar += dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
               scheduler->yield();
+              if (dev->eof()) break;
             }
             dev->deviceUnlock();
+            if (readSoFar != length)
+              buffer = (char *)realloc(buffer, readSoFar);
             scheduler->scheduleTask([=]() {
               JSValueRef exp = nullptr;
-              JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, length,
+              JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
                 [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, &exp);
               if (exp)
               {
@@ -264,12 +268,15 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
           }
         }
         std::size_t length = NX::Value(ctx, arguments[0]).toNumber();
-        char * buffer = new char[length];
+        char * buffer = (char * )malloc(length);
+        std::size_t readSoFar = 0;
         while(!dev->deviceReady()) {}
         dev->deviceLock();
-        dev->deviceRead(buffer, length);
+        readSoFar = dev->deviceRead(buffer, length);
         dev->deviceUnlock();
-        JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, length,
+        if (readSoFar != length)
+          buffer = (char *)realloc(buffer, readSoFar);
+        JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
                 [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, exception);
         return arrayBuffer;
       } catch(const std::exception & e) {
@@ -320,8 +327,8 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
           JSValueProtect(context->toJSContext(), arguments[i]);
         boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
         std::size_t chunkSize = 4096;
+        JSObjectRef arrayBuffer = NX::Object(ctx, arguments[0]).value();
         scheduler->scheduleCoroutine([=]() {
-          NX::Object arrayBuffer(ctx, arguments[0]);
           JSContextRef ctx = context->toJSContext();
           try {
             const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
@@ -428,22 +435,22 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
         std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
         NX::Classes::IO::SeekableDevice * dev = NX::Classes::IO::SeekableDevice::FromObject(thisObject);
         boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
+        std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
+        std::string position = NX::Value (ctx, arguments[1]).toString();
         scheduler->scheduleCoroutine([=]() {
           JSContextRef ctx = context->toJSContext();
           try {
-            NX::Value offset(ctx, arguments[0]);
-            NX::Value position(ctx, arguments[1]);
             Device::Position pos;
-            if (boost::iequals(position.toString(), "begin"))
+            if (boost::iequals(position, "begin"))
               pos = Beginning;
-            else if (boost::iequals(position.toString(), "current"))
+            else if (boost::iequals(position, "current"))
               pos = Current;
-            else if (boost::iequals(position.toString(), "end"))
+            else if (boost::iequals(position, "end"))
               pos = End;
             while(!dev->deviceReady())
               scheduler->yield();
             dev->deviceLock();
-            std::size_t newOffset = dev->deviceSeek(offset.toNumber(), pos);
+            std::size_t newOffset = dev->deviceSeek(offset, pos);
             dev->deviceUnlock();
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };

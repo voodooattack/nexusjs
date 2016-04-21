@@ -58,15 +58,15 @@ boost::unordered_map<int, NX::AbstractTask *> globalTimeouts;
 
 JSStaticFunction NX::Global::GlobalFunctions[] {
   { "setTimeout",
-    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef
+    {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Nexus * nx = context->nexus();
-      if (argumentCount < 2) {
-        NX::Value message(ctx, "invalid arguments");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-      }
       try {
+        if (argumentCount < 2) {
+          throw std::runtime_error("invalid arguments");
+        }
         NX::Value timeout(ctx, arguments[1]);
         std::vector<JSValueRef> saved { arguments[0], arguments[1] };
         std::vector<JSValueRef> args;
@@ -95,9 +95,7 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
           return JSValueMakeNumber(ctx, id);
         }
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return JSWrapException(ctx, e, exception);
       }
       return JSValueMakeUndefined(ctx);
     }, 0
@@ -107,12 +105,10 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Nexus * nx = context->nexus();
-      if (argumentCount != 1) {
-        NX::Value message(ctx, "invalid arguments");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-      }
       try {
+        if (argumentCount != 1) {
+          throw std::runtime_error("invalid arguments");
+        }
         NX::Value timeoutId(ctx, arguments[0]);
         int taskId = (int)timeoutId.toNumber();
         {
@@ -125,30 +121,28 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
           globalTimeouts.erase(taskId);
         }
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return JSWrapException(ctx, e, exception);
       }
       return JSValueMakeUndefined(ctx);
     }, 0
   },
-  { "__valueProtect",
-    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
-       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-         for(int i = 0; i < argumentCount; i++)
-          JSValueProtect(JSContextGetGlobalContext(ctx), arguments[i]);
-         return JSValueMakeUndefined(ctx);
-       }, 0
-  },
-  { "__valueUnprotect",
-    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
-       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-         NX::Context * context = Context::FromJsContext(ctx);
-         for(int i = 0; i < argumentCount; i++)
-           JSValueUnprotect(JSContextGetGlobalContext(ctx), arguments[i]);
-         return JSValueMakeUndefined(ctx);
-       }, 0
-  },
+//   { "__valueProtect",
+//     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+//        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+//          for(int i = 0; i < argumentCount; i++)
+//           JSValueProtect(JSContextGetGlobalContext(ctx), arguments[i]);
+//          return JSValueMakeUndefined(ctx);
+//        }, 0
+//   },
+//   { "__valueUnprotect",
+//     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+//        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+//          NX::Context * context = Context::FromJsContext(ctx);
+//          for(int i = 0; i < argumentCount; i++)
+//            JSValueUnprotect(JSContextGetGlobalContext(ctx), arguments[i]);
+//          return JSValueMakeUndefined(ctx);
+//        }, 0
+//   },
   { nullptr, nullptr, 0 }
 };
 
