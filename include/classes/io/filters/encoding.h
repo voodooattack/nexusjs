@@ -33,7 +33,7 @@ namespace NX {
                                   const std::string & toEncoding);
         virtual ~EncodingConversionFilter() {}
 
-        virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0);
+        virtual std::size_t processBuffer( char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 );
 
       protected:
         std::string myEncodingFrom, myEncodingTo;

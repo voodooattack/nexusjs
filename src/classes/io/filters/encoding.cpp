@@ -34,7 +34,7 @@ NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const NX::O
   iconv_close(cd);
 }
 
-std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (const char * buffer, std::size_t length, char * dest, std::size_t outLength)
+std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buffer, std::size_t length, char * dest, std::size_t outLength)
 {
   if (!dest) return length * 4;
   errno = 0;
@@ -43,7 +43,7 @@ std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (const char
   if (cd = (iconv_t)-1)
     throw std::runtime_error("invalid parameters specified while converting from '" +
       myEncodingFrom + "' to '" + myEncodingTo + "'");
-  size_t result = iconv(cd, reinterpret_cast<char**>(reinterpret_cast<void*>(&buffer)), &length, &dest, &outLength);
+  size_t result = iconv(cd, &buffer, &length, &dest, &outLength);
   iconv_close(cd);
   if (result == (size_t)-1) {
     if (errno == E2BIG) {
