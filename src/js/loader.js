@@ -6,7 +6,7 @@
     }
     resolve(name, referrer) {
       return new Promise((resolve, reject) {
-        
+
       });
     }
     import(name, referrer) {

@@ -5,4 +5,3 @@ stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-16LE", "UTF-8"));
 stream.pushFilter(new Nexus.IO.UTF8StringFilter());
 
 stream.read(100).then(v => console.log("buffer: " + v));
-stream.read(100).then(v => console.log("buffer: " + v));

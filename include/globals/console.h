@@ -29,6 +29,7 @@ namespace NX {
     {
       static const JSClassDefinition Class;
       static const JSStaticFunction Methods[];
+      static const JSStaticValue Properties[];
       static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception);
     public:
       static constexpr JSStaticValue GetStaticProperty() {

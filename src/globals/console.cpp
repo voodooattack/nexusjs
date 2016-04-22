@@ -21,6 +21,8 @@
 #include "value.h"
 #include "globals/console.h"
 
+#include "inspect.js.inc"
+
 #include <iostream>
 
 JSValueRef NX::Globals::Console::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
@@ -76,6 +78,26 @@ const JSStaticFunction NX::Globals::Console::Methods[] {
   { nullptr, nullptr, 0 }
 };
 
+const JSStaticValue NX::Globals::Console::Properties[] {
+  { "inspect", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      try {
+        NX::Context * context = Context::FromJsContext(ctx);
+        if (JSObjectRef inspect = context->getGlobal("console.inspect"))
+          return inspect;
+        JSValueRef inspect = context->evaluateScript(std::string(inspect_js, inspect_js + inspect_js_len),
+                                                    nullptr, "console.js", 1, exception);
+        if (exception && *exception)
+          throw std::runtime_error(NX::Value(ctx, *exception).toString());
+        context->setGlobal("console.inspect", NX::Object(context->toJSContext(), inspect).value());
+        return inspect;
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+      }
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { nullptr, nullptr, nullptr, 0}
+};
+
 const JSClassDefinition NX::Globals::Console::Class {
-  0, kJSClassAttributeNone, "Console", nullptr, nullptr, NX::Globals::Console::Methods
+  0, kJSClassAttributeNone, "Console", nullptr, NX::Globals::Console::Properties, NX::Globals::Console::Methods
 };
