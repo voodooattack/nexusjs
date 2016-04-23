@@ -56,6 +56,7 @@ namespace NX
     virtual void exit() = 0;
     virtual void schedule(NX::AbstractTask * task) = 0;
     virtual void setCancellationHandler(const NX::Scheduler::CompletionHandler &) = 0;
+    virtual void setFinishHandler(const NX::Scheduler::CompletionHandler &) = 0;
 
   };
 
@@ -87,13 +88,18 @@ namespace NX
           i->abort();
           delete i;
         }
+      if (myFinishHandler)
+        myFinishHandler();
     }
     virtual void schedule(NX::AbstractTask * task) { myDependents.push_back(task); }
     virtual void setCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
       myCancellationHandler = handler;
     }
+    virtual void setFinishHandler(const NX::Scheduler::CompletionHandler & handler) {
+      myFinishHandler = handler;
+    }
   protected:
-    NX::Scheduler::CompletionHandler myHandler, myCancellationHandler;
+    NX::Scheduler::CompletionHandler myHandler, myCancellationHandler, myFinishHandler;
     NX::Scheduler * myScheduler;
     boost::atomic<Status> myStatus;
     std::vector<NX::AbstractTask *> myDependents;
@@ -121,15 +127,20 @@ namespace NX
           i->abort();
           delete i;
         }
+        if (myFinishHandler)
+          myFinishHandler();
     }
     virtual void schedule(NX::AbstractTask * task) { myDependents.push_back(task); }
     virtual void setCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
       myCancellationHandler = handler;
     }
+    virtual void setFinishHandler(const NX::Scheduler::CompletionHandler & handler) {
+      myFinishHandler = handler;
+    }
   protected:
     void coroutine(pull_type & ca);
   protected:
-    NX::Scheduler::CompletionHandler myHandler, myCancellationHandler;
+    NX::Scheduler::CompletionHandler myHandler, myCancellationHandler, myFinishHandler;
     NX::Scheduler * myScheduler;
     boost::shared_ptr<push_type> myCoroutine;
     pull_type * myPullCa;

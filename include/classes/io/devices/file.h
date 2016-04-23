@@ -61,7 +61,7 @@ namespace NX
           myStream.read(dest, length);
           return myStream.gcount();
         }
-        
+
         virtual bool deviceReady() const { return !myStream.bad(); }
         virtual std::size_t deviceSeek ( std::size_t pos, Position from ) { myStream.seekg(pos, (std::ios::seekdir)from); }
         virtual bool eof() const { return myStream.eof(); }

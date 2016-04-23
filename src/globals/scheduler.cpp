@@ -57,38 +57,45 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
           NX::Value message(ctx, "unable to schedule task");
           JSValueRef args[] { message.value(), nullptr };
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        } else {
+        } /*else {
           NX::ScopedString abortName("abort");
           JSObjectRef taskObject = JSObjectMake(context->toJSContext(), context->defineOrGetClass({ 0, 0, "Task" }), taskPtr);
           JSObjectSetProperty(ctx, taskObject, abortName, JSObjectMakeFunctionWithCallback(
             ctx, abortName, [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                                size_t argumentCount, const JSValueRef arguments[],
                                JSValueRef* exception) -> JSValueRef
-                               {
-                                 NX::AbstractTask * task = reinterpret_cast<NX::AbstractTask *>(JSObjectGetPrivate(thisObject));
-                                 if (task) {
-                                   if (task->status() == NX::AbstractTask::ABORTED)
-                                     return JSValueMakeBoolean(ctx, false);
-                                   else {
-                                     task->abort();
-                                     return JSValueMakeBoolean(ctx, task->status() == NX::AbstractTask::ABORTED);
-                                   }
-                                 }/* else {
-                                   NX::Value message(ctx, "abort called on a non-task");
-                                   JSValueRef args[] { message.value(), nullptr };
-                                   *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-                                 }*/
-                                 return JSValueMakeBoolean(ctx, false);
-                               }
-          ), kJSPropertyAttributeNone, nullptr);
+          {
+            NX::AbstractTask * task = reinterpret_cast<NX::AbstractTask *>(JSObjectGetPrivate(thisObject));
+            if (task) {
+              if (task->status() == NX::AbstractTask::ABORTED)
+                return JSValueMakeBoolean(ctx, false);
+              else {
+                task->abort();
+                return JSValueMakeBoolean(ctx, task->status() == NX::AbstractTask::ABORTED);
+              }
+            } else {
+              NX::Value message(ctx, "task expired");
+              JSValueRef args[] { message.value(), nullptr };
+              *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+            }
+            return JSValueMakeBoolean(ctx, false);
+          }), kJSPropertyAttributeNone, nullptr);
           JSValueProtect(context->toJSContext(), taskObject);
           taskPtr->setCancellationHandler([=]() {
-            JSObjectSetPrivate(taskObject, nullptr);
-            JSValueUnprotect(context->toJSContext(), taskObject);
+            if (JSObjectGetPrivate(taskObject)) {
+              JSObjectSetPrivate(taskObject, nullptr);
+              JSValueUnprotect(context->toJSContext(), taskObject);
+            }
           });
-          return taskObject;
+          taskPtr->setFinishHandler([=]() {
+            if (JSObjectGetPrivate(taskObject)) {
+              JSObjectSetPrivate(taskObject, nullptr);
+              JSValueUnprotect(context->toJSContext(), taskObject);
+            }
+          });
+          return taskObject;*/
 //           return JSValueMakeUndefined(ctx);
-        }
+//         }
       } else {
         if (!*exception) {
           NX::Value message(ctx, "invalid argument passed to scheduler");

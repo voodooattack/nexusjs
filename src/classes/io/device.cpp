@@ -258,8 +258,8 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
           try {
             char * buffer = (char *)malloc(length);
             std::size_t readSoFar = 0;
-            while(!dev->deviceReady())
-              scheduler->yield();
+            if(!dev->deviceReady())
+              throw std::runtime_error("device not ready");
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
               readSoFar += dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
@@ -316,7 +316,8 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         std::size_t length = NX::Value(ctx, arguments[0]).toNumber();
         char * buffer = (char * )malloc(length);
         std::size_t readSoFar = 0;
-        while(!dev->deviceReady()) {}
+        if(!dev->deviceReady())
+          throw std::runtime_error("device not ready");
         readSoFar = dev->deviceRead(buffer, length);
         if (readSoFar != length)
           buffer = (char *)realloc(buffer, readSoFar);
@@ -377,8 +378,8 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
           try {
             const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
             std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
-            while(!dev->deviceReady())
-              scheduler->yield();
+            if(!dev->deviceReady())
+              throw std::runtime_error("device not ready");
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
               dev->deviceWrite(buffer + i, std::min(chunkSize, length - i));
@@ -434,7 +435,8 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
         NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
         const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
-        while(!dev->deviceReady()) {}
+        if(!dev->deviceReady())
+          throw std::runtime_error("device not ready");
         dev->deviceWrite(buffer, length);
         return JSValueMakeNumber(ctx, length);
       } catch(const std::exception & e) {
@@ -487,8 +489,8 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
               pos = Current;
             else if (boost::iequals(position, "end"))
               pos = End;
-            while(!dev->deviceReady())
-              scheduler->yield();
+            if(!dev->deviceReady())
+              throw std::runtime_error("device not ready");
             std::size_t newOffset = dev->deviceSeek(offset, pos);
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
@@ -539,7 +541,8 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
             pos = Current;
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
-          while(!dev->deviceReady()) {}
+          if (!dev->deviceReady())
+            throw std::runtime_error("device not ready");
           std::size_t newOffset = dev->deviceSeek(offset.toNumber(), pos);
           return NX::Value(ctx, newOffset).value();
         }
@@ -596,8 +599,8 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
               pos = Current;
             else if (boost::iequals(position.toString(), "end"))
               pos = End;
-            while(!dev->deviceReady())
-              scheduler->yield();
+            if(!dev->deviceReady())
+              throw std::runtime_error("device not ready");
             std::size_t newOffset = dev->deviceReadSeek(offset.toNumber(), pos);
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
@@ -667,8 +670,8 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
               pos = Current;
             else if (boost::iequals(position.toString(), "end"))
               pos = End;
-            while(!dev->deviceReady())
-              scheduler->yield();
+            if(!dev->deviceReady())
+              throw std::runtime_error("device not ready");
             std::size_t newOffset = dev->deviceWriteSeek(offset.toNumber(), pos);
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
@@ -719,7 +722,8 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
             pos = Current;
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
-          while(!dev->deviceReady()) {}
+          if(!dev->deviceReady())
+            throw std::runtime_error("device not ready");
           std::size_t newOffset = dev->deviceReadSeek(offset.toNumber(), pos);
           return NX::Value(ctx, newOffset).value();
         }
@@ -753,7 +757,8 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
             pos = Current;
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
-          while(!dev->deviceReady()) {}
+          if(!dev->deviceReady())
+            throw std::runtime_error("device not ready");
           std::size_t newOffset = dev->deviceWriteSeek(offset.toNumber(), pos);
           return NX::Value(ctx, newOffset).value();
         }

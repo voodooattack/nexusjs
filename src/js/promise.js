@@ -36,7 +36,11 @@
         this[subscribersKey].forEach(({ resolve, reject, promise }) => {
           if (resolve) {
             promise[taskKey] = Nexus.Scheduler.schedule(function() {
-              promise[broadcastResolveKey](resolve(value));
+              try {
+                promise[broadcastResolveKey](resolve(value));
+              } catch(e) {
+                promise[boradcastRejectKey](e);
+              }
             }.bind(this));
           }
         });
@@ -54,7 +58,8 @@
               try {
                 promise[broadcastResolveKey](reject(value));
               } catch(e) {
-                promise[broadcastRejectKey](e);
+                e.innerException = value;
+                promise[broadcastRejectKey](value);
               }
             }.bind(this));
           });
@@ -64,8 +69,8 @@
                 promise[broadcastRejectKey](value);
               }.bind(this));
             });
-        } /*else*/
-//             throw value;
+        } /*else
+            throw value;*/
       };
       this[taskKey] = Nexus.Scheduler.schedule(
         executor.bind(null, broadcastResolve.bind(this), broadcastReject.bind(this))
