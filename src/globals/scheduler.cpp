@@ -73,16 +73,21 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
                                      task->abort();
                                      return JSValueMakeBoolean(ctx, task->status() == NX::AbstractTask::ABORTED);
                                    }
-                                 } else {
+                                 }/* else {
                                    NX::Value message(ctx, "abort called on a non-task");
                                    JSValueRef args[] { message.value(), nullptr };
                                    *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-                                 }
-                                 return JSValueMakeUndefined(ctx);
+                                 }*/
+                                 return JSValueMakeBoolean(ctx, false);
                                }
           ), kJSPropertyAttributeNone, nullptr);
-          JSStringRelease(abortName);
+          JSValueProtect(context->toJSContext(), taskObject);
+          taskPtr->setCancellationHandler([=]() {
+            JSObjectSetPrivate(taskObject, nullptr);
+            JSValueUnprotect(context->toJSContext(), taskObject);
+          });
           return taskObject;
+//           return JSValueMakeUndefined(ctx);
         }
       } else {
         if (!*exception) {
