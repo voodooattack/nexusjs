@@ -31,7 +31,7 @@ JSValueRef NX::Globals::FileSystem::Get (JSContextRef ctx, JSObjectRef object, J
     return FileSystem;
   }
   return context->setGlobal("Nexus.FileSystem", JSObjectMake(context->toJSContext(),
-                                                             context->defineOrGetClass(NX::Globals::FileSystem::Class),
+                                                             context->nexus()->defineOrGetClass(NX::Globals::FileSystem::Class),
                                                              nullptr));
 }
 
@@ -40,15 +40,6 @@ const JSClassDefinition NX::Globals::FileSystem::Class {
 };
 
 const JSStaticValue NX::Globals::FileSystem::Properties[] {
-//   { "File", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-//       NX::Context * context = Context::FromJsContext(ctx);
-//       if (JSObjectRef File = context->getGlobal("File"))
-//         return File;
-//       JSObjectRef constructor = NX::Classes::IO::File::getConstructor(context);
-//       context->setGlobal("File", constructor);
-//       return constructor;
-//     },
-//     nullptr, kJSPropertyAttributeNone },
 //   { "OpenMode", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
 //       NX::Context * context = Context::FromJsContext(ctx);
 //       if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.OpenMode"))
@@ -122,7 +113,7 @@ const JSStaticFunction NX::Globals::FileSystem::Methods[] {
         boost::filesystem::perms perms = stats.permissions();
         boost::filesystem::file_type type = stats.type();
         time_t lastMod = boost::filesystem::last_write_time(filePath);
-        JSObjectRef statsObj = JSObjectMake(ctx, context->genericClass(), nullptr);
+        JSObjectRef statsObj = JSObjectMake(ctx, context->nexus()->genericClass(), nullptr);
         JSObjectSetProperty(ctx, statsObj, NX::ScopedString("permissions"), NX::Value(ctx, perms).value(), kJSPropertyAttributeNone, exception);
         JSObjectSetProperty(ctx, statsObj, NX::ScopedString("type"), NX::Value(ctx, type).value(), kJSPropertyAttributeNone, exception);
         JSObjectSetProperty(ctx, statsObj, NX::ScopedString("lastModified"), NX::Object(ctx, lastMod).value(), kJSPropertyAttributeNone, exception);

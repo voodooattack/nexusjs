@@ -29,7 +29,7 @@ JSClassRef NX::Classes::IO::UTF8StringFilter::createClass (NX::Context * context
   def.className = "UTF8StringFilter";
 //   def.parentClass = parent;
   def.staticFunctions = NX::Classes::IO::UTF8StringFilter::Methods;
-  return context->defineOrGetClass(def);
+  return context->nexus()->defineOrGetClass(def);
 }
 
 JSStaticFunction NX::Classes::IO::UTF8StringFilter::Methods[] {

@@ -37,7 +37,7 @@ namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
   argc(argc), argv(argv), myArguments(), myContextGroup(nullptr), myMainContext(nullptr),
-  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions()
+  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myClasses()
 {
   for (unsigned int i = 0; i < argc; i++) {
     myArguments.push_back(argv[i]);
@@ -50,6 +50,8 @@ NX::Nexus::~Nexus()
 {
   delete myMainContext;
   JSContextGroupRelease(myContextGroup);
+  for(auto & c : myClasses)
+    JSClassRelease(c.second);
 }
 
 bool NX::Nexus::parseArguments()

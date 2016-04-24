@@ -46,6 +46,14 @@ namespace NX
     boost::shared_ptr<NX::Scheduler> & scheduler() { return myScheduler; }
     const std::string & scriptPath() { return myScriptPath; }
 
+    JSClassRef defineOrGetClass(const JSClassDefinition & def) {
+      if (myClasses.find(def.className) != myClasses.end())
+        return myClasses[def.className];
+      return myClasses[def.className] = JSClassCreate(&def);
+    }
+
+    JSClassRef genericClass() { return defineOrGetClass({ 0, 0, "Object" }); }
+
   protected:
     bool parseArguments();
     void initScheduler();
@@ -63,6 +71,7 @@ namespace NX
     std::string myScriptPath;
     boost::shared_ptr<NX::Scheduler> myScheduler;
     boost::program_options::variables_map myOptions;
+    boost::unordered_map<std::string, JSClassRef> myClasses;
   };
 }
 

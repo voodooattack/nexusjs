@@ -31,7 +31,7 @@ JSValueRef NX::Globals::Console::Get (JSContextRef ctx, JSObjectRef object, JSSt
   if (JSObjectRef console = context->getGlobal("console")) {
     return console;
   }
-  return context->setGlobal("console", JSObjectMake(context->toJSContext(), context->defineOrGetClass(NX::Globals::Console::Class), nullptr));
+  return context->setGlobal("console", JSObjectMake(context->toJSContext(), context->nexus()->defineOrGetClass(NX::Globals::Console::Class), nullptr));
 }
 
 const JSStaticFunction NX::Globals::Console::Methods[] {

@@ -42,12 +42,6 @@ namespace NX {
                               unsigned int lineNo = 1,
                               JSValueRef * exception = nullptr);
 
-    JSClassRef defineOrGetClass(const JSClassDefinition & def) {
-      if (myObjectClasses.find(def.className) != myObjectClasses.end())
-        return myObjectClasses[def.className];
-      return myObjectClasses[def.className] = JSClassCreate(&def);
-    }
-
     bool isDetached() { return myGroup != nullptr; }
 
     boost::unordered_map<std::string, JSObjectRef> & globals() { return myGlobals; }
@@ -78,8 +72,6 @@ namespace NX {
       return myGlobals[name];
     }
 
-    JSClassRef genericClass() { return myGenericClass; }
-
     JSValueRef exports() {
       return NX::Object(myContext, myModuleObject)["exports"]->value();
     }
@@ -101,9 +93,7 @@ namespace NX {
     JSContextGroupRef myGroup;
     JSGlobalContextRef myContext;
     JSObjectRef myGlobalObject, myModuleObject;
-    JSClassRef myGenericClass;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
-    boost::unordered_map<std::string, JSClassRef> myObjectClasses;
     NX::Context * myParent;
   };
 }

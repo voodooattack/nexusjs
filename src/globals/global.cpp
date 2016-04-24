@@ -161,7 +161,7 @@ JSValueRef NX::Global::NexusGet (JSContextRef ctx, JSObjectRef object, JSStringR
     return nexus;
   }
   return context->setGlobal("Nexus", JSObjectMake(context->toJSContext(),
-                                                  context->defineOrGetClass(NX::Global::NexusClass), nullptr));
+                                                  context->nexus()->defineOrGetClass(NX::Global::NexusClass), nullptr));
 }
 
 JSClassDefinition NX::Global::GlobalClass = NX::Global::InitGlobalClass();
@@ -173,7 +173,7 @@ JSStaticFunction NX::Global::NexusFunctions[] {
 JSStaticValue NX::Global::NexusProperties[] {
   { "Globals", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    JSObjectRef globals = JSObjectMake(ctx, context->genericClass(), nullptr);
+    JSObjectRef globals = JSObjectMake(ctx, context->nexus()->genericClass(), nullptr);
     boost::unordered_map<std::string, JSValueRef> props {
       { "entryPoint", NX::Value(ctx, context->nexus()->scriptPath()).value() }
     };

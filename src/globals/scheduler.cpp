@@ -17,7 +17,7 @@ JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JS
   if (JSObjectRef Scheduler = context->getGlobal("Nexus.Scheduler"))
     return Scheduler;
   return context->setGlobal("Nexus.Scheduler", JSObjectMake(context->toJSContext(),
-                                                     context->defineOrGetClass(NX::Globals::Scheduler::Class),
+                                                     context->nexus()->defineOrGetClass(NX::Globals::Scheduler::Class),
                                                      context->nexus()->scheduler().get()));
 }
 
@@ -59,7 +59,7 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         } /*else {
           NX::ScopedString abortName("abort");
-          JSObjectRef taskObject = JSObjectMake(context->toJSContext(), context->defineOrGetClass({ 0, 0, "Task" }), taskPtr);
+          JSObjectRef taskObject = JSObjectMake(context->toJSContext(), context->nexus()->defineOrGetClass({ 0, 0, "Task" }), taskPtr);
           JSObjectSetProperty(ctx, taskObject, abortName, JSObjectMakeFunctionWithCallback(
             ctx, abortName, [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                                size_t argumentCount, const JSValueRef arguments[],

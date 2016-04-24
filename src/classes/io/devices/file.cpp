@@ -18,6 +18,7 @@
  */
 
 #include "util.h"
+#include "nexus.h"
 #include "classes/io/device.h"
 #include "classes/io/devices/file.h"
 #include <boost/filesystem.hpp>
@@ -47,7 +48,7 @@ JSClassRef NX::Classes::IO::FileSourceDevice::createClass (NX::Context * context
 {
   JSClassDefinition def = NX::Classes::IO::FileSourceDevice::Class;
   def.parentClass = NX::Classes::IO::SeekableSourceDevice::createClass (context);
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSObjectRef NX::Classes::IO::FileSourceDevice::getConstructor (NX::Context * context)

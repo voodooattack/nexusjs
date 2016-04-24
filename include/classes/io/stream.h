@@ -72,7 +72,7 @@ namespace NX
                                        const JSValueRef arguments[], JSValueRef* exception)
         {
           NX::Context * context = NX::Context::FromJsContext(ctx);
-          JSClassRef _class = context->defineOrGetClass(NX::Classes::IO::ReadableStream::Class);
+          JSClassRef _class = context->nexus()->defineOrGetClass(NX::Classes::IO::ReadableStream::Class);
           try {
             if (argumentCount < 1) {
               throw std::runtime_error("missing parameter device in call to ReadableStream constructor");
@@ -144,7 +144,7 @@ namespace NX
                                        const JSValueRef arguments[], JSValueRef* exception)
         {
           NX::Context * context = NX::Context::FromJsContext(ctx);
-          JSClassRef _class = context->defineOrGetClass(NX::Classes::IO::WritableStream::Class);
+          JSClassRef _class = context->nexus()->defineOrGetClass(NX::Classes::IO::WritableStream::Class);
           try {
             if (argumentCount < 1) {
               throw std::runtime_error("missing parameter device in call to WritableStream constructor");

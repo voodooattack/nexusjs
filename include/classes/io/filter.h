@@ -21,6 +21,7 @@
 #define CLASSES_IO_FILTER_H
 
 #include <JavaScript.h>
+#include "nexus.h"
 #include "classes/io/device.h"
 
 namespace NX
@@ -44,7 +45,7 @@ namespace NX
                                        const JSValueRef arguments[], JSValueRef* exception)
         {
           NX::Context * context = NX::Context::FromJsContext(ctx);
-          JSClassRef filterClass = context->defineOrGetClass(NX::Classes::IO::Filter::Class);
+          JSClassRef filterClass = context->nexus()->defineOrGetClass(NX::Classes::IO::Filter::Class);
           return JSObjectMake(ctx, filterClass, nullptr);
         }
 

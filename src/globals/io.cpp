@@ -33,7 +33,7 @@ JSValueRef NX::Globals::IO::Get (JSContextRef ctx, JSObjectRef object, JSStringR
     return IO;
   }
   return context->setGlobal("Nexus.IO", JSObjectMake(context->toJSContext(),
-                                                             context->defineOrGetClass(NX::Globals::IO::Class),
+                                                             context->nexus()->defineOrGetClass(NX::Globals::IO::Class),
                                                              nullptr));
 }
 

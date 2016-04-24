@@ -21,11 +21,12 @@
 #include "context.h"
 #include "object.h"
 #include "util.h"
+#include "nexus.h"
 #include "classes/context.h"
 
 JSClassRef NX::Classes::Context::createClass (NX::Context * context)
 {
-  return context->defineOrGetClass(NX::Classes::Context::Class);
+  return context->nexus()->defineOrGetClass(NX::Classes::Context::Class);
 }
 
 JSObjectRef NX::Classes::Context::getConstructor (NX::Context * context)

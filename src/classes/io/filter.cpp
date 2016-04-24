@@ -28,7 +28,7 @@
 
 JSClassRef NX::Classes::IO::Filter::createClass (NX::Context * context)
 {
-  return context->defineOrGetClass(NX::Classes::IO::Filter::Class);
+  return context->nexus()->defineOrGetClass(NX::Classes::IO::Filter::Class);
 }
 
 JSClassDefinition NX::Classes::IO::Filter::Class {

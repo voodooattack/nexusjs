@@ -34,7 +34,7 @@ JSClassRef NX::Classes::IO::Device::createClass (NX::Context * context)
   def.className = "Device";
   def.staticValues = NX::Classes::IO::Device::Properties;
   def.staticFunctions = NX::Classes::IO::Device::Methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::SourceDevice::createClass (NX::Context * context)
@@ -43,7 +43,7 @@ JSClassRef NX::Classes::IO::SourceDevice::createClass (NX::Context * context)
   def.parentClass = NX::Classes::IO::Device::createClass (context);
   def.className = "SourceDevice";
   def.staticFunctions = NX::Classes::IO::SourceDevice::Methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::SinkDevice::createClass (Context * context)
@@ -52,7 +52,7 @@ JSClassRef NX::Classes::IO::SinkDevice::createClass (Context * context)
   def.parentClass = NX::Classes::IO::Device::createClass (context);
   def.className = "SinkDevice";
   def.staticFunctions = NX::Classes::IO::SourceDevice::Methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::BidirectionalDevice::createClass (Context * context)
@@ -66,7 +66,7 @@ JSClassRef NX::Classes::IO::BidirectionalDevice::createClass (Context * context)
     NX::Classes::IO::SinkDevice::Methods[0],
   };
   def.staticFunctions = methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::SeekableDevice::createClass (NX::Context * context)
@@ -75,7 +75,7 @@ JSClassRef NX::Classes::IO::SeekableDevice::createClass (NX::Context * context)
   def.parentClass = NX::Classes::IO::Device::createClass (context);
   def.className = "SeekableDevice";
   def.staticFunctions = NX::Classes::IO::SeekableDevice::Methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::SeekableSourceDevice::createClass (NX::Context * context)
@@ -91,7 +91,7 @@ JSClassRef NX::Classes::IO::SeekableSourceDevice::createClass (NX::Context * con
     NX::Classes::IO::SourceDevice::Methods[1],
   };
   def.staticFunctions = methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::SeekableSinkDevice::createClass (NX::Context * context)
@@ -107,7 +107,7 @@ JSClassRef NX::Classes::IO::SeekableSinkDevice::createClass (NX::Context * conte
     NX::Classes::IO::SinkDevice::Methods[1],
   };
   def.staticFunctions = methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::BidirectionalSeekableDevice::createClass (NX::Context * context)
@@ -125,7 +125,7 @@ JSClassRef NX::Classes::IO::BidirectionalSeekableDevice::createClass (NX::Contex
     NX::Classes::IO::SeekableDevice::Methods[1],
   };
   def.staticFunctions = methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::DualSeekableDevice::createClass (NX::Context * context)
@@ -134,7 +134,7 @@ JSClassRef NX::Classes::IO::DualSeekableDevice::createClass (NX::Context * conte
   def.parentClass = NX::Classes::IO::Device::createClass (context);
   def.className = "DualSeekableDevice";
   def.staticFunctions = NX::Classes::IO::DualSeekableDevice::Methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSClassRef NX::Classes::IO::BidirectionalDualSeekableDevice::createClass (NX::Context * context)
@@ -154,7 +154,7 @@ JSClassRef NX::Classes::IO::BidirectionalDualSeekableDevice::createClass (NX::Co
     NX::Classes::IO::SinkDevice::Methods[2],
   };
   def.staticFunctions = methods;
-  return context->defineOrGetClass (def);
+  return context->nexus()->defineOrGetClass (def);
 }
 
 JSStaticValue NX::Classes::IO::Device::Properties[] {

@@ -26,16 +26,12 @@
 
 NX::Context::Context (NX::Context * parent, NX::Nexus * nx, JSContextGroupRef group, JSClassRef globalClass) :
   myNexus(parent ? parent->nexus() : nx), myGroup (parent ? parent->group() : group),
-  myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr),
-  myGenericClass(), myObjectClasses(), myParent(parent)
+  myContext (nullptr), myGlobals(), myGlobalObject (nullptr), myModuleObject(nullptr), myParent(parent)
 {
   JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
   myContext = myGroup ? JSGlobalContextCreateInGroup(myGroup, gClass) : JSGlobalContextCreate(gClass);
   myContext = JSGlobalContextRetain(myContext);
   myGlobalObject = JSContextGetGlobalObject(myContext);
-  JSClassDefinition genericClassDef = kJSClassDefinitionEmpty;
-  genericClassDef.className = "Object";
-  myGenericClass = JSClassCreate(&genericClassDef);
   if (!globalClass)
     JSClassRelease(gClass);
   JSValueRef exception = nullptr;
@@ -59,9 +55,6 @@ NX::Context::~Context()
   JSValueUnprotect(myContext, myModuleObject);
   for(auto & o : myGlobals)
     JSValueUnprotect(myContext, o.second);
-  for(auto & c : myObjectClasses)
-    JSClassRelease(c.second);
-  JSClassRelease(myGenericClass);
   JSGlobalContextRelease(myContext);
 }
 

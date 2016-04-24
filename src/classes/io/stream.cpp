@@ -23,7 +23,7 @@
 
 JSClassRef NX::Classes::IO::Stream::createClass (NX::Context * context)
 {
-  return context->defineOrGetClass(NX::Classes::IO::Stream::Class);
+  return context->nexus()->defineOrGetClass(NX::Classes::IO::Stream::Class);
 }
 
 const JSClassDefinition NX::Classes::IO::Stream::Class {
@@ -43,7 +43,7 @@ JSClassRef NX::Classes::IO::ReadableStream::createClass (NX::Context * context)
 {
   JSClassDefinition def = NX::Classes::IO::ReadableStream::Class;
   def.parentClass = NX::Classes::IO::Stream::createClass(context);
-  return context->defineOrGetClass(def);
+  return context->nexus()->defineOrGetClass(def);
 }
 
 JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef thisObject, std::size_t length)
@@ -86,7 +86,7 @@ JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
 {
   JSClassDefinition def = NX::Classes::IO::WritableStream::Class;
   def.parentClass = NX::Classes::IO::Stream::createClass(context);
-  return context->defineOrGetClass(def);
+  return context->nexus()->defineOrGetClass(def);
 }
 
 JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
