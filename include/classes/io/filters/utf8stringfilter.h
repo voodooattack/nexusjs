@@ -58,9 +58,6 @@ namespace NX {
         static JSObjectRef getConstructor(NX::Context * context) {
           return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::UTF8StringFilter::Constructor);
         }
-
-      protected:
-        std::string myEncodingFrom, myEncodingTo;
       };
     }
   }

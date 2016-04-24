@@ -22,6 +22,8 @@
 
 #include "classes/io/filter.h"
 
+#include <iconv.h>
+
 namespace NX {
   namespace Classes {
     namespace IO {
@@ -47,7 +49,7 @@ namespace NX {
       public:
         EncodingConversionFilter (const std::string & fromEncoding,
                                   const std::string & toEncoding);
-        virtual ~EncodingConversionFilter() {}
+        virtual ~EncodingConversionFilter();
 
         virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 );
 
@@ -62,6 +64,7 @@ namespace NX {
 
       protected:
         std::string myEncodingFrom, myEncodingTo;
+        iconv_t myCD;
       };
     }
   }

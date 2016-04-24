@@ -24,27 +24,30 @@
 
 NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const std::string & fromEncoding,
                                                                      const std::string & toEncoding)
-  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding)
+  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding), myCD(nullptr)
 {
   iconv_t cd = iconv_open(myEncodingTo.c_str(), myEncodingFrom.c_str());
   if (cd == (iconv_t)-1)
     throw std::runtime_error("invalid encoding specified while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
   else
-    iconv_close(cd);
+    myCD = cd;
 }
+
+NX::Classes::IO::EncodingConversionFilter::~EncodingConversionFilter()
+{
+  iconv_close(myCD);
+}
+
 
 std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buffer, std::size_t length, char * dest, std::size_t outLength)
 {
   if (!dest) return length * 4;
   errno = 0;
-  iconv_t cd = iconv_open(myEncodingTo.c_str(), myEncodingFrom.c_str());
-  if (cd == (iconv_t)-1)
-    throw std::runtime_error("invalid encoding specified while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
   size_t outBytesBeforeWriting = outLength;
-  size_t result = iconv(cd, &buffer, &length, &dest, &outLength);
+  size_t result = iconv(myCD, &buffer, &length, &dest, &outLength);
   if (result == (size_t)-1) {
     if (errno == E2BIG) {
-      return length * 2;
+      return 0;
     } else if (errno = EILSEQ) {
       throw std::runtime_error("illegal byte sequence while converting from '" +
         myEncodingFrom + "' to '" + myEncodingTo + "'");
@@ -53,7 +56,6 @@ std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buf
         myEncodingFrom + "' to '" + myEncodingTo + "'");
     }
   } else {
-    iconv_close(cd);
     return outBytesBeforeWriting - outLength;
   }
 }

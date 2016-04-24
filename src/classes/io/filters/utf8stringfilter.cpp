@@ -77,11 +77,10 @@ JSStaticFunction NX::Classes::IO::UTF8StringFilter::Methods[] {
         for(int i = 0; i < argumentCount; i++)
           JSValueProtect(context->toJSContext(), arguments[i]);
         boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        std::size_t chunkSize = 4096;
-        JSObjectRef arrayBuffer = NX::Object(ctx, arguments[0]).value();
-        char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
-        std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
         try {
+          JSObjectRef arrayBuffer = NX::Object(ctx, arguments[0]).value();
+          char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
+          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
           scheduler->scheduleTask([=]() {
             JSContextRef ctx = context->toJSContext();
             JSStringRef outputStringRef = JSStringCreateWithUTF8CString(buffer);

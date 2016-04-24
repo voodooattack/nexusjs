@@ -91,13 +91,19 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
         scheduler->scheduleCoroutine([=]() {
           JSContextRef ctx = context->toJSContext();
+          char * newBuffer = nullptr;
           try {
             std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
             std::size_t outPos = 0;
-            char * newBuffer = (char *)malloc(outLengthEstimatedTotal);
+            newBuffer = (char *)malloc(outLengthEstimatedTotal);
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
-              outPos += filter->processBuffer(buffer + i, std::min(chunkSize, length - i), newBuffer + outPos, outLengthEstimatedTotal - outPos);
+              if (std::size_t out = filter->processBuffer(buffer + i, std::min(chunkSize, length - i),
+                newBuffer + outPos, outLengthEstimatedTotal - outPos))
+                outPos += out;
+              else {
+                throw std::runtime_error("insufficient memory for filter processing");
+              }
               scheduler->yield();
             }
             if (outPos != outLengthEstimatedTotal)
@@ -112,6 +118,8 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
               JSValueUnprotect(ctx, thisObject);
             });
           } catch (const std::exception & e) {
+            if (newBuffer)
+              free(newBuffer);
             scheduler->scheduleTask([=]() {
               NX::Value message(ctx, e.what());
               JSValueRef args1[] { message.value(), nullptr };
@@ -131,6 +139,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
   { "processSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
+      char * newBuffer = nullptr;
       try {
         NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
         if (!filter) {
@@ -158,14 +167,20 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         char * buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
         std::size_t estimatedOutLength = filter->processBuffer(buffer, length);
-        char * newBuffer = (char *)malloc(estimatedOutLength);
+        newBuffer = (char *)malloc(estimatedOutLength);
         std::size_t outLength = filter->processBuffer(buffer, length, newBuffer, estimatedOutLength);
+        if (outLength == 0)
+        {
+          throw std::runtime_error("insufficient memory for filter processing");
+        }
         if (outLength != estimatedOutLength)
           newBuffer = (char *)realloc(newBuffer, outLength);
         JSObjectRef output = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outLength,
           [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
         return output;
       } catch( const std::exception & e) {
+        if (newBuffer)
+          free(newBuffer);
         return JSWrapException(ctx, e, exception);
       }
     }, 0

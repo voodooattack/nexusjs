@@ -72,9 +72,13 @@
         } /*else
             throw value;*/
       };
-      this[taskKey] = Nexus.Scheduler.schedule(
-        executor.bind(null, broadcastResolve.bind(this), broadcastReject.bind(this))
-      );
+      this[taskKey] = Nexus.Scheduler.schedule(() => {
+        try {
+          return executor(broadcastResolve.bind(this), broadcastReject.bind(this));
+        } catch(e) {
+          broadcastReject.call(this, e);
+        }
+      });
     }
     then(resolve, reject) {
       if (this[resolveValueKey] || this[rejectValueKey])
