@@ -65,6 +65,7 @@ namespace NX {
       protected:
         std::string myEncodingFrom, myEncodingTo;
         iconv_t myCD;
+        std::string myBuffer;
       };
     }
   }

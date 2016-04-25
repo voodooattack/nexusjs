@@ -47,15 +47,16 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
     size_t argumentCount, const JSValueRef originalArguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
+      std::size_t length = 0, offset = 0;
       try {
         if (argumentCount == 0) {
-          throw std::runtime_error("must supply buffer to process");
+          throw std::runtime_error("must supply buffer to write");
         } else {
           if (JSValueGetType(ctx, originalArguments[0]) != kJSTypeObject)
             throw std::runtime_error("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, originalArguments[0]);
-          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+          length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
           if (!except)
             arrayBuffer = obj.value();
           else {
@@ -64,6 +65,8 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             if (except) {
               throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
             }
+            offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
+            length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
           }
         }
       } catch(const std::exception & e) {
@@ -71,7 +74,6 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
       }
       ProtectedArguments arguments(context->toJSContext(), argumentCount, originalArguments);
       char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
-      std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
       JSValueProtect(context->toJSContext(), arrayBuffer);
       return NX::Globals::Promise::createPromise(ctx,
         [=](ResolveRejectHandler resolve, ResolveRejectHandler reject) {
@@ -86,23 +88,36 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             });
             return;
           }
+          char * newBuffer = nullptr;
           std::size_t chunkSize = 4096;
-
-          std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
           std::size_t outPos = 0;
-          char * newBuffer = (char *)std::malloc(outLengthEstimatedTotal);
-          for(std::size_t i = 0; i < length; i += chunkSize)
-          {
-            if (std::size_t out = filter->processBuffer(buffer + i, std::min(chunkSize, length - i),
-              newBuffer + outPos, outLengthEstimatedTotal - outPos))
-              outPos += out;
-            else {
-              throw std::runtime_error("insufficient memory for filter processing");
+          try {
+            std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
+            newBuffer = (char *)std::malloc(outLengthEstimatedTotal);
+            for(std::size_t i = 0; i < length; i += chunkSize)
+            {
+              if (std::size_t out = filter->processBuffer(buffer + offset + i, std::min(chunkSize, length - i),
+                                                          newBuffer + outPos, outLengthEstimatedTotal))
+              {
+                outLengthEstimatedTotal -= out;
+                outPos += out;
+              } else {
+                std::size_t newEstimate = filter->processBuffer(buffer + offset + i, length - i);
+                newBuffer = (char *)std::realloc(newBuffer, outPos + newEstimate);
+                outLengthEstimatedTotal += newEstimate;
+                i -= chunkSize;
+              }
+              scheduler->yield();
             }
-            scheduler->yield();
+            if (outLengthEstimatedTotal)
+              newBuffer = (char *)std::realloc(newBuffer, outPos);
+          } catch(const std::exception & e) {
+            delete newBuffer;
+            scheduler->scheduleTask([=]() {
+              return reject(NX::Object(ctx, e));
+            });
+            return;
           }
-          if (outPos != outLengthEstimatedTotal)
-            newBuffer = (char *)std::realloc(newBuffer, outPos);
           scheduler->scheduleTask([=]() {
             JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outPos,
               [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);

@@ -111,7 +111,7 @@ namespace NX
           return myStream.tellp();
         }
         virtual bool deviceReady() const {
-          return !myStream.bad();
+          return myStream.good();
         }
         virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
           myStream.seekp(pos, (std::ios::seekdir)from);

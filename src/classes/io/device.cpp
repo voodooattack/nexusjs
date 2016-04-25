@@ -174,7 +174,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
   { "read", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
-      std::size_t length = (std::size_t)-1;
+      std::size_t length = 0;
       if (argumentCount >= 0) {
         if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
           NX::Value message(ctx, "bad value for length argument");
@@ -196,16 +196,16 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
       return NX::Globals::Promise::createPromise(context->toJSContext(),
                                                  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        std::size_t length = length;
+        std::size_t readLength = length;
         JSContextRef ctx = context->toJSContext();
         try {
-          if (length == (std::size_t)-1) {
-            if (auto seekable = dynamic_cast<NX::Classes::IO::SeekableSourceDevice*>(dev))
-              length = seekable->deviceBytesAvailable();
-            else
+          if (readLength == 0) {
+            if (auto seekable = dynamic_cast<NX::Classes::IO::SeekableSourceDevice*>(dev)) {
+              readLength = seekable->deviceBytesAvailable();
+            } else
               throw std::runtime_error("must supply read length for non-seekable device");
           }
-          char * buffer = (char *)std::malloc(length + 1);
+          char * buffer = (char *)std::malloc(readLength);
           std::size_t readSoFar = 0;
           if(!dev->deviceReady()) {
             scheduler->scheduleTask([=]() {
@@ -214,14 +214,15 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
             });
             return;
           }
-          for(std::size_t i = 0; i < length; i += chunkSize)
+          for(std::size_t i = 0; i < readLength; i += chunkSize)
           {
-            readSoFar += dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
+            std::size_t read = dev->deviceRead(buffer + i, std::min(chunkSize, readLength - i));
+            readSoFar += read;
+            if (!read || dev->eof()) break;
             scheduler->yield();
-            if (dev->eof()) break;
           }
-          if (readSoFar != length)
-            buffer = (char *)std::realloc(buffer, readSoFar + 1);
+          if (readSoFar != readLength)
+            buffer = (char *)std::realloc(buffer, readSoFar);
           scheduler->scheduleTask([=]() {
             JSValueRef exp = nullptr;
             JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,

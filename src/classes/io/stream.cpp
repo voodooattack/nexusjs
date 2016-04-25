@@ -142,7 +142,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
       }
-      std::size_t length = (std::size_t)-1;
+      std::size_t length = 0;
       if (argumentCount >= 1) {
         length = JSValueToNumber(ctx, arguments[0], exception);
         if (exception && *exception)
@@ -191,7 +191,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
       }
-      std::size_t length = (std::size_t)-1;
+      std::size_t length = 0;
       try {
         if (argumentCount >= 1) {
           length = NX::Value(ctx, arguments[0]).toNumber();

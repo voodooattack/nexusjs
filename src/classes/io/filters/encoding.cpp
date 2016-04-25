@@ -24,7 +24,7 @@
 
 NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const std::string & fromEncoding,
                                                                      const std::string & toEncoding)
-  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding), myCD(nullptr)
+  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding), myCD(nullptr), myBuffer()
 {
   iconv_t cd = iconv_open(myEncodingTo.c_str(), myEncodingFrom.c_str());
   if (cd == (iconv_t)-1)
@@ -38,22 +38,31 @@ NX::Classes::IO::EncodingConversionFilter::~EncodingConversionFilter()
   iconv_close(myCD);
 }
 
-
 std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buffer, std::size_t length, char * dest, std::size_t outLength)
 {
   if (!dest) return length * 4;
-  errno = 0;
   char * outPtrBeforeWriting = dest;
-  while(length > 0) {
-    size_t result = iconv(myCD, &buffer, &length, &dest, &outLength);
-    if (result == (size_t)-1) {
-      if (errno == E2BIG) {
-        return 0;
-      } else if (errno == EILSEQ) {
-        throw std::runtime_error("illegal byte sequence while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
-      } else {
-        throw std::runtime_error("an error occurred while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
+  size_t result = 0;
+  errno = 0;
+  if (myBuffer.length()) {
+    myBuffer.append(buffer, length);
+    buffer = &myBuffer[0];
+    length = myBuffer.size();
+  }
+  result = iconv(myCD, &buffer, &length, &dest, &outLength);
+  myBuffer.clear();
+  if (result == (size_t)-1) {
+    if (errno == E2BIG) {
+      return 0;
+    } else if (errno == EILSEQ) {
+      throw std::runtime_error("illegal byte sequence while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
+    } else if (errno == EINVAL) {
+      if (length) {
+        myBuffer.assign(buffer, length);
       }
+    } else {
+      std::cout << errno << std::endl;
+      throw std::runtime_error("an error occurred while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
     }
   }
   return dest - outPtrBeforeWriting;

@@ -63,14 +63,16 @@
               }
             }.bind(this));
           });
+          return;
         } else if (resolves.length) {
-            resolves.forEach(({ resolve, reject, promise }) => {
-              promise[taskKey] = Nexus.Scheduler.schedule(function() {
-                promise[broadcastRejectKey](value);
-              }.bind(this));
-            });
-        } /*else
-            throw value;*/
+          resolves.forEach(({ resolve, reject, promise }) => {
+            promise[taskKey] = Nexus.Scheduler.schedule(function() {
+              promise[broadcastRejectKey](value);
+            }.bind(this));
+          });
+          return;
+        }
+        throw value instanceof Error ? new Error(value.message) : new Error("unhandled rejection in promise");
       };
       this[taskKey] = Nexus.Scheduler.schedule(() => {
         try {
