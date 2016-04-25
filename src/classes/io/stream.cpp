@@ -91,13 +91,35 @@ JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
 
 JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
 {
-
+  JSValueRef exception = nullptr;
+  JSValueRef promise = myDevice["write"]->toObject()->call(myDevice, std::vector<JSValueRef> { buffer }, &exception);
+  if (exception) {
+    throw std::runtime_error(NX::Value(ctx, exception).toString());
+  }
+  for(auto & i : myFilters) {
+    promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise).value(), std::vector<JSValueRef> {
+      NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, &exception)
+    });
+    if (exception)
+      throw std::runtime_error(NX::Value(ctx, exception).toString());
+  }
+  return promise;
 }
 
 JSValueRef NX::Classes::IO::WritableStream::writeSync (JSContextRef ctx, JSObjectRef thisObject,
                                                              JSObjectRef buffer, JSValueRef * exception)
 {
-
+  try {
+    JSValueRef result = myDevice["writeSync"]->toObject()->call(myDevice, std::vector<JSValueRef> { buffer }, nullptr);
+    for(auto & i : myFilters) {
+      result = NX::Object(ctx, i)["processSync"]->toObject()->call(i, std::vector<JSValueRef> { result }, exception);
+      if (exception && *exception)
+        break;
+    }
+    return result;
+  } catch(const std::exception & e) {
+    return JSWrapException(ctx, e, nullptr);
+  }
 }
 
 const JSClassDefinition NX::Classes::IO::ReadableStream::Class {
@@ -130,6 +152,30 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
       }
       try {
         return stream->read(ctx, thisObject, length);
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+      }
+    }, 0
+  },
+  { "pipe", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
+      if (!stream) {
+        NX::Value message(ctx, "read not implemented on ReadableStream instance");
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return JSValueMakeUndefined(ctx);
+      }
+      try {
+        JSContextRef ctx = context->toJSContext();
+        if (argumentCount < 1)
+          throw std::runtime_error("must provide WritableStream to pipe to");
+        if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
+          throw std::runtime_error("argument not a WritableStream instance");
+        NX::Object target(ctx, arguments[0]);
+        NX::Object promise(ctx, stream->read(ctx, thisObject, 0));
+        return promise["then"]->toObject()->call(promise, { target["write"]->toObject()->bind(target, 0, nullptr, exception) }, exception);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }

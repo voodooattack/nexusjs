@@ -85,6 +85,44 @@ namespace NX
 
       class FileSinkDevice: public virtual SeekableSinkDevice {
 
+        FileSinkDevice(const std::string & path);
+        virtual ~FileSinkDevice() { myStream.close(); }
+
+      private:
+        static const JSClassDefinition Class;
+        static const JSStaticValue Properties[];
+        static const JSStaticFunction Methods[];
+
+        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                       const JSValueRef arguments[], JSValueRef* exception);
+
+        static void Finalize(JSObjectRef object) { }
+
+      public:
+        static JSClassRef createClass(NX::Context * context);
+        static JSObjectRef getConstructor(NX::Context * context);
+
+        static NX::Classes::IO::FileSinkDevice * FromObject(JSObjectRef object) {
+          NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
+          return dynamic_cast<NX::Classes::IO::FileSinkDevice*>(context);
+        }
+
+        virtual std::size_t devicePosition() {
+          return myStream.tellp();
+        }
+        virtual bool deviceReady() const {
+          return !myStream.bad();
+        }
+        virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
+          myStream.seekp(pos, (std::ios::seekdir)from);
+        }
+        virtual void deviceWrite ( const char * buffer, std::size_t length ) {
+          myStream.write(buffer, length);
+          myStream.flush();
+        }
+
+      private:
+        std::ofstream myStream;
       };
 
       class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {

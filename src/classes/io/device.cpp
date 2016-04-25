@@ -309,11 +309,11 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
       boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = 4096;
+      const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
       return NX::Globals::Promise::createPromise(context->toJSContext(), [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
         JSContextRef ctx = context->toJSContext();
         try {
-          const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
           if(!dev->deviceReady())
             throw std::runtime_error("device not ready");
           for(std::size_t i = 0; i < length; i += chunkSize)
@@ -322,7 +322,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             if (length - i > chunkSize)
               scheduler->yield();
           }
-          scheduler->scheduleTask(boost::bind(resolve, JSValueMakeUndefined(ctx)));
+          scheduler->scheduleTask(boost::bind(resolve, nullptr));
         } catch (const std::exception & e) {
           scheduler->scheduleTask([=]() {
             return reject(NX::Object(ctx, e).value());

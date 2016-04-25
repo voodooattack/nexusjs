@@ -60,6 +60,15 @@ const JSStaticValue NX::Globals::IO::Properties[] {
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
+  { "FileSinkDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.FileSinkDevice"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::FileSinkDevice::getConstructor(context);
+      context->setGlobal("IO.FileSinkDevice", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
   { "ReadableStream", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef File = context->getGlobal("IO.ReadableStream"))

@@ -68,3 +68,49 @@ const JSStaticValue NX::Classes::IO::FileSourceDevice::Properties[] {
 const JSStaticFunction NX::Classes::IO::FileSourceDevice::Methods[] {
   { nullptr, nullptr, 0 }
 };
+
+JSObjectRef NX::Classes::IO::FileSinkDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
+                                                          size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+{
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  JSClassRef fileSourceClass = createClass(context);
+  try {
+    if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
+      throw std::runtime_error("argument must be a string path");
+    NX::Value path(ctx, arguments[0]);
+    return JSObjectMake(ctx, fileSourceClass, new NX::Classes::IO::FileSinkDevice(path.toString()));
+  } catch (const std::exception & e) {
+    JSWrapException(ctx, e, exception);
+    return JSObjectMake(ctx, nullptr, nullptr);
+  }
+}
+
+JSClassRef NX::Classes::IO::FileSinkDevice::createClass (NX::Context * context)
+{
+  JSClassDefinition def = NX::Classes::IO::FileSinkDevice::Class;
+  def.parentClass = NX::Classes::IO::SeekableSinkDevice::createClass (context);
+  return context->nexus()->defineOrGetClass (def);
+}
+
+NX::Classes::IO::FileSinkDevice::FileSinkDevice (const std::string & path): myStream(path, std::ofstream::binary)
+{
+
+}
+
+JSObjectRef NX::Classes::IO::FileSinkDevice::getConstructor (NX::Context * context)
+{
+  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::FileSinkDevice::Constructor);
+}
+
+const JSClassDefinition NX::Classes::IO::FileSinkDevice::Class {
+  0, kJSClassAttributeNone, "FileSinkDevice", nullptr, NX::Classes::IO::FileSinkDevice::Properties,
+  NX::Classes::IO::FileSinkDevice::Methods, nullptr, NX::Classes::IO::FileSinkDevice::Finalize
+};
+
+const JSStaticValue NX::Classes::IO::FileSinkDevice::Properties[] {
+  { nullptr, nullptr, nullptr, 0 }
+};
+
+const JSStaticFunction NX::Classes::IO::FileSinkDevice::Methods[] {
+  { nullptr, nullptr, 0 }
+};
