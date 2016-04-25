@@ -81,9 +81,10 @@ JSStaticFunction NX::Classes::IO::UTF8StringFilter::Methods[] {
           JSObjectRef arrayBuffer = NX::Object(ctx, arguments[0]).value();
           char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
           std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
+          std::string str(buffer, buffer + length);
           scheduler->scheduleTask([=]() {
             JSContextRef ctx = context->toJSContext();
-            JSStringRef outputStringRef = JSStringCreateWithUTF8CString(buffer);
+            JSStringRef outputStringRef = JSStringCreateWithUTF8CString(str.c_str());
             JSValueRef outputString = JSValueMakeString(ctx, outputStringRef);
             JSStringRelease(outputStringRef);
             JSValueRef args[] { outputString };

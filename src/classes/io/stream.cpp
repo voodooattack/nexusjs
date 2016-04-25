@@ -192,5 +192,30 @@ const JSStaticValue NX::Classes::IO::WritableStream::Properties[] {
 };
 
 const JSStaticFunction NX::Classes::IO::WritableStream::Methods[] {
+  { "write", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      NX::Classes::IO::WritableStream * stream = NX::Classes::IO::WritableStream::FromObject(thisObject);
+      if (!stream) {
+        NX::Value message(ctx, "write not implemented on WritableStream instance");
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return JSValueMakeUndefined(ctx);
+      }
+      try {
+        std::size_t length = (std::size_t)-1;
+        if (argumentCount >= 1) {
+          length = JSValueToNumber(ctx, arguments[0], exception);
+          if (exception && *exception)
+          {
+            return JSValueMakeUndefined(ctx);
+          }
+        }
+//         return stream->write(ctx, thisObject, length);
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+      }
+    }, 0
+  },
   { nullptr, nullptr, 0 }
 };

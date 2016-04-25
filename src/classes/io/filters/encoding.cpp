@@ -43,19 +43,18 @@ std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buf
 {
   if (!dest) return length * 4;
   errno = 0;
-  size_t outBytesBeforeWriting = outLength;
-  size_t result = iconv(myCD, &buffer, &length, &dest, &outLength);
-  if (result == (size_t)-1) {
-    if (errno == E2BIG) {
-      return 0;
-    } else if (errno = EILSEQ) {
-      throw std::runtime_error("illegal byte sequence while converting from '" +
-        myEncodingFrom + "' to '" + myEncodingTo + "'");
-    } else {
-      throw std::runtime_error("an error occurred while converting from '" +
-        myEncodingFrom + "' to '" + myEncodingTo + "'");
+  char * outPtrBeforeWriting = dest;
+  while(length > 0) {
+    size_t result = iconv(myCD, &buffer, &length, &dest, &outLength);
+    if (result == (size_t)-1) {
+      if (errno == E2BIG) {
+        return 0;
+      } else if (errno == EILSEQ) {
+        throw std::runtime_error("illegal byte sequence while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
+      } else {
+        throw std::runtime_error("an error occurred while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
+      }
     }
-  } else {
-    return outBytesBeforeWriting - outLength;
   }
+  return dest - outPtrBeforeWriting;
 }

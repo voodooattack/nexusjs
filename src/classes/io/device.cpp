@@ -256,7 +256,8 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         scheduler->scheduleCoroutine([=]() {
           JSContextRef ctx = context->toJSContext();
           try {
-            char * buffer = (char *)malloc(length);
+            char * buffer = (char *)malloc(length + 1);
+
             std::size_t readSoFar = 0;
             if(!dev->deviceReady())
               throw std::runtime_error("device not ready");
@@ -267,11 +268,11 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
               if (dev->eof()) break;
             }
             if (readSoFar != length)
-              buffer = (char *)realloc(buffer, readSoFar);
+              buffer = (char *)realloc(buffer, readSoFar + 1);
             scheduler->scheduleTask([=]() {
               JSValueRef exp = nullptr;
               JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
-                [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, &exp);
+                [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, &exp);
               if (exp)
               {
                 JSValueRef args[] { exp };
@@ -322,7 +323,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         if (readSoFar != length)
           buffer = (char *)realloc(buffer, readSoFar);
         JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
-                [](void* bytes, void* deallocatorContext) { delete reinterpret_cast<char *>(bytes); }, nullptr, exception);
+                [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
         return arrayBuffer;
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
@@ -337,6 +338,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
+      std::size_t offset = 0, length = 0;
       try {
         if (argumentCount == 0) {
           throw std::runtime_error("must supply buffer to write");
@@ -345,7 +347,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             throw std::runtime_error("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
-          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+          length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
           if (!except)
             arrayBuffer = obj.value();
           else {
@@ -354,12 +356,16 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             if (except) {
               throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
             }
+            offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
+            length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
           }
         }
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      JSValueRef argsForBind[] { arrayBuffer };
+      JSValueRef argsForBind[] { arrayBuffer, NX::Value(ctx, offset).value(), NX::Value(ctx, length).value() };
+      for(int i = 1; i < 3; i++)
+        JSValueProtect(context->toJSContext(), argsForBind[i]);
       JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
           size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
@@ -372,18 +378,22 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
           JSValueProtect(context->toJSContext(), arguments[i]);
         boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
         std::size_t chunkSize = 4096;
-        JSObjectRef arrayBuffer = NX::Object(ctx, arguments[0]).value();
+        JSObjectRef arrayBufferOrTypedArray = NX::Object(ctx, arguments[0]).value();
+        std::size_t arrayBufferOffset = NX::Value(ctx, arguments[1]).toNumber();
+        std::size_t arrayBufferLength = NX::Value(ctx, arguments[2]).toNumber();
         scheduler->scheduleCoroutine([=]() {
           JSContextRef ctx = context->toJSContext();
           try {
-            const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
-            std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
+            const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBufferOrTypedArray, nullptr);
+            std::size_t length = arrayBufferLength;
+            std::size_t offset = arrayBufferOffset;
             if(!dev->deviceReady())
               throw std::runtime_error("device not ready");
             for(std::size_t i = 0; i < length; i += chunkSize)
             {
-              dev->deviceWrite(buffer + i, std::min(chunkSize, length - i));
-              scheduler->yield();
+              dev->deviceWrite(buffer + arrayBufferOffset + i, std::min(chunkSize, length - i));
+              if (length - i > chunkSize)
+                scheduler->yield();
             }
             scheduler->scheduleTask([=]() {
               JSValueRef args[] { thisObject };
@@ -405,7 +415,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
           }
         });
         return JSValueMakeUndefined(ctx);
-      }), thisObject, 1, argsForBind, nullptr);
+      }), thisObject, 3, argsForBind, nullptr);
       return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
     }, 0
   },
@@ -414,6 +424,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
       try {
+        std::size_t offset = 0, length = 0;
         if (argumentCount == 0) {
           throw std::runtime_error("must supply buffer to write");
         } else {
@@ -421,7 +432,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             throw std::runtime_error("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
-          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+          length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
           if (!except)
             arrayBuffer = obj.value();
           else {
@@ -430,14 +441,15 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             if (except) {
               throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
             }
+            offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
+            length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
           }
         }
         NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
         const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
-        std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
         if(!dev->deviceReady())
           throw std::runtime_error("device not ready");
-        dev->deviceWrite(buffer, length);
+        dev->deviceWrite(buffer + offset, length);
         return JSValueMakeNumber(ctx, length);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
