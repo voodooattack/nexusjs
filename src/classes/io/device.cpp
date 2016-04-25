@@ -172,41 +172,39 @@ JSStaticFunction NX::Classes::IO::Device::Methods[] {
 
 JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
   { "read", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef originalArguments[], JSValueRef* exception) -> JSValueRef {
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
-      if (argumentCount == 0) {
-        NX::Value message(ctx, "must supply length to read");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      } else {
-        if (JSValueGetType(ctx, originalArguments[0]) != kJSTypeNumber) {
+      std::size_t length = (std::size_t)-1;
+      if (argumentCount >= 0) {
+        if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
           NX::Value message(ctx, "bad value for length argument");
           JSValueRef args[] { message.value(), nullptr };
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
           return JSValueMakeUndefined(ctx);
         }
+        length = JSValueToNumber(ctx, arguments[0], exception);
       }
-
-      ProtectedArguments arguments(context->toJSContext(), argumentCount, originalArguments);
       NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(thisObject);
-
       if (!dev) {
         NX::Value message(ctx, "ReadableStream object does not implement read()");
         *exception = message.value();
         return JSValueMakeUndefined(ctx);
       }
-
       JSValueProtect(context->toJSContext(), thisObject);
       boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = 4096;
-      std::size_t length = JSValueToNumber(ctx, arguments[0], exception);
-
       return NX::Globals::Promise::createPromise(context->toJSContext(),
                                                  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
+        std::size_t length = length;
         JSContextRef ctx = context->toJSContext();
         try {
+          if (length == (std::size_t)-1) {
+            if (auto seekable = dynamic_cast<NX::Classes::IO::SeekableSourceDevice*>(dev))
+              length = seekable->deviceBytesAvailable();
+            else
+              throw std::runtime_error("must supply read length for non-seekable device");
+          }
           char * buffer = (char *)std::malloc(length + 1);
           std::size_t readSoFar = 0;
           if(!dev->deviceReady()) {

@@ -96,6 +96,7 @@ namespace NX
       };
 
       struct SeekableDevice: public virtual Device {
+        virtual std::size_t devicePosition() = 0;
         virtual std::size_t deviceSeek(std::size_t pos, Position from) = 0;
 
         static NX::Classes::IO::SeekableDevice * FromObject(JSObjectRef obj) {
@@ -114,6 +115,7 @@ namespace NX
           return dynamic_cast<NX::Classes::IO::SeekableSourceDevice *>(dev);
         }
         virtual std::size_t sourceSize() = 0;
+        virtual std::size_t deviceBytesAvailable() = 0;
         static JSClassRef createClass(NX::Context * context);
       };
 
@@ -136,6 +138,8 @@ namespace NX
       };
 
       struct DualSeekableDevice: public virtual Device {
+        virtual std::size_t deviceReadPosition() = 0;
+        virtual std::size_t deviceWritePosition() = 0;
         virtual std::size_t deviceReadSeek(std::size_t pos, Position from) = 0;
         virtual std::size_t deviceWriteSeek(std::size_t pos, Position from) = 0;
 

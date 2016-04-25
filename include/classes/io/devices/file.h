@@ -57,6 +57,7 @@ namespace NX
           return dynamic_cast<NX::Classes::IO::FileSourceDevice*>(context);
         }
 
+        virtual std::size_t devicePosition() { return myStream.tellg(); }
         virtual std::size_t deviceRead ( char * dest, std::size_t length ) {
           myStream.read(dest, length);
           return myStream.gcount();
@@ -74,6 +75,9 @@ namespace NX
           std::streampos end = myStream.tellg();
           myStream.seekg(current, std::ios::beg);
           return end - beg;
+        }
+        virtual std::size_t deviceBytesAvailable() {
+          return sourceSize() - myStream.tellg();
         }
       private:
         std::ifstream myStream;
