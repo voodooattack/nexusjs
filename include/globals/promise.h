@@ -22,6 +22,7 @@
 #define GLOBALS_PROMISE_H
 
 #include <JavaScript.h>
+#include <boost/function.hpp>
 
 namespace NX {
   class Nexus;
@@ -38,9 +39,14 @@ namespace NX {
         return JSStaticValue { "Promise", &NX::Globals::Promise::Get, nullptr, kJSPropertyAttributeNone };
       }
 
+      typedef boost::function<void(JSValueRef)> ResolveRejectHandler;
+      typedef boost::function<void(ResolveRejectHandler resolve, ResolveRejectHandler reject)> Executor;
+
       static JSObjectRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
+      static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor, bool scheduleAsCoroutine = false);
     };
   }
+  using ResolveRejectHandler = Globals::Promise::ResolveRejectHandler;
 }
 
 #endif // GLOBALS_PROMISE_H

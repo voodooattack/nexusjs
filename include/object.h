@@ -37,6 +37,7 @@ namespace NX {
     Object(JSContextRef context, JSObjectRef obj);
     Object(JSContextRef context, JSValueRef val);
     Object(JSContextRef context, time_t val);
+    Object(JSContextRef context, const std::exception & e);
     Object(const Object & other);
     ~Object();
 
@@ -52,9 +53,9 @@ namespace NX {
       JSObjectSetProperty(myContext, myObject, propertyName, value, attr, exception);
     }
 
-    JSObjectRef value() { return myObject; }
+    JSObjectRef value() const { return myObject; }
 
-    operator JSObjectRef() { return myObject; }
+    operator JSObjectRef() const { return myObject; }
 
     JSObjectRef construct(const std::vector<JSValueRef> & args = std::vector<JSValueRef>(), JSValueRef * exception = nullptr) {
       return JSObjectCallAsConstructor(myContext, myObject, args.size(), &args[0], exception);
@@ -69,6 +70,9 @@ namespace NX {
     {
       return JSBindFunction(myContext, myObject, thisObject, argumentCount, arguments, exception);
     }
+
+    void * getPrivate() { return JSObjectGetPrivate(myObject); }
+    void setPrivate(void * priv) { JSObjectSetPrivate(myObject, priv); }
 
   private:
     JSContextRef myContext;

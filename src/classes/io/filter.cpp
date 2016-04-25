@@ -26,6 +26,8 @@
 #include "globals/promise.h"
 #include "classes/io/filter.h"
 
+#include <memory>
+
 JSClassRef NX::Classes::IO::Filter::createClass (NX::Context * context)
 {
   return context->nexus()->defineOrGetClass(NX::Classes::IO::Filter::Class);
@@ -42,17 +44,17 @@ JSStaticValue NX::Classes::IO::Filter::Properties[] {
 
 JSStaticFunction NX::Classes::IO::Filter::Methods[] {
   { "process", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    size_t argumentCount, const JSValueRef originalArguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
       try {
         if (argumentCount == 0) {
           throw std::runtime_error("must supply buffer to process");
         } else {
-          if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
+          if (JSValueGetType(ctx, originalArguments[0]) != kJSTypeObject)
             throw std::runtime_error("bad value for buffer argument");
           JSValueRef except = nullptr;
-          NX::Object obj(ctx, arguments[0]);
+          NX::Object obj(ctx, originalArguments[0]);
           std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
           if (!except)
             arrayBuffer = obj.value();
@@ -67,73 +69,47 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      JSValueRef argsForBind[] { arrayBuffer };
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-          size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
-      {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
-        std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
-        if (!filter) {
-          NX::Value message(ctx, "filter object does not implement process()");
-          JSValueRef args[] { message.value(), nullptr };
-          *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-          return JSValueMakeUndefined(ctx);
-        }
-        JSValueProtect(context->toJSContext(), thisObject);
-        for(int i = 0; i < argumentCount; i++)
-          JSValueProtect(context->toJSContext(), arguments[i]);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        std::size_t chunkSize = 4096;
-        JSObjectRef arrayBuffer= NX::Object(ctx, arguments[0]).value();
-        char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
-        std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
-        scheduler->scheduleCoroutine([=]() {
+      ProtectedArguments arguments(context->toJSContext(), argumentCount, originalArguments);
+      char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
+      std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, nullptr);
+      JSValueProtect(context->toJSContext(), arrayBuffer);
+      return NX::Globals::Promise::createPromise(ctx,
+        [=](ResolveRejectHandler resolve, ResolveRejectHandler reject) {
           JSContextRef ctx = context->toJSContext();
-          char * newBuffer = nullptr;
-          try {
-            std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
-            std::size_t outPos = 0;
-            newBuffer = (char *)malloc(outLengthEstimatedTotal);
-            for(std::size_t i = 0; i < length; i += chunkSize)
-            {
-              if (std::size_t out = filter->processBuffer(buffer + i, std::min(chunkSize, length - i),
-                newBuffer + outPos, outLengthEstimatedTotal - outPos))
-                outPos += out;
-              else {
-                throw std::runtime_error("insufficient memory for filter processing");
-              }
-              scheduler->yield();
-            }
-            if (outPos != outLengthEstimatedTotal)
-              newBuffer = (char *)realloc(newBuffer, outPos);
+          boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
+          NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
+          if (!filter) {
             scheduler->scheduleTask([=]() {
-            JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outPos,
-              [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
-              JSValueRef args[] { outputArrayBuffer };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
+              JSValueUnprotect(context->toJSContext(), arrayBuffer);
+              NX::Value message(ctx, "filter object does not implement process()");
+              return reject(message.value());
             });
-          } catch (const std::exception & e) {
-            if (newBuffer)
-              free(newBuffer);
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, e.what());
-              JSValueRef args1[] { message.value(), nullptr };
-              JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
+            return;
           }
-        });
-        return JSValueMakeUndefined(ctx);
-      }), thisObject, 1, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(ctx, executor, exception);
+          std::size_t chunkSize = 4096;
+
+          std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
+          std::size_t outPos = 0;
+          char * newBuffer = (char *)std::malloc(outLengthEstimatedTotal);
+          for(std::size_t i = 0; i < length; i += chunkSize)
+          {
+            if (std::size_t out = filter->processBuffer(buffer + i, std::min(chunkSize, length - i),
+              newBuffer + outPos, outLengthEstimatedTotal - outPos))
+              outPos += out;
+            else {
+              throw std::runtime_error("insufficient memory for filter processing");
+            }
+            scheduler->yield();
+          }
+          if (outPos != outLengthEstimatedTotal)
+            newBuffer = (char *)std::realloc(newBuffer, outPos);
+          scheduler->scheduleTask([=]() {
+            JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outPos,
+              [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);
+            JSValueUnprotect(context->toJSContext(), arrayBuffer);
+            return resolve(outputArrayBuffer);
+          });
+      }, true);
     }, 0
   },
   { "processSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -167,20 +143,20 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         char * buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
         std::size_t estimatedOutLength = filter->processBuffer(buffer, length);
-        newBuffer = (char *)malloc(estimatedOutLength);
+        newBuffer = (char *)std::malloc(estimatedOutLength);
         std::size_t outLength = filter->processBuffer(buffer, length, newBuffer, estimatedOutLength);
         if (outLength == 0)
         {
           throw std::runtime_error("insufficient memory for filter processing");
         }
         if (outLength != estimatedOutLength)
-          newBuffer = (char *)realloc(newBuffer, outLength);
+          newBuffer = (char *)std::realloc(newBuffer, outLength);
         JSObjectRef output = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outLength,
-          [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
+          [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);
         return output;
       } catch( const std::exception & e) {
         if (newBuffer)
-          free(newBuffer);
+          std::free(newBuffer);
         return JSWrapException(ctx, e, exception);
       }
     }, 0

@@ -32,5 +32,31 @@ namespace NX
   JSObjectRef JSCopyObjectShallow(JSContextRef source, JSContextRef dest, JSObjectRef object, JSValueRef * exception);
 
   JSValueRef JSWrapException(JSContextRef ctx, const std::exception & e, JSValueRef * exception);
+
+
+  class ProtectedArguments {
+  public:
+    ProtectedArguments(JSContextRef ctx, size_t argumentCount, const JSValueRef arguments[]):
+    myContext(ctx), myArguments(arguments, arguments + argumentCount)
+    {
+      for(auto i: myArguments)
+        JSValueProtect(myContext, i);
+    }
+    ProtectedArguments(const ProtectedArguments & other): myContext(other.myContext), myArguments(other.myArguments) {
+      for(auto i: myArguments)
+        JSValueProtect(myContext, i);
+    }
+    ~ProtectedArguments() {
+      for(auto i: myArguments)
+        JSValueUnprotect(myContext, i);
+    }
+
+    JSValueRef operator[](unsigned int index) const { return myArguments[index]; }
+
+  private:
+    JSContextRef myContext;
+    std::vector<JSValueRef> myArguments;
+  };
+  
 }
 #endif // UTIL_H

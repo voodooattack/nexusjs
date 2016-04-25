@@ -27,6 +27,7 @@
 #include "classes/io/device.h"
 
 #include <boost/algorithm/string.hpp>
+#include <memory>
 
 JSClassRef NX::Classes::IO::Device::createClass (NX::Context * context)
 {
@@ -166,65 +167,12 @@ JSStaticValue NX::Classes::IO::Device::Properties[] {
 };
 
 JSStaticFunction NX::Classes::IO::Device::Methods[] {
-//   { "lock", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-//     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-//       NX::Classes::IO::Device * dev = NX::Classes::IO::Device::FromObject(thisObject);
-//       NX::Context * context = NX::Context::FromJsContext(ctx);
-//       JSValueProtect(context->toJSContext(), thisObject);
-//       JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), ScopedString("lock"),
-//         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-//           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
-//       {
-//         NX::Context * context = NX::Context::FromJsContext(ctx);
-//         ctx = context->toJSContext();
-//         NX::Classes::IO::Device * dev = NX::Classes::IO::Device::FromObject(thisObject);
-//         try {
-//           dev->deviceLock();
-//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[0], exception), nullptr, 0, nullptr, exception);
-//         } catch (const std::exception & e) {
-//           NX::Value message(ctx, e.what());
-//           JSValueRef args1[] { message.value(), nullptr };
-//           JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[1], exception), nullptr, 1, args2, exception);
-//         }
-//         JSValueUnprotect(ctx, thisObject);
-//         return JSValueMakeUndefined(ctx);
-//       }), thisObject, 0, nullptr, nullptr);
-//       return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
-//     }, 0
-//   },
-//   { "unlock", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-//     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-//       NX::Context * context = NX::Context::FromJsContext(ctx);
-//       JSValueProtect(context->toJSContext(), thisObject);
-//       JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), ScopedString("unlock"),
-//         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-//           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
-//       {
-//         NX::Context * context = NX::Context::FromJsContext(ctx);
-//         ctx = context->toJSContext();
-//         NX::Classes::IO::Device * dev = NX::Classes::IO::Device::FromObject(thisObject);
-//         try {
-//           dev->deviceUnlock();
-//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[0], exception), nullptr, 0, nullptr, exception);
-//         } catch (const std::exception & e) {
-//           NX::Value message(ctx, e.what());
-//           JSValueRef args1[] { message.value(), nullptr };
-//           JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-//           JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[1], exception), nullptr, 1, args2, exception);
-//         }
-//         JSValueUnprotect(ctx, thisObject);
-//         return JSValueMakeUndefined(ctx);
-//       }), thisObject, 0, nullptr, nullptr);
-//       return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
-//     }, 0
-//   },
   { nullptr, nullptr, 0 }
 };
 
 JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
   { "read", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    size_t argumentCount, const JSValueRef originalArguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       if (argumentCount == 0) {
         NX::Value message(ctx, "must supply length to read");
@@ -232,74 +180,70 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
       } else {
-        if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
+        if (JSValueGetType(ctx, originalArguments[0]) != kJSTypeNumber) {
           NX::Value message(ctx, "bad value for length argument");
           JSValueRef args[] { message.value(), nullptr };
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
           return JSValueMakeUndefined(ctx);
         }
       }
-      JSValueRef argsForBind[] { arguments[0] };
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-          size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
-      {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
-        NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(thisObject);
-        std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        JSValueProtect(context->toJSContext(), thisObject);
-        for(int i = 0; i < argumentCount; i++)
-          JSValueProtect(context->toJSContext(), arguments[i]);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        std::size_t chunkSize = 4096;
-        std::size_t length = JSValueToNumber(ctx, arguments[0], exception);
-        scheduler->scheduleCoroutine([=]() {
-          JSContextRef ctx = context->toJSContext();
-          try {
-            char * buffer = (char *)malloc(length + 1);
 
-            std::size_t readSoFar = 0;
-            if(!dev->deviceReady())
-              throw std::runtime_error("device not ready");
-            for(std::size_t i = 0; i < length; i += chunkSize)
-            {
-              readSoFar += dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
-              scheduler->yield();
-              if (dev->eof()) break;
-            }
-            if (readSoFar != length)
-              buffer = (char *)realloc(buffer, readSoFar + 1);
-            scheduler->scheduleTask([=]() {
-              JSValueRef exp = nullptr;
-              JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
-                [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, &exp);
-              if (exp)
-              {
-                JSValueRef args[] { exp };
-                JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args, exception);
-              } else {
-                JSValueRef args[] { arrayBuffer };
-                JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
-              }
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          } catch (const std::exception & e) {
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, e.what());
-              JSValueRef args1[] { message.value(), nullptr };
-              JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          }
-        });
+      ProtectedArguments arguments(context->toJSContext(), argumentCount, originalArguments);
+      NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(thisObject);
+
+      if (!dev) {
+        NX::Value message(ctx, "ReadableStream object does not implement read()");
+        *exception = message.value();
         return JSValueMakeUndefined(ctx);
-      }), thisObject, 1, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+      }
+
+      JSValueProtect(context->toJSContext(), thisObject);
+      boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
+      std::size_t chunkSize = 4096;
+      std::size_t length = JSValueToNumber(ctx, arguments[0], exception);
+
+      return NX::Globals::Promise::createPromise(context->toJSContext(),
+                                                 [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
+      {
+        JSContextRef ctx = context->toJSContext();
+        try {
+          char * buffer = (char *)std::malloc(length + 1);
+          std::size_t readSoFar = 0;
+          if(!dev->deviceReady()) {
+            scheduler->scheduleTask([=]() {
+              NX::Value message(ctx, "device not ready");
+              return reject(message.value());
+            });
+            return;
+          }
+          for(std::size_t i = 0; i < length; i += chunkSize)
+          {
+            readSoFar += dev->deviceRead(buffer + i, std::min(chunkSize, length - i));
+            scheduler->yield();
+            if (dev->eof()) break;
+          }
+          if (readSoFar != length)
+            buffer = (char *)std::realloc(buffer, readSoFar + 1);
+          scheduler->scheduleTask([=]() {
+            JSValueRef exp = nullptr;
+            JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
+              [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, &exp);
+            if (exp)
+            {
+              return reject(exp);
+            } else {
+              return resolve(arrayBuffer);
+            }
+            JSValueUnprotect(ctx, thisObject);
+          });
+        } catch (const std::exception & e) {
+          scheduler->scheduleTask([=]() {
+            JSValueRef exp = nullptr;
+            JSWrapException(ctx, e, &exp);
+            return reject(exp);
+          });
+        }
+      }, true);
     }, 0
   },
   { "readSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -315,15 +259,15 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
           }
         }
         std::size_t length = NX::Value(ctx, arguments[0]).toNumber();
-        char * buffer = (char * )malloc(length);
+        char * buffer = (char * )std::malloc(length);
         std::size_t readSoFar = 0;
         if(!dev->deviceReady())
           throw std::runtime_error("device not ready");
         readSoFar = dev->deviceRead(buffer, length);
         if (readSoFar != length)
-          buffer = (char *)realloc(buffer, readSoFar);
+          buffer = (char *)std::realloc(buffer, readSoFar);
         JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
-                [](void* bytes, void* deallocatorContext) { free(bytes); }, nullptr, exception);
+                [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);
         return arrayBuffer;
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
@@ -363,60 +307,30 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      JSValueRef argsForBind[] { arrayBuffer, NX::Value(ctx, offset).value(), NX::Value(ctx, length).value() };
-      for(int i = 1; i < 3; i++)
-        JSValueProtect(context->toJSContext(), argsForBind[i]);
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-          size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
+      JSValueProtect(context->toJSContext(), arrayBuffer);
+      NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
+      boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
+      std::size_t chunkSize = 4096;
+      return NX::Globals::Promise::createPromise(context->toJSContext(), [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
-        std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
-        JSValueProtect(context->toJSContext(), thisObject);
-        for(int i = 0; i < argumentCount; i++)
-          JSValueProtect(context->toJSContext(), arguments[i]);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        std::size_t chunkSize = 4096;
-        JSObjectRef arrayBufferOrTypedArray = NX::Object(ctx, arguments[0]).value();
-        std::size_t arrayBufferOffset = NX::Value(ctx, arguments[1]).toNumber();
-        std::size_t arrayBufferLength = NX::Value(ctx, arguments[2]).toNumber();
-        scheduler->scheduleCoroutine([=]() {
-          JSContextRef ctx = context->toJSContext();
-          try {
-            const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBufferOrTypedArray, nullptr);
-            std::size_t length = arrayBufferLength;
-            std::size_t offset = arrayBufferOffset;
-            if(!dev->deviceReady())
-              throw std::runtime_error("device not ready");
-            for(std::size_t i = 0; i < length; i += chunkSize)
-            {
-              dev->deviceWrite(buffer + arrayBufferOffset + i, std::min(chunkSize, length - i));
-              if (length - i > chunkSize)
-                scheduler->yield();
-            }
-            scheduler->scheduleTask([=]() {
-              JSValueRef args[] { thisObject };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          } catch (const std::exception & e) {
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, e.what());
-              JSValueRef args1[] { message.value(), nullptr };
-              JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
+        JSContextRef ctx = context->toJSContext();
+        try {
+          const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
+          if(!dev->deviceReady())
+            throw std::runtime_error("device not ready");
+          for(std::size_t i = 0; i < length; i += chunkSize)
+          {
+            dev->deviceWrite(buffer + offset + i, std::min(chunkSize, length - i));
+            if (length - i > chunkSize)
+              scheduler->yield();
           }
-        });
-        return JSValueMakeUndefined(ctx);
-      }), thisObject, 3, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+          scheduler->scheduleTask(boost::bind(resolve, JSValueMakeUndefined(ctx)));
+        } catch (const std::exception & e) {
+          scheduler->scheduleTask([=]() {
+            return reject(NX::Object(ctx, e).value());
+          });
+        }
+      }, true);
     }, 0
   },
   { "writeSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -480,52 +394,28 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      JSValueRef argsForBind[] { arguments[0], arguments[1] };
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-          size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
+      std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
+      std::string position = NX::Value (ctx, arguments[1]).toString();
+      NX::Classes::IO::SeekableDevice * dev = NX::Classes::IO::SeekableDevice::FromObject(thisObject);
+      return NX::Globals::Promise::createPromise(context->toJSContext(),  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
-        std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        NX::Classes::IO::SeekableDevice * dev = NX::Classes::IO::SeekableDevice::FromObject(thisObject);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
-        std::string position = NX::Value (ctx, arguments[1]).toString();
-        scheduler->scheduleCoroutine([=]() {
-          JSContextRef ctx = context->toJSContext();
-          try {
-            Device::Position pos;
-            if (boost::iequals(position, "begin"))
-              pos = Beginning;
-            else if (boost::iequals(position, "current"))
-              pos = Current;
-            else if (boost::iequals(position, "end"))
-              pos = End;
-            if(!dev->deviceReady())
-              throw std::runtime_error("device not ready");
-            std::size_t newOffset = dev->deviceSeek(offset, pos);
-            scheduler->scheduleTask([=]() {
-              JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 2, args, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          } catch (const std::exception & e) {
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, e.what());
-              JSValueRef args1[] { message.value(), nullptr };
-              JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          }
-        });
-        return JSValueMakeUndefined(ctx);
-      }), thisObject, 2, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+        JSContextRef ctx = context->toJSContext();
+        try {
+          Device::Position pos;
+          if (boost::iequals(position, "begin"))
+            pos = Beginning;
+          else if (boost::iequals(position, "current"))
+            pos = Current;
+          else if (boost::iequals(position, "end"))
+            pos = End;
+          if(!dev->deviceReady())
+            throw std::runtime_error("device not ready");
+          std::size_t newOffset = dev->deviceSeek(offset, pos);
+          return resolve(NX::Value(ctx, newOffset).value());
+        } catch (const std::exception & e) {
+          return reject(NX::Object(ctx, e).value());
+        }
+      }, false);
     }, 0
   },
   { "seekSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -585,57 +475,30 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           }
         }
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
+        return JSWrapException(ctx, e, exception);
       }
-      JSValueRef argsForBind[] { arguments[0], arguments[1] };
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-          size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
+      std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
+      std::string position = NX::Value (ctx, arguments[1]).toString();
+      NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
+      return NX::Globals::Promise::createPromise(context->toJSContext(),  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
-        std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        scheduler->scheduleCoroutine([=]() {
-          JSContextRef ctx = context->toJSContext();
-          try {
-            NX::Value offset(ctx, arguments[0]);
-            NX::Value position(ctx, arguments[1]);
-            Device::Position pos;
-            if (boost::iequals(position.toString(), "begin"))
-              pos = Beginning;
-            else if (boost::iequals(position.toString(), "current"))
-              pos = Current;
-            else if (boost::iequals(position.toString(), "end"))
-              pos = End;
-            if(!dev->deviceReady())
-              throw std::runtime_error("device not ready");
-            std::size_t newOffset = dev->deviceReadSeek(offset.toNumber(), pos);
-            scheduler->scheduleTask([=]() {
-              JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 2, args, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          } catch (const std::exception & e) {
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, e.what());
-              JSValueRef args1[] { message.value(), nullptr };
-              JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          }
-        });
-        return JSValueMakeUndefined(ctx);
-      }), thisObject, 2, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+        JSContextRef ctx = context->toJSContext();
+        try {
+          Device::Position pos;
+          if (boost::iequals(position, "begin"))
+            pos = Beginning;
+          else if (boost::iequals(position, "current"))
+            pos = Current;
+          else if (boost::iequals(position, "end"))
+            pos = End;
+          if(!dev->deviceReady())
+            throw std::runtime_error("device not ready");
+          std::size_t newOffset = dev->deviceReadSeek(offset, pos);
+          return resolve(NX::Value(ctx, newOffset).value());
+        } catch (const std::exception & e) {
+          return reject(NX::Object(ctx, e).value());
+        }
+      }, false);
     }, 0
   },
   { "writeSeek", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -656,57 +519,30 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           }
         }
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
+        return JSWrapException(ctx, e, exception);
       }
-      JSValueRef argsForBind[] { arguments[0], arguments[1] };
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
-        [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-          size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
+      std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
+      std::string position = NX::Value (ctx, arguments[1]).toString();
+      NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
+      return NX::Globals::Promise::createPromise(context->toJSContext(),  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
-        std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-        scheduler->scheduleCoroutine([=]() {
-          JSContextRef ctx = context->toJSContext();
-          try {
-            NX::Value offset(ctx, arguments[0]);
-            NX::Value position(ctx, arguments[1]);
-            Device::Position pos;
-            if (boost::iequals(position.toString(), "begin"))
-              pos = Beginning;
-            else if (boost::iequals(position.toString(), "current"))
-              pos = Current;
-            else if (boost::iequals(position.toString(), "end"))
-              pos = End;
-            if(!dev->deviceReady())
-              throw std::runtime_error("device not ready");
-            std::size_t newOffset = dev->deviceWriteSeek(offset.toNumber(), pos);
-            scheduler->scheduleTask([=]() {
-              JSValueRef args[] { thisObject, NX::Value(ctx, newOffset).value() };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 2, args, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          } catch (const std::exception & e) {
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, e.what());
-              JSValueRef args1[] { message.value(), nullptr };
-              JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-              JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-              for(int i = 0; i < argumentCount; i++)
-                JSValueUnprotect(context->toJSContext(), arguments[i]);
-              JSValueUnprotect(ctx, thisObject);
-            });
-          }
-        });
-        return JSValueMakeUndefined(ctx);
-      }), thisObject, 2, argsForBind, nullptr);
-      return NX::Globals::Promise::createPromise(context->toJSContext(), executor, exception);
+        JSContextRef ctx = context->toJSContext();
+        try {
+          Device::Position pos;
+          if (boost::iequals(position, "begin"))
+            pos = Beginning;
+          else if (boost::iequals(position, "current"))
+            pos = Current;
+          else if (boost::iequals(position, "end"))
+            pos = End;
+          if(!dev->deviceReady())
+            throw std::runtime_error("device not ready");
+          std::size_t newOffset = dev->deviceWriteSeek(offset, pos);
+          return resolve(NX::Value(ctx, newOffset).value());
+        } catch (const std::exception & e) {
+          return reject(NX::Object(ctx, e).value());
+        }
+      }, false);
     }, 0
   },
   { "readSeekSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,

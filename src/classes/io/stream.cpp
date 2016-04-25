@@ -203,15 +203,12 @@ const JSStaticFunction NX::Classes::IO::WritableStream::Methods[] {
         return JSValueMakeUndefined(ctx);
       }
       try {
-        std::size_t length = (std::size_t)-1;
+        JSObjectRef buffer = nullptr;
         if (argumentCount >= 1) {
-          length = JSValueToNumber(ctx, arguments[0], exception);
-          if (exception && *exception)
-          {
-            return JSValueMakeUndefined(ctx);
-          }
-        }
-//         return stream->write(ctx, thisObject, length);
+          buffer = NX::Object(ctx, arguments[0]).value();
+        } else
+          throw std::runtime_error("must supply buffer to write");
+        return stream->write(ctx, thisObject, buffer);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }

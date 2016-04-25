@@ -70,6 +70,12 @@ NX::Object::Object (JSContextRef context, time_t val): myContext(context), myObj
   JSValueProtect(myContext, myObject);
 }
 
+NX::Object::Object (JSContextRef context, const std::exception & e): myContext(context), myObject(nullptr)
+{
+  NX::Value message(myContext, e.what());
+  JSValueRef args[] { message.value() };
+  myObject = JSObjectMakeError(myContext, 1, args, nullptr);
+}
 
 NX::Object::~Object()
 {
