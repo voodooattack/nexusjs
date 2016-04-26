@@ -39,7 +39,7 @@ const JSStaticFunction NX::Globals::Console::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         std::string output;
-        for(int i = 0; i < argumentCount; i++)
+        for(std::size_t i = 0; i < argumentCount; i++)
         {
           output += NX::Value(ctx, arguments[i]).toString();
           if (i < argumentCount - 1)
@@ -59,7 +59,7 @@ const JSStaticFunction NX::Globals::Console::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         std::string output;
-        for(int i = 0; i < argumentCount; i++)
+        for(std::size_t i = 0; i < argumentCount; i++)
         {
           output += NX::Value(ctx, arguments[i]).toString();
           if (i < argumentCount - 1)

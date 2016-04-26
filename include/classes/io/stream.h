@@ -109,11 +109,12 @@ namespace NX
                                           JSValueRef * exception)
         {
           try {
-            NX::Object filter(ctx, readFilter);
+            NX::Object filter(NX::Context::FromJsContext(ctx)->toJSContext(), readFilter);
             myFilters.push_back(filter);
           } catch(const std::exception & e) {
             return JSWrapException(ctx, e, exception);
           }
+          return thisObject;
         }
 
         virtual JSValueRef popReadFilter(JSContextRef ctx, JSObjectRef thisObject, JSValueRef * exception) {
@@ -181,11 +182,12 @@ namespace NX
                                           JSValueRef * exception)
         {
           try {
-            NX::Object filter(ctx, writeFilter);
+            NX::Object filter(NX::Context::FromJsContext(ctx)->toJSContext(), writeFilter);
             myFilters.push_back(filter);
           } catch(const std::exception & e) {
             return JSWrapException(ctx, e, exception);
           }
+          return thisObject;
         }
 
         virtual JSValueRef popWriteFilter(JSContextRef ctx, JSObjectRef thisObject, JSValueRef * exception) {

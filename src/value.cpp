@@ -35,7 +35,7 @@ NX::Value::~Value()
   JSValueUnprotect (myContext, myVal);
 }
 
-boost::shared_ptr<NX::Object> NX::Value::toObject()
+std::shared_ptr<NX::Object> NX::Value::toObject()
 {
   JSValueRef exception = nullptr;
   JSObjectRef val = JSValueToObject (myContext, myVal, &exception);
@@ -44,7 +44,7 @@ boost::shared_ptr<NX::Object> NX::Value::toObject()
     NX::Value except (myContext, exception);
     throw std::runtime_error (except.toString());
   }
-  return boost::shared_ptr<NX::Object>(new NX::Object (myContext, val));
+  return std::shared_ptr<NX::Object>(new NX::Object (myContext, val));
 }
 
 bool NX::Value::toBoolean()

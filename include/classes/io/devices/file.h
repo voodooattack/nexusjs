@@ -64,7 +64,10 @@ namespace NX
         }
 
         virtual bool deviceReady() const { return !myStream.bad(); }
-        virtual std::size_t deviceSeek ( std::size_t pos, Position from ) { myStream.seekg(pos, (std::ios::seekdir)from); }
+        virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
+          myStream.seekg(pos, (std::ios::seekdir)from);
+          return myStream.tellg();
+        }
         virtual bool eof() const { return myStream.eof(); }
         virtual std::size_t sourceSize() {
           std::size_t size = 0;
@@ -86,7 +89,7 @@ namespace NX
       class FileSinkDevice: public virtual SeekableSinkDevice {
 
         FileSinkDevice(const std::string & path);
-        virtual ~FileSinkDevice() { myStream.close(); }
+        virtual ~FileSinkDevice() { myStream.flush(); myStream.close(); }
 
       private:
         static const JSClassDefinition Class;
@@ -115,10 +118,10 @@ namespace NX
         }
         virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
           myStream.seekp(pos, (std::ios::seekdir)from);
+          return myStream.tellp();
         }
         virtual void deviceWrite ( const char * buffer, std::size_t length ) {
           myStream.write(buffer, length);
-          myStream.flush();
         }
 
       private:

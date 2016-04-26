@@ -49,6 +49,7 @@ JSClassRef NX::Classes::IO::ReadableStream::createClass (NX::Context * context)
 JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef thisObject, std::size_t length)
 {
   JSValueRef exception = nullptr;
+  JSValueProtect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
   JSValueRef promise = myDevice["read"]->toObject()->call(myDevice, std::vector<JSValueRef> { NX::Value(ctx, length).value() }, &exception);
   if (exception) {
     throw std::runtime_error(NX::Value(ctx, exception).toString());
@@ -60,6 +61,16 @@ JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef 
     if (exception)
       throw std::runtime_error(NX::Value(ctx, exception).toString());
   }
+  promise = NX::Object(ctx, promise)["then"]->toObject()->call(JSValueToObject(ctx, promise, nullptr), std::vector<JSValueRef> {
+    JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
+                                                                          JSObjectRef thisObject, size_t argumentCount,
+                                                                          const JSValueRef arguments[],
+                                                                          JSValueRef* exception) -> JSValueRef
+    {
+      JSValueUnprotect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
+      return arguments[0];
+    }), thisObject, 0, nullptr, nullptr)
+  });
   return promise;
 }
 
@@ -92,6 +103,7 @@ JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
 JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
 {
   JSValueRef exception = nullptr;
+  JSValueProtect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
   JSValueRef promise = myDevice["write"]->toObject()->call(myDevice, std::vector<JSValueRef> { buffer }, &exception);
   if (exception) {
     throw std::runtime_error(NX::Value(ctx, exception).toString());
@@ -103,6 +115,16 @@ JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef
     if (exception)
       throw std::runtime_error(NX::Value(ctx, exception).toString());
   }
+  promise = NX::Object(ctx, promise)["then"]->toObject()->call(JSValueToObject(ctx, promise, nullptr), std::vector<JSValueRef> {
+    JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
+                                                                          JSObjectRef thisObject, size_t argumentCount,
+                                                                          const JSValueRef arguments[],
+                                                                          JSValueRef* exception) -> JSValueRef
+    {
+      JSValueUnprotect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
+      return arguments[0];
+    }), thisObject, 0, nullptr, nullptr)
+  });
   return promise;
 }
 

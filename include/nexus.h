@@ -43,7 +43,7 @@ namespace NX
     int run();
 
     JSContextGroupRef group() { return myContextGroup; }
-    boost::shared_ptr<NX::Scheduler> & scheduler() { return myScheduler; }
+    NX::Scheduler * scheduler() { return myScheduler.get(); }
     const std::string & scriptPath() { return myScriptPath; }
 
     JSClassRef defineOrGetClass(const JSClassDefinition & def) {
@@ -69,7 +69,7 @@ namespace NX
     NX::Context * myMainContext;
     std::string myScriptSource;
     std::string myScriptPath;
-    boost::shared_ptr<NX::Scheduler> myScheduler;
+    std::shared_ptr<NX::Scheduler> myScheduler;
     boost::program_options::variables_map myOptions;
     boost::unordered_map<std::string, JSClassRef> myClasses;
   };

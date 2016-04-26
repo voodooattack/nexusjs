@@ -82,9 +82,9 @@ NX::Object::~Object()
   JSValueUnprotect(myContext, myObject);
 }
 
-boost::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
+std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
 {
-  if (!myObject) return boost::shared_ptr<NX::Value>(nullptr);
+  if (!myObject) return std::shared_ptr<NX::Value>(nullptr);
   NX::ScopedString nameRef(name);
   JSValueRef exception = nullptr;
   JSValueRef val = JSObjectGetProperty(myContext, myObject, nameRef, &exception);
@@ -92,19 +92,19 @@ boost::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
     NX::Value except(myContext, exception);
     throw std::runtime_error(except.toString());
   }
-  return boost::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
 
-boost::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index)
+std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index)
 {
-  if (!myObject) return boost::shared_ptr<NX::Value>(nullptr);
+  if (!myObject) return std::shared_ptr<NX::Value>(nullptr);
   JSValueRef exception;
   JSValueRef val = JSObjectGetPropertyAtIndex(myContext, myObject, index, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
     throw std::runtime_error(except.toString());
   }
-  return boost::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
 
 std::string NX::Object::toString()

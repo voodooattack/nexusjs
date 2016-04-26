@@ -4,8 +4,7 @@ project(nexus)
 
 find_package(Boost 1.58 COMPONENTS program_options system thread filesystem coroutine context REQUIRED)
 find_package(Iconv REQUIRED)
-
-include(FindJavaScriptCore)
+find_package(JavaScriptCore REQUIRED)
 
 add_executable(nexus
   main.cpp nexus.cpp scheduler.cpp task.cpp object.cpp value.cpp context.cpp util.cpp
@@ -27,7 +26,7 @@ add_executable(nexus
   classes/context.cpp
 )
 
-target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICONV_LIBRARIES})
+target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICONV_LIBRARIES} pthread)
 target_include_directories(nexus
   PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/generated/
   SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICONV_INCLUDE_DIR}

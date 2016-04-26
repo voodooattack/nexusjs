@@ -76,7 +76,7 @@ JSStaticFunction NX::Classes::IO::UTF8StringFilter::Methods[] {
         JSValueProtect(context->toJSContext(), thisObject);
         for(int i = 0; i < argumentCount; i++)
           JSValueProtect(context->toJSContext(), arguments[i]);
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
+        NX::Scheduler * scheduler = context->nexus()->scheduler();
         try {
           JSObjectRef arrayBuffer = NX::Object(ctx, arguments[0]).value();
           char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);

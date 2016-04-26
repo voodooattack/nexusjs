@@ -37,7 +37,7 @@ JSObjectRef NX::Classes::IO::FileSourceDevice::Constructor (JSContextRef ctx, JS
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
       throw std::runtime_error("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
-    return JSObjectMake(ctx, fileSourceClass, new NX::Classes::IO::FileSourceDevice(path.toString()));
+    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::IO::Device*>(new NX::Classes::IO::FileSourceDevice(path.toString())));
   } catch (const std::exception & e) {
     JSWrapException(ctx, e, exception);
     return JSObjectMake(ctx, nullptr, nullptr);
@@ -78,7 +78,7 @@ JSObjectRef NX::Classes::IO::FileSinkDevice::Constructor (JSContextRef ctx, JSOb
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
       throw std::runtime_error("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
-    return JSObjectMake(ctx, fileSourceClass, new NX::Classes::IO::FileSinkDevice(path.toString()));
+    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::IO::Device*>(new NX::Classes::IO::FileSinkDevice(path.toString())));
   } catch (const std::exception & e) {
     JSWrapException(ctx, e, exception);
     return JSObjectMake(ctx, nullptr, nullptr);

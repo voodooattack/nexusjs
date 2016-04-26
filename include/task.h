@@ -142,7 +142,7 @@ namespace NX
   protected:
     NX::Scheduler::CompletionHandler myHandler, myCancellationHandler, myFinishHandler;
     NX::Scheduler * myScheduler;
-    boost::shared_ptr<push_type> myCoroutine;
+    std::shared_ptr<push_type> myCoroutine;
     pull_type * myPullCa;
     boost::atomic<Status> myStatus;
     std::vector<NX::AbstractTask *> myDependents;

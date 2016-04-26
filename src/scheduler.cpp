@@ -21,6 +21,8 @@
 #include "nexus.h"
 #include "task.h"
 
+#include <functional>
+
 NX::Scheduler::Scheduler (NX::Nexus * nexus, unsigned int maxThreads):
   myNexus(nexus), myMaxThreads(maxThreads), myThreadCount(0), myService(), myWork(),
   myThreadGroup(), myCurrentTask(), myTaskQueue(256), myTaskCount(0), myActiveTaskCount(0),
@@ -37,8 +39,7 @@ NX::Scheduler::~Scheduler()
 
 void NX::Scheduler::addThread()
 {
-  if (myThreadGroup)
-    myThreadGroup->create_thread(boost::bind(&NX::Scheduler::dispatcher, this));
+  myThreadGroup.emplace_back(std::bind(&NX::Scheduler::dispatcher, this));
 }
 
 void NX::Scheduler::dispatcher()
@@ -46,8 +47,9 @@ void NX::Scheduler::dispatcher()
   myThreadCount++;
   while (!myService->stopped() && remaining())
   {
-    if (processTasks() & !myService->poll_one())
-      boost::this_thread::yield();
+    if (!processTasks() & !myService->poll())
+      std::this_thread::sleep_for(std::chrono::microseconds(200));
+    std::this_thread::yield();
   }
   myThreadCount--;
 }
@@ -91,8 +93,13 @@ bool NX::Scheduler::processTasks()
 
 void NX::Scheduler::balanceThreads()
 {
-  while(myThreadGroup && myThreadGroup->size() < myMaxThreads && myThreadGroup->size() < myTaskCount)
+  while(myThreadGroup.size() < myMaxThreads && myThreadGroup.size() < myTaskCount)
     addThread();
+  for(auto i = myThreadGroup.begin(); i != myThreadGroup.end();)
+    if (!i->joinable())
+      myThreadGroup.erase(i++);
+    else
+      ++i;
 }
 
 void NX::Scheduler::start()
@@ -100,7 +107,6 @@ void NX::Scheduler::start()
   BOOST_ASSERT_MSG(myService->stopped(), "call to start with a service already running");
   myService->reset();
   myWork.reset(new boost::asio::io_service::work(*myService));
-  myThreadGroup.reset(new boost::thread_group());
   balanceThreads();
 }
 
@@ -111,8 +117,9 @@ void NX::Scheduler::stop()
 
 void NX::Scheduler::join()
 {
-  if (myThreadGroup)
-    myThreadGroup->join_all();
+  for(auto & i: myThreadGroup)
+    if (i.joinable())
+      i.join();
 }
 
 NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task)
@@ -133,7 +140,7 @@ NX::Task * NX::Scheduler::scheduleTask (NX::Scheduler::CompletionHandler handler
 NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, NX::Scheduler::CompletionHandler handler)
 {
   NX::Task * taskObject = new NX::Task(handler, this);
-  boost::shared_ptr<timer_type> timer(new timer_type(*myService));
+  std::shared_ptr<timer_type> timer(new timer_type(*myService));
   myTaskCount++;
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
@@ -152,7 +159,7 @@ NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (NX::Scheduler::CompletionH
 NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::duration & time, NX::Scheduler::CompletionHandler handler)
 {
   NX::CoroutineTask * taskObject = new NX::CoroutineTask(handler, this);
-  boost::shared_ptr<timer_type> timer(new timer_type(*myService));
+  std::shared_ptr<timer_type> timer(new timer_type(*myService));
   myTaskCount++;
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));

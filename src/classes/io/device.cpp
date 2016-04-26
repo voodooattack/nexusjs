@@ -175,7 +175,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       std::size_t length = 0;
-      if (argumentCount >= 0) {
+      if (argumentCount > 0) {
         if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
           NX::Value message(ctx, "bad value for length argument");
           JSValueRef args[] { message.value(), nullptr };
@@ -191,58 +191,62 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         return JSValueMakeUndefined(ctx);
       }
       JSValueProtect(context->toJSContext(), thisObject);
-      boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-      std::size_t chunkSize = 4096;
+      NX::Scheduler * scheduler = context->nexus()->scheduler();
+      std::size_t chunkSize = 8192;
       return NX::Globals::Promise::createPromise(context->toJSContext(),
-                                                 [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
+        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        std::size_t readLength = length;
-        JSContextRef ctx = context->toJSContext();
-        try {
-          if (readLength == 0) {
-            if (auto seekable = dynamic_cast<NX::Classes::IO::SeekableSourceDevice*>(dev)) {
-              readLength = seekable->deviceBytesAvailable();
-            } else
-              throw std::runtime_error("must supply read length for non-seekable device");
-          }
-          char * buffer = (char *)std::malloc(readLength);
-          std::size_t readSoFar = 0;
-          if(!dev->deviceReady()) {
-            scheduler->scheduleTask([=]() {
-              NX::Value message(ctx, "device not ready");
-              return reject(message.value());
-            });
-            return;
-          }
-          for(std::size_t i = 0; i < readLength; i += chunkSize)
-          {
-            std::size_t read = dev->deviceRead(buffer + i, std::min(chunkSize, readLength - i));
-            readSoFar += read;
-            if (!read || dev->eof()) break;
-            scheduler->yield();
-          }
-          if (readSoFar != readLength)
-            buffer = (char *)std::realloc(buffer, readSoFar);
-          scheduler->scheduleTask([=]() {
-            JSValueRef exp = nullptr;
-            JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, readSoFar,
-              [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, &exp);
-            if (exp)
-            {
-              return reject(exp);
-            } else {
-              return resolve(arrayBuffer);
+        scheduler->scheduleCoroutine([=]() {
+          std::size_t readLength = length;
+          try {
+            if (readLength == 0) {
+              if (auto seekable = dynamic_cast<NX::Classes::IO::SeekableSourceDevice*>(dev))
+                readLength = seekable->deviceBytesAvailable();
+              if (readLength == 0)
+                throw std::runtime_error("must supply read length for non-seekable device");
             }
-            JSValueUnprotect(ctx, thisObject);
-          });
-        } catch (const std::exception & e) {
-          scheduler->scheduleTask([=]() {
-            JSValueRef exp = nullptr;
-            JSWrapException(ctx, e, &exp);
-            return reject(exp);
-          });
-        }
-      }, true);
+            char * buffer = (char *)std::malloc(readLength);
+            std::size_t readSoFar = 0;
+            if(!dev->deviceReady()) {
+              scheduler->scheduleTask([=]() {
+                NX::Value message(context->toJSContext(), "device not ready");
+                return reject(message.value());
+              });
+              return;
+            }
+            for(std::size_t i = 0; i < readLength; i += chunkSize)
+            {
+              std::size_t read = dev->deviceRead(buffer + i, std::min(chunkSize, readLength - i));
+              readSoFar += read;
+              if (!read || dev->eof()) break;
+                                     scheduler->yield();
+            }
+            if (readSoFar != readLength)
+              buffer = (char *)std::realloc(buffer, readSoFar);
+            scheduler->scheduleTask([=]() {
+              JSValueRef exp = nullptr;
+              JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, readSoFar,
+                [](void* bytes, void* deallocatorContext) {
+                  std::free(bytes);
+                }, nullptr, &exp);
+              if (exp)
+              {
+                reject(exp);
+              } else {
+                resolve(arrayBuffer);
+              }
+              JSValueUnprotect(context->toJSContext(), thisObject);
+            });
+          } catch (const std::exception & e) {
+            scheduler->scheduleTask([=]() {
+              JSValueRef exp = nullptr;
+              JSWrapException(context->toJSContext(), e, &exp);
+              reject(exp);
+              JSValueUnprotect(context->toJSContext(), thisObject);
+            });
+          }
+        });
+      });
     }, 0
   },
   { "readSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -282,6 +286,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
       std::size_t offset = 0, length = 0;
+      NX::Classes::IO::SinkDevice * dev = nullptr;
       try {
         if (argumentCount == 0) {
           throw std::runtime_error("must supply buffer to write");
@@ -299,37 +304,49 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             if (except) {
               throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
             }
-            offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
-            length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
+            offset = JSObjectGetTypedArrayByteOffset(ctx, obj, &except);
+            length = JSObjectGetTypedArrayByteLength(ctx, obj, &except);
+          }
+          dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
+          if (!dev) {
+            throw std::runtime_error("device does not implement write()");
           }
         }
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
       JSValueProtect(context->toJSContext(), arrayBuffer);
-      NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
-      boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
-      std::size_t chunkSize = 4096;
+      JSValueProtect(context->toJSContext(), thisObject);
+      NX::Scheduler * scheduler = context->nexus()->scheduler();
+      std::size_t chunkSize = 8192;
       const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
-      return NX::Globals::Promise::createPromise(context->toJSContext(), [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
+      return NX::Globals::Promise::createPromise(context->toJSContext(),
+        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        JSContextRef ctx = context->toJSContext();
-        try {
-          if(!dev->deviceReady())
-            throw std::runtime_error("device not ready");
-          for(std::size_t i = 0; i < length; i += chunkSize)
-          {
-            dev->deviceWrite(buffer + offset + i, std::min(chunkSize, length - i));
-            if (length - i > chunkSize)
-              scheduler->yield();
+        scheduler->scheduleCoroutine([=]{
+          try {
+            if(!dev->deviceReady())
+              throw std::runtime_error("device not ready");
+            for(std::size_t i = 0; i < length; i += chunkSize)
+            {
+              dev->deviceWrite(buffer + offset + i, std::min(chunkSize, length - i));
+              if (length - i > chunkSize)
+                scheduler->yield();
+            }
+            scheduler->scheduleTask([=]() {
+              resolve(thisObject);
+              JSValueUnprotect(context->toJSContext(), thisObject);
+              JSValueUnprotect(context->toJSContext(), arrayBuffer);
+            });
+          } catch (const std::exception & e) {
+            scheduler->scheduleTask([=]() {
+              reject(NX::Object(context->toJSContext(), e));
+              JSValueUnprotect(context->toJSContext(), thisObject);
+              JSValueUnprotect(context->toJSContext(), arrayBuffer);
+            });
           }
-          scheduler->scheduleTask(boost::bind(resolve, nullptr));
-        } catch (const std::exception & e) {
-          scheduler->scheduleTask([=]() {
-            return reject(NX::Object(ctx, e).value());
-          });
-        }
-      }, true);
+        });
+      });
     }, 0
   },
   { "writeSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -387,7 +404,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of [begin,current,end]");
+            throw std::runtime_error("position argument must be one of ['begin','current','end']");
           }
         }
       } catch(const std::exception & e) {
@@ -396,9 +413,9 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
       std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
       std::string position = NX::Value (ctx, arguments[1]).toString();
       NX::Classes::IO::SeekableDevice * dev = NX::Classes::IO::SeekableDevice::FromObject(thisObject);
-      return NX::Globals::Promise::createPromise(context->toJSContext(),  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
+      return NX::Globals::Promise::createPromise(context->toJSContext(),
+        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        JSContextRef ctx = context->toJSContext();
         try {
           Device::Position pos;
           if (boost::iequals(position, "begin"))
@@ -410,11 +427,11 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
           if(!dev->deviceReady())
             throw std::runtime_error("device not ready");
           std::size_t newOffset = dev->deviceSeek(offset, pos);
-          return resolve(NX::Value(ctx, newOffset).value());
+          return resolve(NX::Value(context->toJSContext(), newOffset).value());
         } catch (const std::exception & e) {
-          return reject(NX::Object(ctx, e).value());
+          return reject(NX::Object(context->toJSContext(), e).value());
         }
-      }, false);
+      });
     }, 0
   },
   { "seekSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -432,7 +449,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of [begin,current,end]");
+            throw std::runtime_error("position argument must be one of ['begin','current','end']");
           }
           NX::Classes::IO::SeekableDevice * dev = NX::Classes::IO::SeekableDevice::FromObject(thisObject);
           Device::Position pos;
@@ -470,7 +487,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of [begin,current,end]");
+            throw std::runtime_error("position argument must be one of ['begin','current','end']");
           }
         }
       } catch(const std::exception & e) {
@@ -479,9 +496,9 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
       std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
       std::string position = NX::Value (ctx, arguments[1]).toString();
       NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
-      return NX::Globals::Promise::createPromise(context->toJSContext(),  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
+      return NX::Globals::Promise::createPromise(context->toJSContext(),
+        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        JSContextRef ctx = context->toJSContext();
         try {
           Device::Position pos;
           if (boost::iequals(position, "begin"))
@@ -493,11 +510,11 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           if(!dev->deviceReady())
             throw std::runtime_error("device not ready");
           std::size_t newOffset = dev->deviceReadSeek(offset, pos);
-          return resolve(NX::Value(ctx, newOffset).value());
+          return resolve(NX::Value(context->toJSContext(), newOffset).value());
         } catch (const std::exception & e) {
-          return reject(NX::Object(ctx, e).value());
+          return reject(NX::Object(context->toJSContext(), e).value());
         }
-      }, false);
+      });
     }, 0
   },
   { "writeSeek", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -514,7 +531,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of [begin,current,end]");
+            throw std::runtime_error("position argument must be one of ['begin','current','end']");
           }
         }
       } catch(const std::exception & e) {
@@ -523,9 +540,9 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
       std::size_t offset = NX::Value (ctx, arguments[0]).toNumber();
       std::string position = NX::Value (ctx, arguments[1]).toString();
       NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
-      return NX::Globals::Promise::createPromise(context->toJSContext(),  [=](ResolveRejectHandler resolve, ResolveRejectHandler reject)
+      return NX::Globals::Promise::createPromise(context->toJSContext(),
+        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        JSContextRef ctx = context->toJSContext();
         try {
           Device::Position pos;
           if (boost::iequals(position, "begin"))
@@ -537,11 +554,11 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           if(!dev->deviceReady())
             throw std::runtime_error("device not ready");
           std::size_t newOffset = dev->deviceWriteSeek(offset, pos);
-          return resolve(NX::Value(ctx, newOffset).value());
+          return resolve(NX::Value(context->toJSContext(), newOffset).value());
         } catch (const std::exception & e) {
-          return reject(NX::Object(ctx, e).value());
+          return reject(NX::Object(context->toJSContext(), e).value());
         }
-      }, false);
+      });
     }, 0
   },
   { "readSeekSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
@@ -559,7 +576,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of [begin,current,end]");
+            throw std::runtime_error("position argument must be one of ['begin','current','end']");
           }
           NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
           Device::Position pos;
@@ -594,7 +611,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of [begin,current,end]");
+            throw std::runtime_error("position argument must be one of ['begin','current','end']");
           }
           NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
           Device::Position pos;

@@ -43,8 +43,8 @@ namespace NX {
 
     std::string toString();
 
-    boost::shared_ptr<NX::Value> operator[] (unsigned int index);
-    boost::shared_ptr<NX::Value> operator[] (const char * name);
+    std::shared_ptr<NX::Value> operator[] (unsigned int index);
+    std::shared_ptr<NX::Value> operator[] (const char * name);
 
     void set(const std::string & name, JSValueRef value, JSPropertyAttributes attr = kJSPropertyAttributeNone,
              JSValueRef * exception = nullptr)

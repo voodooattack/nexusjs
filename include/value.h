@@ -35,9 +35,9 @@ namespace NX {
     Value(JSContextRef context, double value);
     ~Value();
 
-    boost::shared_ptr<NX::Value> operator[] (unsigned int index);
+    std::shared_ptr<NX::Value> operator[] (unsigned int index);
 
-    boost::shared_ptr<NX::Object> toObject();
+    std::shared_ptr<NX::Object> toObject();
     bool toBoolean();
     double toNumber();
     std::string toString();

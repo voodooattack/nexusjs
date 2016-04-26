@@ -43,13 +43,12 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef e
   return JSObjectCallAsConstructor(ctx, Promise, 1, args, exception);
 }
 
-JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Globals::Promise::Executor & executor, bool scheduleAsCoroutine)
+JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Globals::Promise::Executor & executor)
 {
   NX::Context * context = Context::FromJsContext(ctx);
   JSObjectRef Promise = context->getOrInitGlobal("Promise");
-  JSObjectRef thisObject = JSObjectMake(context->toJSContext(), context->nexus()->genericClass(), new NX::Globals::Promise::Executor(executor));
-  JSObjectSetProperty(ctx, thisObject, ScopedString("scheduleAsCoroutine"), JSValueMakeBoolean(ctx, scheduleAsCoroutine), 0, nullptr);
-  JSObjectRef jsExecutor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), nullptr,
+  JSObjectRef thisObject = JSObjectMake(ctx, context->nexus()->genericClass(), new NX::Globals::Promise::Executor(executor));
+  JSObjectRef jsExecutor = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
           size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
       {
@@ -68,51 +67,28 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
         JSValueProtect(context->toJSContext(), thisObject);
         JSValueProtect(context->toJSContext(), resolve);
         JSValueProtect(context->toJSContext(), reject);
-        bool scheduleAsCoroutine = JSValueToBoolean(ctx, JSObjectGetProperty(ctx, thisObject, ScopedString("scheduleAsCoroutine"), nullptr));
-        boost::shared_ptr<NX::Scheduler> scheduler = context->nexus()->scheduler();
+        NX::Scheduler * scheduler = context->nexus()->scheduler();
         try {
-          if (scheduleAsCoroutine) {
-            scheduler->scheduleCoroutine([=]() {
-              executor([=](JSValueRef resolveValue) {
-                JSValueProtect(context->toJSContext(), resolveValue);
-                scheduler->scheduleTask([=] {
-                  JSValueRef args[] { resolveValue };
-                  JSObjectCallAsFunction(context->toJSContext(), resolve, nullptr, 1, args, nullptr);
-                  JSValueUnprotect(context->toJSContext(), resolve);
-                  JSValueUnprotect(context->toJSContext(), reject);
-                  JSValueUnprotect(context->toJSContext(), resolveValue);
-                });
-              }, [=](JSValueRef rejectValue) {
-                JSValueProtect(context->toJSContext(), rejectValue);
-                scheduler->scheduleTask([=]{
-                  JSValueRef args[] { rejectValue };
-                  JSObjectCallAsFunction(context->toJSContext(), reject, nullptr, 1, args, nullptr);
-                  JSValueUnprotect(context->toJSContext(), resolve);
-                  JSValueUnprotect(context->toJSContext(), reject);
-                  JSValueUnprotect(context->toJSContext(), rejectValue);
-                });
-              });
-            });
-          } else {
-            executor([=](JSValueRef resolveValue) {
-              JSValueRef args[] { resolveValue };
-              JSValueRef exp = nullptr;
-              JSObjectCallAsFunction(context->toJSContext(), resolve, nullptr, 1, args, nullptr);
-              JSValueUnprotect(context->toJSContext(), resolve);
-              JSValueUnprotect(context->toJSContext(), reject);
-            }, [=](JSValueRef rejectValue) {
-              JSValueRef args[] { rejectValue };
-              JSValueRef exp = nullptr;
-              JSObjectCallAsFunction(context->toJSContext(), reject, nullptr, 1, args, nullptr);
-              JSValueUnprotect(context->toJSContext(), resolve);
-              JSValueUnprotect(context->toJSContext(), reject);
-            });
-          }
+          executor(context, [=](JSValueRef resolveValue) {
+            JSValueRef args[] { resolveValue };
+            JSValueRef exp = nullptr;
+            JSObjectCallAsFunction(context->toJSContext(), resolve, nullptr, 1, args, &exp);
+            if (exp)
+              throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+            JSValueUnprotect(context->toJSContext(), resolve);
+            JSValueUnprotect(context->toJSContext(), reject);
+          }, [=](JSValueRef rejectValue) {
+            JSValueRef args[] { rejectValue };
+            JSValueRef exp = nullptr;
+            JSObjectCallAsFunction(context->toJSContext(), reject, nullptr, 1, args, &exp);
+            if (exp)
+              throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+            JSValueUnprotect(context->toJSContext(), resolve);
+            JSValueUnprotect(context->toJSContext(), reject);
+          });
         } catch (const std::exception & e) {
-          NX::Value message(ctx, e.what());
-          JSValueRef args1[] { message.value(), nullptr };
-          JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
-          JSObjectCallAsFunction(ctx, reject, nullptr, 1, args2, exception);
+          JSValueRef args[] { NX::Object(context->toJSContext(), e) };
+          JSObjectCallAsFunction(ctx, reject, nullptr, 1, args, exception);
           JSValueUnprotect(context->toJSContext(), resolve);
           JSValueUnprotect(context->toJSContext(), reject);
         }
@@ -121,9 +97,9 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
       }), thisObject, 0, nullptr, nullptr);
   JSValueRef args[] { jsExecutor };
   JSValueRef exp = nullptr;
-  JSObjectRef promise = JSObjectCallAsConstructor(ctx, Promise, 1, args, &exp);
+  JSObjectRef promise = JSObjectCallAsConstructor(context->toJSContext(), Promise, 1, args, &exp);
   if (exp) {
-    throw std::runtime_error(NX::Value(ctx, exp).toString());
+    throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
   }
   return promise;
 }

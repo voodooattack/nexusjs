@@ -22,7 +22,5 @@ foreach(FILE ${JS_SOURCES})
   list(APPEND JS_FILES "${CMAKE_BINARY_DIR}/generated/${BASE_NAME}.inc")
 endforeach()
 
-message(${JS_FILES})
-
 add_library(js_bundle STATIC ${JS_FILES})
 set_target_properties(js_bundle PROPERTIES LINKER_LANGUAGE CXX)

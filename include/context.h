@@ -92,8 +92,8 @@ namespace NX {
     NX::Nexus * myNexus;
     JSContextGroupRef myGroup;
     JSGlobalContextRef myContext;
-    JSObjectRef myGlobalObject, myModuleObject;
     boost::unordered_map<std::string, JSObjectRef> myGlobals;
+    JSObjectRef myGlobalObject, myModuleObject;
     NX::Context * myParent;
   };
 }

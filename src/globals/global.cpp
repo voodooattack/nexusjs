@@ -71,14 +71,14 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
         std::vector<JSValueRef> saved { arguments[0], arguments[1] };
         std::vector<JSValueRef> args;
         JSValueProtect(context->toJSContext(), arguments[0]);
-        for(int i = 2; i < argumentCount; i++) {
+        for(std::size_t i = 2; i < argumentCount; i++) {
           JSValueProtect(context->toJSContext(), arguments[i]);
           args.push_back(arguments[i]);
         }
         NX::AbstractTask * task = nx->scheduler()->scheduleTask(boost::posix_time::milliseconds(timeout.toNumber()), [=]() {
           JSValueRef exp = nullptr;
-          JSValueRef ret = JSObjectCallAsFunction(context->toJSContext(), JSValueToObject(context->toJSContext(), saved[0], &exp),
-                                                  nullptr, args.size(), &args[0], &exp);
+          JSObjectCallAsFunction(context->toJSContext(), JSValueToObject(context->toJSContext(), saved[0], &exp),
+                                 nullptr, args.size(), &args[0], &exp);
           if (exp) {
             NX::Nexus::ReportException(context->toJSContext(), exp);
           }
@@ -103,8 +103,6 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
   { "clearTimeout",
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Nexus * nx = context->nexus();
       try {
         if (argumentCount != 1) {
           throw std::runtime_error("invalid arguments");
@@ -177,7 +175,7 @@ JSStaticValue NX::Global::NexusProperties[] {
     boost::unordered_map<std::string, JSValueRef> props {
       { "entryPoint", NX::Value(ctx, context->nexus()->scriptPath()).value() }
     };
-    for(int i = 0; i < props.size(); i++) {
+    for(std::size_t i = 0; i < props.size(); i++) {
       auto prop = props.begin();
       std::advance(prop, i);;
       NX::ScopedString name(prop->first);

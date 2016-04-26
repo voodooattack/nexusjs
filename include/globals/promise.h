@@ -40,10 +40,10 @@ namespace NX {
       }
 
       typedef boost::function<void(JSValueRef)> ResolveRejectHandler;
-      typedef boost::function<void(ResolveRejectHandler resolve, ResolveRejectHandler reject)> Executor;
+      typedef boost::function<void(NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)> Executor;
 
       static JSObjectRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
-      static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor, bool scheduleAsCoroutine = false);
+      static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor);
     };
   }
   using ResolveRejectHandler = Globals::Promise::ResolveRejectHandler;

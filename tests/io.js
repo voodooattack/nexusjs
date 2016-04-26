@@ -1,9 +1,15 @@
-const device = new Nexus.IO.FileSourceDevice('enwik8');
-const stream = new Nexus.IO.ReadableStream(device);
+const promises = [];
 
-stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-16LE"));
+for(let i = 0; i < 4; i++) {
+  const device = new Nexus.IO.FileSourceDevice('enwik8');
+  const stream = new Nexus.IO.ReadableStream(device);
 
-const wdevice = new Nexus.IO.FileSinkDevice('enwik16');
-const wstream = new Nexus.IO.WritableStream(wdevice);
+  stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-16LE"));
 
-stream.pipe(wstream).then(v => console.log('finished!'));
+  const wdevice = new Nexus.IO.FileSinkDevice('enwik16-' + i);
+  const wstream = new Nexus.IO.WritableStream(wdevice);
+ 
+  promises.push(stream.pipe(wstream));
+}
+
+Promise.all(promises).then(v => console.log("finished!"));

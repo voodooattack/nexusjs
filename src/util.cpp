@@ -28,7 +28,7 @@ JSObjectRef NX::JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectR
   JSValueRef bind = JSEvaluateScript(ctx, strBind, JSContextGetGlobalObject(ctx), nullptr, 0, exception);
   std::vector<JSValueRef> args;
   args.push_back(thisObject);
-  for(int i = 0; i < argumentCount; i++)
+  for(std::size_t i = 0; i < argumentCount; i++)
     args.push_back(arguments[i]);
   return JSValueToObject(ctx,
                          JSObjectCallAsFunction(ctx, JSValueToObject(ctx, bind, exception), function, args.size(), &args[0], exception), exception);
@@ -40,8 +40,8 @@ JSObjectRef NX::JSCopyObjectShallow(JSContextRef source, JSContextRef dest, JSOb
   JSObjectRef ret = JSObjectMake(dest, emptyClass, nullptr);
   JSClassRelease(emptyClass);
   JSPropertyNameArrayRef namesArray = JSObjectCopyPropertyNames(source, object);
-  unsigned int count = JSPropertyNameArrayGetCount(namesArray);
-  for(int i = 0; i < count; i++) {
+  std::size_t count = JSPropertyNameArrayGetCount(namesArray);
+  for(std::size_t i = 0; i < count; i++) {
     JSStringRef propertyName = JSPropertyNameArrayGetNameAtIndex(namesArray, i);
     JSObjectSetProperty(dest,
                         ret,

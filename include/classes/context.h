@@ -58,10 +58,10 @@ namespace NX {
                       const std::string & fileName, unsigned int lineNo, JSValueRef * exception);
       JSValueRef exports(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
 
-      boost::shared_ptr<NX::Context> context() { return myContext; }
+      std::shared_ptr<NX::Context> context() { return myContext; }
 
     private:
-      boost::shared_ptr<NX::Context> myContext;
+      std::shared_ptr<NX::Context> myContext;
     };
   }
 }

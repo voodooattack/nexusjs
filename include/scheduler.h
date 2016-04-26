@@ -32,6 +32,8 @@
 #include <boost/assert.hpp>
 #include <boost/noncopyable.hpp>
 
+#include <thread>
+
 namespace NX
 {
   class Nexus;
@@ -86,9 +88,9 @@ namespace NX
     NX::Nexus * myNexus;
     boost::atomic<unsigned int> myMaxThreads;
     boost::atomic_uint myThreadCount;
-    boost::shared_ptr<boost::asio::io_service> myService;
-    boost::shared_ptr<boost::asio::io_service::work> myWork;
-    boost::shared_ptr<boost::thread_group> myThreadGroup;
+    std::shared_ptr<boost::asio::io_service> myService;
+    std::shared_ptr<boost::asio::io_service::work> myWork;
+    std::vector<std::thread> myThreadGroup;
     boost::thread_specific_ptr<NX::AbstractTask> myCurrentTask;
     TaskQueue myTaskQueue;
     boost::atomic_uint myTaskCount, myActiveTaskCount;

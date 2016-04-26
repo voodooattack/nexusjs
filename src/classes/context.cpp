@@ -125,7 +125,7 @@ const JSStaticFunction NX::Classes::Context::Methods[] {
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Context * thisContext = NX::Classes::Context::FromObject(thisObject);
         std::string source, fileName;
-        unsigned int lineNo;
+        unsigned int lineNo = 0;
         source = NX::Value(ctx, arguments[0]).toString();
         if (argumentCount >= 2) {
           fileName = NX::Value(ctx, arguments[1]).toString();
