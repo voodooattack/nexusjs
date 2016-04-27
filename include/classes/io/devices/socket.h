@@ -21,40 +21,59 @@
 #define CLASSES_IO_DEVICES_SOCKET_H
 
 #include "classes/io/device.h"
+#include "scheduler.h"
+
 #include <JavaScript.h>
+#include <memory>
+#include <boost/asio.hpp>
 
 namespace NX {
   namespace Classes {
     namespace IO {
       namespace Devices {
-        class Socket: public virtual BidirectionalDevice {
-          public:
-            Socket();
-            virtual ~Socket() { }
+        class Socket: public virtual BidirectionalDevice
+        {
+        protected:
+          Socket(NX::Scheduler * scheduler, const std::shared_ptr<boost::asio::socket_base> & socket): myScheduler(scheduler), mySocket(socket) {}
+        public:
+          virtual ~Socket() { }
 
-          private:
-            static const JSClassDefinition Class;
-            static const JSStaticValue Properties[];
-            static const JSStaticFunction Methods[];
+        private:
+          static const JSClassDefinition Class;
+          static const JSStaticValue Properties[];
+          static const JSStaticFunction Methods[];
 
-            static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
-                                          const JSValueRef arguments[], JSValueRef* exception);
+          static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                        const JSValueRef arguments[], JSValueRef* exception);
 
-            static void Finalize(JSObjectRef object) { }
+          static void Finalize(JSObjectRef object) { }
 
-          public:
-            static JSClassRef createClass(NX::Context * context);
-            static JSObjectRef getConstructor(NX::Context * context);
+        public:
+          static JSClassRef createClass(NX::Context * context);
+          static JSObjectRef getConstructor(NX::Context * context);
 
-            static NX::Classes::IO::Devices::Socket * FromObject(JSObjectRef object) {
-              NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
-              return dynamic_cast<NX::Classes::IO::Devices::Socket*>(context);
-            }
+          static NX::Classes::IO::Devices::Socket * FromObject(JSObjectRef object) {
+            NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
+            return dynamic_cast<NX::Classes::IO::Devices::Socket*>(context);
+          }
 
-            virtual bool eof() const;
-            virtual bool deviceReady() const;
-            virtual std::size_t deviceRead ( char * dest, std::size_t length );
-            virtual void deviceWrite ( const char * buffer, std::size_t length );
+          virtual std::shared_ptr<boost::asio::socket_base> socket() { return mySocket; }
+
+          virtual std::size_t available() const;
+          virtual void close() = 0;
+          virtual void cancel() = 0;
+          virtual void connect(const std::string & endpoint) = 0;
+          virtual void bind(const std::string & endpoint) = 0;
+
+        private:
+          NX::Scheduler * myScheduler;
+          std::shared_ptr<boost::asio::socket_base> mySocket;
+        };
+
+        class TCPSocket: public virtual Socket {
+        public:
+          TCPSocket ( Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket ): Socket(scheduler, socket) {}
+          virtual ~TCPSocket()  {}
 
         };
       }

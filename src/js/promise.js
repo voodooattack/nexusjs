@@ -72,7 +72,9 @@
           });
           return;
         }
-        throw value instanceof Error ? new Error(value.message) : new Error("unhandled rejection in promise");
+        const error = new Error(value.message);
+        error.stack = value.stack || error.stack;
+        throw value instanceof Error ? error : new Error('unhandled rejection in promise');
       };
       this[taskKey] = Nexus.Scheduler.schedule(() => {
         try {
@@ -108,6 +110,8 @@
       return new Promise((resolve, reject) => reject(value));
     }
     static all(collection) {
+      if (typeof collection[Symbol.iterator] !== 'function')
+        throw new TypeError('argument must be an iterable');
       function allOrReject(resolve, reject) {
         const filtered = collection.filter(v => v[stateKey] !== PENDING);
         const rejection = filtered.find(v => v[stateKey] === REJECTED);
@@ -122,6 +126,8 @@
       return new Promise(allOrReject.bind(this));
     }
     static race(collection) {
+      if (typeof collection[Symbol.iterator] !== 'function')
+        throw new TypeError('argument must be an iterable');
       function firstOrReject(resolve, reject) {
         const filtered = collection.filter(v => v[stateKey] !== PENDING);
         const rejection = filtered.find(v => v[stateKey] === REJECTED);

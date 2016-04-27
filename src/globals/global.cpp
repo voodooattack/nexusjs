@@ -32,6 +32,8 @@
 #include "globals/context.h"
 #include "globals/io.h"
 
+#include "classes/emitter.h"
+
 #include <boost/thread/pthread/mutex.hpp>
 
 NX::Global::Global()
@@ -182,6 +184,12 @@ JSStaticValue NX::Global::NexusProperties[] {
       JSObjectSetProperty(ctx, globals, name, prop->second, kJSPropertyAttributeNone, nullptr);
     }
     return globals;
+  }, nullptr, kJSPropertyAttributeNone },
+  { "EventEmitter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
+    NX::Context * context = Context::FromJsContext(ctx);
+    if (JSObjectRef Emitter = context->getGlobal("EventEmitter"))
+      return Emitter;
+    return context->setGlobal("EventEmitter", NX::Classes::Emitter::getConstructor(context));
   }, nullptr, kJSPropertyAttributeNone },
   NX::Globals::Scheduler::GetStaticProperty(),
   NX::Globals::IO::GetStaticProperty(),

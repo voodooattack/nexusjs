@@ -21,9 +21,11 @@ add_executable(nexus
   classes/io/filter.cpp
   classes/io/device.cpp
   classes/io/devices/file.cpp
+  classes/io/devices/socket.cpp
   classes/io/filters/encoding.cpp
   classes/io/filters/utf8stringfilter.cpp
   classes/context.cpp
+  classes/emitter.cpp
 )
 
 target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICONV_LIBRARIES} pthread)

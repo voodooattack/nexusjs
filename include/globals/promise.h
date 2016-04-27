@@ -27,6 +27,7 @@
 namespace NX {
   class Nexus;
   class AbstractTask;
+  class Context;
   namespace Globals {
     class Promise
     {
@@ -44,6 +45,9 @@ namespace NX {
 
       static JSObjectRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
       static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor);
+      static JSObjectRef all( JSContextRef ctx, const std::vector< JSValueRef > & promises );
+      static JSObjectRef resolve( JSContextRef ctx, const JSValueRef value );
+      static JSObjectRef reject( JSContextRef ctx, const JSValueRef value );
     };
   }
   using ResolveRejectHandler = Globals::Promise::ResolveRejectHandler;

@@ -18,3 +18,19 @@
  */
 
 #include "classes/io/devices/socket.h"
+
+JSObjectRef NX::Classes::IO::Devices::Socket::Constructor (JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+{
+
+}
+
+JSClassRef NX::Classes::IO::Devices::Socket::createClass (NX::Context * context)
+{
+
+}
+
+JSObjectRef NX::Classes::IO::Devices::Socket::getConstructor (NX::Context * context)
+{
+
+}
+

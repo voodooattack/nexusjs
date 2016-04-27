@@ -37,7 +37,7 @@ namespace NX
   class ProtectedArguments {
   public:
     ProtectedArguments(JSContextRef ctx, size_t argumentCount, const JSValueRef arguments[]):
-    myContext(ctx), myArguments(arguments, arguments + argumentCount)
+      myContext(ctx), myArguments(arguments, arguments + argumentCount)
     {
       for(auto i: myArguments)
         JSValueProtect(myContext, i);
@@ -51,12 +51,21 @@ namespace NX
         JSValueUnprotect(myContext, i);
     }
 
-    JSValueRef operator[](unsigned int index) const { return myArguments[index]; }
+    JSValueRef operator[](int index) { return myArguments[index]; }
+    operator JSValueRef *() { return &myArguments[0]; }
+
+    JSValueRef operator[](int index) const { return myArguments[index]; }
+    operator const JSValueRef *() const { return myArguments.data(); }
+
+    const std::vector<JSValueRef> & vector() { return myArguments; }
+    std::vector<JSValueRef> vector() const { return myArguments; }
+
+    std::size_t count() const { return myArguments.size(); }
 
   private:
     JSContextRef myContext;
     std::vector<JSValueRef> myArguments;
   };
-  
+
 }
 #endif // UTIL_H

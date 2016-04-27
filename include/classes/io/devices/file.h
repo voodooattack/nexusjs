@@ -131,9 +131,9 @@ namespace NX
           std::ofstream myStream;
         };
 
-        class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
-
-        };
+//         class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
+//
+//         };
       }
     }
   }

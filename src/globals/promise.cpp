@@ -104,3 +104,27 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
   return promise;
 }
 
+JSObjectRef NX::Globals::Promise::all (JSContextRef ctx, const std::vector< JSValueRef > & promises)
+{
+  if (promises.empty())
+    return Promise::resolve(ctx, JSObjectMakeArray(ctx, 0, nullptr, nullptr));
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  JSObjectRef arr = JSObjectMakeArray(ctx, promises.size(), &promises[0], nullptr);
+  return NX::Object(ctx, NX::Object(ctx, Promise)["all"]->toObject()->call(Promise, { arr }, nullptr));
+}
+
+JSObjectRef NX::Globals::Promise::resolve (JSContextRef ctx, const JSValueRef value)
+{
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  return NX::Object(ctx, NX::Object(ctx, Promise)["resolve"]->toObject()->call(Promise, std::vector<JSValueRef> { value }, nullptr));
+}
+
+JSObjectRef NX::Globals::Promise::reject (JSContextRef ctx, const JSValueRef value)
+{
+  NX::Context * context = Context::FromJsContext(ctx);
+  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  return NX::Object(ctx, NX::Object(ctx, Promise)["reject"]->toObject()->call(Promise, std::vector<JSValueRef> { value }, nullptr));
+}
+
