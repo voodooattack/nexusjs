@@ -55,7 +55,7 @@ const JSStaticValue NX::Globals::IO::Properties[] {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef File = context->getGlobal("IO.FileSourceDevice"))
         return File;
-      JSObjectRef constructor = NX::Classes::IO::FileSourceDevice::getConstructor(context);
+      JSObjectRef constructor = NX::Classes::IO::Devices::FileSourceDevice::getConstructor(context);
       context->setGlobal("IO.FileSourceDevice", constructor);
       return constructor;
     },
@@ -64,7 +64,7 @@ const JSStaticValue NX::Globals::IO::Properties[] {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef File = context->getGlobal("IO.FileSinkDevice"))
         return File;
-      JSObjectRef constructor = NX::Classes::IO::FileSinkDevice::getConstructor(context);
+      JSObjectRef constructor = NX::Classes::IO::Devices::FileSinkDevice::getConstructor(context);
       context->setGlobal("IO.FileSinkDevice", constructor);
       return constructor;
     },
@@ -91,7 +91,7 @@ const JSStaticValue NX::Globals::IO::Properties[] {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef File = context->getGlobal("IO.EncodingConversionFilter"))
         return File;
-      JSObjectRef constructor = NX::Classes::IO::EncodingConversionFilter::getConstructor(context);
+      JSObjectRef constructor = NX::Classes::IO::Filters::EncodingConversionFilter::getConstructor(context);
       context->setGlobal("IO.EncodingConversionFilter", constructor);
       return constructor;
     },
@@ -100,7 +100,7 @@ const JSStaticValue NX::Globals::IO::Properties[] {
       NX::Context * context = Context::FromJsContext(ctx);
       if (JSObjectRef File = context->getGlobal("IO.UTF8StringFilter"))
         return File;
-      JSObjectRef constructor = NX::Classes::IO::UTF8StringFilter::getConstructor(context);
+      JSObjectRef constructor = NX::Classes::IO::Filters::UTF8StringFilter::getConstructor(context);
       context->setGlobal("IO.UTF8StringFilter", constructor);
       return constructor;
     },

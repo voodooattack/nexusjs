@@ -22,7 +22,7 @@
 #include <iconv.h>
 #include <errno.h>
 
-NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const std::string & fromEncoding,
+NX::Classes::IO::Filters::EncodingConversionFilter::EncodingConversionFilter (const std::string & fromEncoding,
                                                                      const std::string & toEncoding)
   : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding), myCD(nullptr), myBuffer()
 {
@@ -33,12 +33,12 @@ NX::Classes::IO::EncodingConversionFilter::EncodingConversionFilter (const std::
     myCD = cd;
 }
 
-NX::Classes::IO::EncodingConversionFilter::~EncodingConversionFilter()
+NX::Classes::IO::Filters::EncodingConversionFilter::~EncodingConversionFilter()
 {
   iconv_close(myCD);
 }
 
-std::size_t NX::Classes::IO::EncodingConversionFilter::processBuffer (char * buffer, std::size_t length, char * dest, std::size_t outLength)
+std::size_t NX::Classes::IO::Filters::EncodingConversionFilter::processBuffer (char * buffer, std::size_t length, char * dest, std::size_t outLength)
 {
   if (!dest) return length * 4;
   char * outPtrBeforeWriting = dest;

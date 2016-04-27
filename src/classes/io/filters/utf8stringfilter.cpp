@@ -22,17 +22,17 @@
 #include "globals/promise.h"
 #include "classes/io/filters/utf8stringfilter.h"
 
-JSClassRef NX::Classes::IO::UTF8StringFilter::createClass (NX::Context * context)
+JSClassRef NX::Classes::IO::Filters::UTF8StringFilter::createClass (NX::Context * context)
 {
 //   JSClassRef parent = NX::Classes::IO::Filter::createClass(context);
   JSClassDefinition def = NX::Classes::IO::Filter::Class;
   def.className = "UTF8StringFilter";
 //   def.parentClass = parent;
-  def.staticFunctions = NX::Classes::IO::UTF8StringFilter::Methods;
+  def.staticFunctions = NX::Classes::IO::Filters::UTF8StringFilter::Methods;
   return context->nexus()->defineOrGetClass(def);
 }
 
-JSStaticFunction NX::Classes::IO::UTF8StringFilter::Methods[] {
+JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
   { "process", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);

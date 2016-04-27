@@ -25,40 +25,42 @@
 namespace NX {
   namespace Classes {
     namespace IO {
-      class UTF8StringFilter: public NX::Classes::IO::Filter
-      {
-        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
-                                       const JSValueRef arguments[], JSValueRef* exception)
+      namespace Filters {
+        class UTF8StringFilter: public NX::Classes::IO::Filter
         {
-          NX::Context * context = NX::Context::FromJsContext(ctx);
-          JSClassRef filterClass = createClass(context);
-          try {
-            return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::IO::Filter*>(new UTF8StringFilter()));
-          } catch(const std::exception & e) {
-            JSWrapException(ctx, e, exception);
-            return JSObjectMake(ctx, nullptr, nullptr);
+          static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                        const JSValueRef arguments[], JSValueRef* exception)
+          {
+            NX::Context * context = NX::Context::FromJsContext(ctx);
+            JSClassRef filterClass = createClass(context);
+            try {
+              return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::IO::Filter*>(new UTF8StringFilter()));
+            } catch(const std::exception & e) {
+              JSWrapException(ctx, e, exception);
+              return JSObjectMake(ctx, nullptr, nullptr);
+            }
           }
-        }
 
-        static JSClassRef createClass(NX::Context * context);
+          static JSClassRef createClass(NX::Context * context);
 
-        static JSStaticFunction Methods[];
+          static JSStaticFunction Methods[];
 
-      public:
-        UTF8StringFilter () {}
-        virtual ~UTF8StringFilter() {}
+        public:
+          UTF8StringFilter () {}
+          virtual ~UTF8StringFilter() {}
 
-        virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 ) { return 0; }
+          virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 ) { return 0; }
 
-        static NX::Classes::IO::UTF8StringFilter * FromObject(JSObjectRef obj) {
-          auto filter = reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<UTF8StringFilter*>(filter);
-        }
+          static NX::Classes::IO::Filters::UTF8StringFilter * FromObject(JSObjectRef obj) {
+            auto filter = reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
+            return dynamic_cast<NX::Classes::IO::Filters::UTF8StringFilter*>(filter);
+          }
 
-        static JSObjectRef getConstructor(NX::Context * context) {
-          return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::UTF8StringFilter::Constructor);
-        }
-      };
+          static JSObjectRef getConstructor(NX::Context * context) {
+            return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Filters::UTF8StringFilter::Constructor);
+          }
+        };
+      }
     }
   }
 }

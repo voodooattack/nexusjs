@@ -33,105 +33,108 @@ namespace NX
   {
     namespace IO
     {
-      class FileSourceDevice: public virtual SeekableSourceDevice {
-      public:
-        FileSourceDevice(const std::string & path);
-        virtual ~FileSourceDevice() { myStream.close(); }
+      namespace Devices
+      {
+        class FileSourceDevice: public virtual SeekableSourceDevice {
+        public:
+          FileSourceDevice(const std::string & path);
+          virtual ~FileSourceDevice() { myStream.close(); }
 
-      private:
-        static const JSClassDefinition Class;
-        static const JSStaticValue Properties[];
-        static const JSStaticFunction Methods[];
+        private:
+          static const JSClassDefinition Class;
+          static const JSStaticValue Properties[];
+          static const JSStaticFunction Methods[];
 
-        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
-                                       const JSValueRef arguments[], JSValueRef* exception);
+          static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                        const JSValueRef arguments[], JSValueRef* exception);
 
-        static void Finalize(JSObjectRef object) { }
+          static void Finalize(JSObjectRef object) { }
 
-      public:
-        static JSClassRef createClass(NX::Context * context);
-        static JSObjectRef getConstructor(NX::Context * context);
+        public:
+          static JSClassRef createClass(NX::Context * context);
+          static JSObjectRef getConstructor(NX::Context * context);
 
-        static NX::Classes::IO::FileSourceDevice * FromObject(JSObjectRef object) {
-          NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
-          return dynamic_cast<NX::Classes::IO::FileSourceDevice*>(context);
-        }
+          static NX::Classes::IO::Devices::FileSourceDevice * FromObject(JSObjectRef object) {
+            NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
+            return dynamic_cast<NX::Classes::IO::Devices::FileSourceDevice*>(context);
+          }
 
-        virtual std::size_t devicePosition() { return myStream.tellg(); }
-        virtual std::size_t deviceRead ( char * dest, std::size_t length ) {
-          myStream.read(dest, length);
-          return myStream.gcount();
-        }
+          virtual std::size_t devicePosition() { return myStream.tellg(); }
+          virtual std::size_t deviceRead ( char * dest, std::size_t length ) {
+            myStream.read(dest, length);
+            return myStream.gcount();
+          }
 
-        virtual bool deviceReady() const { return !myStream.bad(); }
-        virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
-          myStream.seekg(pos, (std::ios::seekdir)from);
-          return myStream.tellg();
-        }
-        virtual bool eof() const { return myStream.eof(); }
-        virtual std::size_t sourceSize() {
-          std::size_t size = 0;
-          std::streampos current = myStream.tellg();
-          myStream.seekg(0, std::ios::beg);
-          std::streampos beg = myStream.tellg();
-          myStream.seekg(0, std::ios::end);
-          std::streampos end = myStream.tellg();
-          myStream.seekg(current, std::ios::beg);
-          return end - beg;
-        }
-        virtual std::size_t deviceBytesAvailable() {
-          return sourceSize() - myStream.tellg();
-        }
-      private:
-        std::ifstream myStream;
-      };
+          virtual bool deviceReady() const { return !myStream.bad(); }
+          virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
+            myStream.seekg(pos, (std::ios::seekdir)from);
+            return myStream.tellg();
+          }
+          virtual bool eof() const { return myStream.eof(); }
+          virtual std::size_t sourceSize() {
+            std::size_t size = 0;
+            std::streampos current = myStream.tellg();
+            myStream.seekg(0, std::ios::beg);
+            std::streampos beg = myStream.tellg();
+            myStream.seekg(0, std::ios::end);
+            std::streampos end = myStream.tellg();
+            myStream.seekg(current, std::ios::beg);
+            return end - beg;
+          }
+          virtual std::size_t deviceBytesAvailable() {
+            return sourceSize() - myStream.tellg();
+          }
+        private:
+          std::ifstream myStream;
+        };
 
-      class FileSinkDevice: public virtual SeekableSinkDevice {
+        class FileSinkDevice: public virtual SeekableSinkDevice {
 
-        FileSinkDevice(const std::string & path);
-        virtual ~FileSinkDevice() { myStream.flush(); myStream.close(); }
+          FileSinkDevice(const std::string & path);
+          virtual ~FileSinkDevice() { myStream.flush(); myStream.close(); }
 
-      private:
-        static const JSClassDefinition Class;
-        static const JSStaticValue Properties[];
-        static const JSStaticFunction Methods[];
+        private:
+          static const JSClassDefinition Class;
+          static const JSStaticValue Properties[];
+          static const JSStaticFunction Methods[];
 
-        static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
-                                       const JSValueRef arguments[], JSValueRef* exception);
+          static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                        const JSValueRef arguments[], JSValueRef* exception);
 
-        static void Finalize(JSObjectRef object) { }
+          static void Finalize(JSObjectRef object) { }
 
-      public:
-        static JSClassRef createClass(NX::Context * context);
-        static JSObjectRef getConstructor(NX::Context * context);
+        public:
+          static JSClassRef createClass(NX::Context * context);
+          static JSObjectRef getConstructor(NX::Context * context);
 
-        static NX::Classes::IO::FileSinkDevice * FromObject(JSObjectRef object) {
-          NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
-          return dynamic_cast<NX::Classes::IO::FileSinkDevice*>(context);
-        }
+          static NX::Classes::IO::Devices::FileSinkDevice * FromObject(JSObjectRef object) {
+            NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
+            return dynamic_cast<NX::Classes::IO::Devices::FileSinkDevice*>(context);
+          }
 
-        virtual std::size_t devicePosition() {
-          return myStream.tellp();
-        }
-        virtual bool deviceReady() const {
-          return myStream.good();
-        }
-        virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
-          myStream.seekp(pos, (std::ios::seekdir)from);
-          return myStream.tellp();
-        }
-        virtual void deviceWrite ( const char * buffer, std::size_t length ) {
-          myStream.write(buffer, length);
-          myStream.flush();
-        }
+          virtual std::size_t devicePosition() {
+            return myStream.tellp();
+          }
+          virtual bool deviceReady() const {
+            return myStream.good();
+          }
+          virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
+            myStream.seekp(pos, (std::ios::seekdir)from);
+            return myStream.tellp();
+          }
+          virtual void deviceWrite ( const char * buffer, std::size_t length ) {
+            myStream.write(buffer, length);
+            myStream.flush();
+          }
 
-      private:
-        std::ofstream myStream;
-      };
+        private:
+          std::ofstream myStream;
+        };
 
-      class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
+        class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
 
-      };
+        };
+      }
     }
   }
 }

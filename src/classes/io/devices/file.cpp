@@ -23,12 +23,12 @@
 #include "classes/io/devices/file.h"
 #include <boost/filesystem.hpp>
 
-NX::Classes::IO::FileSourceDevice::FileSourceDevice (const std::string & path): myStream(path, std::ifstream::binary) {
+NX::Classes::IO::Devices::FileSourceDevice::FileSourceDevice (const std::string & path): myStream(path, std::ifstream::binary) {
   if (!boost::filesystem::exists(path))
     throw std::runtime_error("file '" + path + "' not found");
 }
 
-JSObjectRef NX::Classes::IO::FileSourceDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
+JSObjectRef NX::Classes::IO::Devices::FileSourceDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                             size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
@@ -37,39 +37,39 @@ JSObjectRef NX::Classes::IO::FileSourceDevice::Constructor (JSContextRef ctx, JS
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
       throw std::runtime_error("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
-    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::IO::Device*>(new NX::Classes::IO::FileSourceDevice(path.toString())));
+    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::IO::Device*>(new NX::Classes::IO::Devices::FileSourceDevice(path.toString())));
   } catch (const std::exception & e) {
     JSWrapException(ctx, e, exception);
     return JSObjectMake(ctx, nullptr, nullptr);
   }
 }
 
-JSClassRef NX::Classes::IO::FileSourceDevice::createClass (NX::Context * context)
+JSClassRef NX::Classes::IO::Devices::FileSourceDevice::createClass (NX::Context * context)
 {
-  JSClassDefinition def = NX::Classes::IO::FileSourceDevice::Class;
+  JSClassDefinition def = NX::Classes::IO::Devices::FileSourceDevice::Class;
   def.parentClass = NX::Classes::IO::SeekableSourceDevice::createClass (context);
   return context->nexus()->defineOrGetClass (def);
 }
 
-JSObjectRef NX::Classes::IO::FileSourceDevice::getConstructor (NX::Context * context)
+JSObjectRef NX::Classes::IO::Devices::FileSourceDevice::getConstructor (NX::Context * context)
 {
-  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::FileSourceDevice::Constructor);
+  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Devices::FileSourceDevice::Constructor);
 }
 
-const JSClassDefinition NX::Classes::IO::FileSourceDevice::Class {
-  0, kJSClassAttributeNone, "FileSourceDevice", nullptr, NX::Classes::IO::FileSourceDevice::Properties,
-  NX::Classes::IO::FileSourceDevice::Methods, nullptr, NX::Classes::IO::FileSourceDevice::Finalize
+const JSClassDefinition NX::Classes::IO::Devices::FileSourceDevice::Class {
+  0, kJSClassAttributeNone, "FileSourceDevice", nullptr, NX::Classes::IO::Devices::FileSourceDevice::Properties,
+  NX::Classes::IO::Devices::FileSourceDevice::Methods, nullptr, NX::Classes::IO::Devices::FileSourceDevice::Finalize
 };
 
-const JSStaticValue NX::Classes::IO::FileSourceDevice::Properties[] {
+const JSStaticValue NX::Classes::IO::Devices::FileSourceDevice::Properties[] {
   { nullptr, nullptr, nullptr, 0 }
 };
 
-const JSStaticFunction NX::Classes::IO::FileSourceDevice::Methods[] {
+const JSStaticFunction NX::Classes::IO::Devices::FileSourceDevice::Methods[] {
   { nullptr, nullptr, 0 }
 };
 
-JSObjectRef NX::Classes::IO::FileSinkDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
+JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
@@ -78,39 +78,39 @@ JSObjectRef NX::Classes::IO::FileSinkDevice::Constructor (JSContextRef ctx, JSOb
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
       throw std::runtime_error("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
-    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::IO::Device*>(new NX::Classes::IO::FileSinkDevice(path.toString())));
+    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::IO::Device*>(new NX::Classes::IO::Devices::FileSinkDevice(path.toString())));
   } catch (const std::exception & e) {
     JSWrapException(ctx, e, exception);
     return JSObjectMake(ctx, nullptr, nullptr);
   }
 }
 
-JSClassRef NX::Classes::IO::FileSinkDevice::createClass (NX::Context * context)
+JSClassRef NX::Classes::IO::Devices::FileSinkDevice::createClass (NX::Context * context)
 {
-  JSClassDefinition def = NX::Classes::IO::FileSinkDevice::Class;
+  JSClassDefinition def = NX::Classes::IO::Devices::FileSinkDevice::Class;
   def.parentClass = NX::Classes::IO::SeekableSinkDevice::createClass (context);
   return context->nexus()->defineOrGetClass (def);
 }
 
-NX::Classes::IO::FileSinkDevice::FileSinkDevice (const std::string & path): myStream(path, std::ofstream::binary)
+NX::Classes::IO::Devices::FileSinkDevice::FileSinkDevice (const std::string & path): myStream(path, std::ofstream::binary)
 {
 
 }
 
-JSObjectRef NX::Classes::IO::FileSinkDevice::getConstructor (NX::Context * context)
+JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::getConstructor (NX::Context * context)
 {
-  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::FileSinkDevice::Constructor);
+  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Devices::FileSinkDevice::Constructor);
 }
 
-const JSClassDefinition NX::Classes::IO::FileSinkDevice::Class {
-  0, kJSClassAttributeNone, "FileSinkDevice", nullptr, NX::Classes::IO::FileSinkDevice::Properties,
-  NX::Classes::IO::FileSinkDevice::Methods, nullptr, NX::Classes::IO::FileSinkDevice::Finalize
+const JSClassDefinition NX::Classes::IO::Devices::FileSinkDevice::Class {
+  0, kJSClassAttributeNone, "FileSinkDevice", nullptr, NX::Classes::IO::Devices::FileSinkDevice::Properties,
+  NX::Classes::IO::Devices::FileSinkDevice::Methods, nullptr, NX::Classes::IO::Devices::FileSinkDevice::Finalize
 };
 
-const JSStaticValue NX::Classes::IO::FileSinkDevice::Properties[] {
+const JSStaticValue NX::Classes::IO::Devices::FileSinkDevice::Properties[] {
   { nullptr, nullptr, nullptr, 0 }
 };
 
-const JSStaticFunction NX::Classes::IO::FileSinkDevice::Methods[] {
+const JSStaticFunction NX::Classes::IO::Devices::FileSinkDevice::Methods[] {
   { nullptr, nullptr, 0 }
 };
