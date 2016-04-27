@@ -122,6 +122,7 @@ namespace NX
         }
         virtual void deviceWrite ( const char * buffer, std::size_t length ) {
           myStream.write(buffer, length);
+          myStream.flush();
         }
 
       private:

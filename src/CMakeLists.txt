@@ -1,4 +1,3 @@
-add_subdirectory(js)
 
 project(nexus)
 
@@ -6,6 +5,7 @@ find_package(Boost 1.58 COMPONENTS program_options system thread filesystem coro
 find_package(Iconv REQUIRED)
 find_package(JavaScriptCore REQUIRED)
 
+add_subdirectory(js)
 add_executable(nexus
   main.cpp nexus.cpp scheduler.cpp task.cpp object.cpp value.cpp context.cpp util.cpp
   globals/global.cpp

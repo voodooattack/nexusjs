@@ -34,16 +34,16 @@
 }
 {
   var p1 = new Promise(function(resolve, reject) {
-    const i = setTimeout(resolve, 1000, "one");
+    const i = setTimeout(resolve, 100, "one");
   });
   var p2 = new Promise(function(resolve, reject) {
-    const i = setTimeout(resolve, 2000, "two");
+    const i = setTimeout(resolve, 200, "two");
   });
   var p3 = new Promise(function(resolve, reject) {
-    const i = setTimeout(resolve, 3000, "three");
+    const i = setTimeout(resolve, 300, "three");
   });
   var p4 = new Promise(function(resolve, reject) {
-    const i = setTimeout(resolve, 4000, "four");
+    const i = setTimeout(resolve, 400, "four");
   });
   var p5 = new Promise(function(resolve, reject) {
     reject("rejected!");
