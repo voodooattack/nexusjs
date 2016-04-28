@@ -26,6 +26,7 @@ add_executable(nexus
   classes/io/filters/utf8stringfilter.cpp
   classes/context.cpp
   classes/emitter.cpp
+  classes/base.cpp
 )
 
 target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICONV_LIBRARIES} pthread)

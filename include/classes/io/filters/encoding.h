@@ -40,7 +40,7 @@ namespace NX {
                 throw std::runtime_error("invalid arguments");
               std::string from(NX::Value(ctx, arguments[0]).toString());
               std::string to(NX::Value(ctx, arguments[1]).toString());
-              return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::IO::Filter*>(new EncodingConversionFilter(from, to)));
+              return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::Base*>(new EncodingConversionFilter(from, to)));
             } catch(const std::exception & e) {
               JSWrapException(ctx, e, exception);
               return JSObjectMake(ctx, nullptr, nullptr);

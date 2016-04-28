@@ -22,6 +22,8 @@
 
 #include <JavaScript.h>
 #include "nexus.h"
+
+#include "classes/base.h"
 #include "classes/io/device.h"
 
 namespace NX
@@ -32,7 +34,7 @@ namespace NX
   {
     namespace IO
     {
-      struct Filter
+      struct Filter: public virtual NX::Classes::Base
       {
       private:
         static void Finalize(JSObjectRef object) {
@@ -45,8 +47,7 @@ namespace NX
                                        const JSValueRef arguments[], JSValueRef* exception)
         {
           NX::Context * context = NX::Context::FromJsContext(ctx);
-          JSClassRef filterClass = context->nexus()->defineOrGetClass(NX::Classes::IO::Filter::Class);
-          return JSObjectMake(ctx, filterClass, nullptr);
+          return JSObjectMake(ctx, createClass(context), nullptr);
         }
 
       public:
@@ -55,7 +56,7 @@ namespace NX
         virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0) = 0;
 
         static NX::Classes::IO::Filter * FromObject(JSObjectRef obj) {
-          return reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
+          return dynamic_cast<NX::Classes::IO::Filter*>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSObjectRef getConstructor(NX::Context * context) {

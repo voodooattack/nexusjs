@@ -26,7 +26,9 @@
 
 JSClassRef NX::Classes::Context::createClass (NX::Context * context)
 {
-  return context->nexus()->defineOrGetClass(NX::Classes::Context::Class);
+  JSClassDefinition def = NX::Classes::Context::Class;
+  def.parentClass = NX::Classes::Base::createClass(context);
+  return context->nexus()->defineOrGetClass(def);
 }
 
 JSObjectRef NX::Classes::Context::getConstructor (NX::Context * context)
@@ -46,7 +48,9 @@ JSObjectRef NX::Classes::Context::Constructor (JSContextRef ctx, JSObjectRef con
     return JSObjectMake(ctx, nullptr, nullptr);
   }
   try {
-    return JSObjectMake(ctx, contextClass, new NX::Classes::Context(context, argumentCount ? NX::Object(ctx, arguments[0]).value() : nullptr));
+    return JSObjectMake(ctx, contextClass, dynamic_cast<NX::Classes::Base*>(
+      new NX::Classes::Context(context, argumentCount ? NX::Object(ctx, arguments[0]).value() : nullptr)
+    ));
   } catch(const std::exception & e) {
     NX::Value message(ctx, e.what());
     JSValueRef args[] { message.value(), nullptr };

@@ -34,7 +34,7 @@ namespace NX {
             NX::Context * context = NX::Context::FromJsContext(ctx);
             JSClassRef filterClass = createClass(context);
             try {
-              return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::IO::Filter*>(new UTF8StringFilter()));
+              return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::Base*>(new UTF8StringFilter()));
             } catch(const std::exception & e) {
               JSWrapException(ctx, e, exception);
               return JSObjectMake(ctx, nullptr, nullptr);

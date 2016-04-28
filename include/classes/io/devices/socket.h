@@ -52,9 +52,8 @@ namespace NX {
           static JSClassRef createClass(NX::Context * context);
           static JSObjectRef getConstructor(NX::Context * context);
 
-          static NX::Classes::IO::Devices::Socket * FromObject(JSObjectRef object) {
-            NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
-            return dynamic_cast<NX::Classes::IO::Devices::Socket*>(context);
+          static NX::Classes::IO::Devices::Socket * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::IO::Devices::Socket*>(NX::Classes::Base::FromObject(obj));
           }
 
           virtual std::shared_ptr<boost::asio::socket_base> socket() { return mySocket; }

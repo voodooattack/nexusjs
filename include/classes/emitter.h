@@ -27,12 +27,13 @@
 #include <boost/noncopyable.hpp>
 
 #include "object.h"
+#include "classes/base.h"
 
 namespace NX
 {
   class Context;
   namespace Classes {
-    class Emitter
+    class Emitter: public virtual NX::Classes::Base
     {
     private:
       static const JSClassDefinition Class;
@@ -43,7 +44,6 @@ namespace NX
                                      const JSValueRef arguments[], JSValueRef* exception);
 
       static void Finalize(JSObjectRef object) {
-        delete FromObject(object);
       }
 
     public:
@@ -51,12 +51,11 @@ namespace NX
       static JSObjectRef getConstructor(NX::Context * context);
 
       static NX::Classes::Emitter * FromObject(JSObjectRef object) {
-        NX::Classes::Emitter * emitter = reinterpret_cast<NX::Classes::Emitter *>(JSObjectGetPrivate(object));
-        return emitter;
+        return dynamic_cast<NX::Classes::Emitter *>(Base::FromObject(object));
       }
 
     public:
-      Emitter(NX::Context * context): myContext(context) {}
+      Emitter(): myMap() {}
       virtual ~Emitter() {}
 
       virtual JSValueRef addListener(JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback) {
@@ -96,7 +95,6 @@ namespace NX
         std::atomic_int count;
       };
 
-      NX::Context * myContext;
       std::unordered_map<std::string, std::vector<std::shared_ptr<NX::Classes::Emitter::Event>>> myMap;
     };
   }

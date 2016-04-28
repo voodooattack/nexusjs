@@ -22,9 +22,11 @@
 
 #include <JavaScript.h>
 
+#include "classes/emitter.h"
 #include "classes/io/device.h"
 #include "classes/io/filter.h"
 #include "util.h"
+
 
 namespace NX
 {
@@ -34,7 +36,7 @@ namespace NX
   {
     namespace IO
     {
-      class Stream
+      class Stream: public virtual Emitter
       {
       private:
         static const JSClassDefinition Class;
@@ -42,13 +44,12 @@ namespace NX
         static const JSStaticFunction Methods[];
 
         static void Finalize(JSObjectRef object) {
-          delete FromObject(object);
         }
 
       public:
 
         static NX::Classes::IO::Stream * FromObject(JSObjectRef object) {
-          return reinterpret_cast<NX::Classes::IO::Stream *>(JSObjectGetPrivate(object));
+          return dynamic_cast<NX::Classes::IO::Stream *>(NX::Classes::Base::FromObject(object));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -77,7 +78,7 @@ namespace NX
             if (argumentCount < 1) {
               throw std::runtime_error("missing parameter device in call to ReadableStream constructor");
             }
-            return JSObjectMake(ctx, _class, new ReadableStream(NX::Object(context->toJSContext(), arguments[0])));
+            return JSObjectMake(ctx, _class, static_cast<NX::Classes::Base*>(new ReadableStream(NX::Object(context->toJSContext(), arguments[0]))));
           } catch(const std::exception & e) {
             JSWrapException(ctx, e, exception);
             return JSObjectMake(ctx, nullptr, nullptr);
@@ -91,7 +92,7 @@ namespace NX
         static JSClassRef createClass(NX::Context * context);
 
         static NX::Classes::IO::ReadableStream * FromObject(JSObjectRef object) {
-          return reinterpret_cast<NX::Classes::IO::ReadableStream *>(JSObjectGetPrivate(object));
+          return dynamic_cast<NX::Classes::IO::ReadableStream *>(NX::Classes::Base::FromObject(object));
         }
 
         static JSObjectRef getConstructor(NX::Context * context) {
@@ -150,7 +151,7 @@ namespace NX
             if (argumentCount < 1) {
               throw std::runtime_error("missing parameter device in call to WritableStream constructor");
             }
-            return JSObjectMake(ctx, _class, new WritableStream(NX::Object(context->toJSContext(), arguments[0])));
+            return JSObjectMake(ctx, _class, static_cast<NX::Classes::Base*>(new WritableStream(NX::Object(context->toJSContext(), arguments[0]))));
           } catch(const std::exception & e) {
             JSWrapException(ctx, e, exception);
             return JSObjectMake(ctx, nullptr, nullptr);
@@ -164,7 +165,7 @@ namespace NX
         static JSClassRef createClass(NX::Context * context);
 
         static NX::Classes::IO::WritableStream * FromObject(JSObjectRef object) {
-          return reinterpret_cast<NX::Classes::IO::WritableStream *>(JSObjectGetPrivate(object));
+          return dynamic_cast<NX::Classes::IO::WritableStream *>(NX::Classes::Base::FromObject(object));
         }
 
         JSObjectRef sinkDevice() { return myDevice; }

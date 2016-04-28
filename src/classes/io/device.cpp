@@ -33,6 +33,7 @@ JSClassRef NX::Classes::IO::Device::createClass (NX::Context * context)
 {
   JSClassDefinition def = kJSClassDefinitionEmpty;
   def.className = "Device";
+  def.parentClass = NX::Classes::Emitter::createClass(context);
   def.staticValues = NX::Classes::IO::Device::Properties;
   def.staticFunctions = NX::Classes::IO::Device::Methods;
   return context->nexus()->defineOrGetClass (def);
@@ -186,7 +187,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
       }
       NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(thisObject);
       if (!dev) {
-        NX::Value message(ctx, "ReadableStream object does not implement read()");
+        NX::Value message(ctx, "SourceDevice object does not implement read()");
         *exception = message.value();
         return JSValueMakeUndefined(ctx);
       }
@@ -309,7 +310,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
           }
           dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
           if (!dev) {
-            throw std::runtime_error("device does not implement write()");
+            throw std::runtime_error("SinkDevice does not implement write()");
           }
         }
       } catch(const std::exception & e) {

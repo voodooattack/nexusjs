@@ -21,12 +21,14 @@
 #define CLASSES_CONTEXT_H
 
 #include <JavaScript.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
+
+#include "classes/base.h"
 
 namespace NX {
   class Context;
   namespace Classes {
-    class Context
+    class Context: public virtual NX::Classes::Base
     {
     private:
       static const JSClassDefinition Class;
@@ -45,9 +47,7 @@ namespace NX {
       static JSObjectRef getConstructor(NX::Context * context);
 
       static NX::Classes::Context * FromObject(JSObjectRef object) {
-        /* Two-step cast is important. */
-        NX::Classes::Context * context = reinterpret_cast<NX::Classes::Context *>(JSObjectGetPrivate(object));
-        return context;
+        return dynamic_cast<NX::Classes::Context *>(NX::Classes::Base::FromObject(object));
       }
 
     public:

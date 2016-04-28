@@ -23,6 +23,7 @@
 #include <JavaScript.h>
 #include <iosfwd>
 
+#include "classes/emitter.h"
 #include "context.h"
 
 namespace NX
@@ -33,13 +34,11 @@ namespace NX
   {
     namespace IO
     {
-      struct Device {
+      struct Device: public virtual NX::Classes::Emitter {
       private:
         static void Finalize(JSObjectRef object) {
-          delete FromObject(object);
         }
-      protected:
-        Device() {}
+
       public:
         enum Position { Beginning = std::ios::beg, Current = std::ios::cur, End = std::ios::end };
 
@@ -48,7 +47,7 @@ namespace NX
         virtual bool deviceReady() const = 0;
 
         static NX::Classes::IO::Device * FromObject(JSObjectRef obj) {
-          return reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
+          return dynamic_cast<NX::Classes::IO::Device *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -62,8 +61,7 @@ namespace NX
         virtual bool eof() const = 0;
 
         static NX::Classes::IO::SourceDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::SourceDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::SourceDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -75,8 +73,7 @@ namespace NX
         virtual void deviceWrite(const char * buffer, std::size_t length) = 0;
 
         static NX::Classes::IO::SinkDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::SinkDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::SinkDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -87,8 +84,7 @@ namespace NX
       struct BidirectionalDevice: public virtual SourceDevice, public virtual SinkDevice {
 
         static NX::Classes::IO::BidirectionalDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::BidirectionalDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::BidirectionalDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -100,8 +96,7 @@ namespace NX
         virtual std::size_t deviceSeek(std::size_t pos, Position from) = 0;
 
         static NX::Classes::IO::SeekableDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::SeekableDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::SeekableDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -111,8 +106,7 @@ namespace NX
 
       struct SeekableSourceDevice: public virtual SourceDevice, public virtual SeekableDevice {
         static NX::Classes::IO::SeekableSourceDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::SeekableSourceDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::SeekableSourceDevice *>(NX::Classes::Base::FromObject(obj));
         }
         virtual std::size_t sourceSize() = 0;
         virtual std::size_t deviceBytesAvailable() = 0;
@@ -121,16 +115,14 @@ namespace NX
 
       struct SeekableSinkDevice: public virtual SinkDevice, public virtual SeekableDevice {
         static NX::Classes::IO::SeekableSinkDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::SeekableSinkDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::SeekableSinkDevice *>(NX::Classes::Base::FromObject(obj));
         }
         static JSClassRef createClass(NX::Context * context);
       };
 
       struct BidirectionalSeekableDevice: public virtual SeekableSourceDevice, public virtual SeekableSinkDevice {
         static NX::Classes::IO::BidirectionalSeekableDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::BidirectionalSeekableDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::BidirectionalSeekableDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -143,8 +135,7 @@ namespace NX
         virtual std::size_t deviceWriteSeek(std::size_t pos, Position from) = 0;
 
         static NX::Classes::IO::DualSeekableDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::DualSeekableDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::DualSeekableDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -154,8 +145,7 @@ namespace NX
 
       struct BidirectionalDualSeekableDevice: public virtual DualSeekableDevice, public virtual BidirectionalDevice {
         static NX::Classes::IO::BidirectionalDualSeekableDevice * FromObject(JSObjectRef obj) {
-          NX::Classes::IO::Device * dev = reinterpret_cast<NX::Classes::IO::Device*>(JSObjectGetPrivate(obj));
-          return dynamic_cast<NX::Classes::IO::BidirectionalDualSeekableDevice *>(dev);
+          return dynamic_cast<NX::Classes::IO::BidirectionalDualSeekableDevice *>(NX::Classes::Base::FromObject(obj));
         }
         static JSClassRef createClass(NX::Context * context);
       };

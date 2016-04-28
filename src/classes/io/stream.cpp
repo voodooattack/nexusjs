@@ -23,7 +23,9 @@
 
 JSClassRef NX::Classes::IO::Stream::createClass (NX::Context * context)
 {
-  return context->nexus()->defineOrGetClass(NX::Classes::IO::Stream::Class);
+  JSClassDefinition def = NX::Classes::IO::Stream::Class;
+  def.parentClass = NX::Classes::Emitter::createClass(context);
+  return context->nexus()->defineOrGetClass(def);
 }
 
 const JSClassDefinition NX::Classes::IO::Stream::Class {
@@ -232,7 +234,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
       if (!stream) {
-        NX::Value message(ctx, "read not implemented on ReadableStream instance");
+        NX::Value message(ctx, "pushFilter not implemented on ReadableStream instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);

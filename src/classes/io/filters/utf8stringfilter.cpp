@@ -24,10 +24,9 @@
 
 JSClassRef NX::Classes::IO::Filters::UTF8StringFilter::createClass (NX::Context * context)
 {
-//   JSClassRef parent = NX::Classes::IO::Filter::createClass(context);
   JSClassDefinition def = NX::Classes::IO::Filter::Class;
   def.className = "UTF8StringFilter";
-//   def.parentClass = parent;
+  def.parentClass = NX::Classes::IO::Filter::createClass(context);
   def.staticFunctions = NX::Classes::IO::Filters::UTF8StringFilter::Methods;
   return context->nexus()->defineOrGetClass(def);
 }

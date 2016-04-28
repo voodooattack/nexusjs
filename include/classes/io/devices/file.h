@@ -54,9 +54,8 @@ namespace NX
           static JSClassRef createClass(NX::Context * context);
           static JSObjectRef getConstructor(NX::Context * context);
 
-          static NX::Classes::IO::Devices::FileSourceDevice * FromObject(JSObjectRef object) {
-            NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
-            return dynamic_cast<NX::Classes::IO::Devices::FileSourceDevice*>(context);
+          static NX::Classes::IO::Devices::FileSourceDevice * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::IO::Devices::FileSourceDevice*>(Emitter::FromObject(obj));
           }
 
           virtual std::size_t devicePosition() { return myStream.tellg(); }
@@ -107,9 +106,8 @@ namespace NX
           static JSClassRef createClass(NX::Context * context);
           static JSObjectRef getConstructor(NX::Context * context);
 
-          static NX::Classes::IO::Devices::FileSinkDevice * FromObject(JSObjectRef object) {
-            NX::Classes::IO::Device * context = reinterpret_cast<NX::Classes::IO::Device *>(JSObjectGetPrivate(object));
-            return dynamic_cast<NX::Classes::IO::Devices::FileSinkDevice*>(context);
+          static NX::Classes::IO::Devices::FileSinkDevice * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::IO::Devices::FileSinkDevice*>(Emitter::FromObject(obj));
           }
 
           virtual std::size_t devicePosition() {
