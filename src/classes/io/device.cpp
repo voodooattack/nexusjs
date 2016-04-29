@@ -78,19 +78,34 @@ JSClassRef NX::Classes::IO::SinkDevice::createClass (Context * context)
   return context->nexus()->defineOrGetClass (def);
 }
 
-JSClassRef NX::Classes::IO::BidirectionalDevice::createClass (Context * context)
+JSClassRef NX::Classes::IO::BidirectionalPullDevice::createClass (Context * context)
 {
   JSClassDefinition def = kJSClassDefinitionEmpty;
-  def.parentClass = NX::Classes::IO::Device::createClass (context);
-  def.className = "BidirectionalDevice";
+  def.parentClass = NX::Classes::IO::PullSourceDevice::createClass (context);
+  def.className = "BidirectionalPullDevice";
   static const JSStaticFunction methods[]
   {
-    NX::Classes::IO::PullSourceDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[0],
+    NX::Classes::IO::SinkDevice::Methods[1],
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
 }
+
+JSClassRef NX::Classes::IO::BidirectionalPushDevice::createClass (Context * context)
+{
+  JSClassDefinition def = kJSClassDefinitionEmpty;
+  def.parentClass = NX::Classes::IO::PushSourceDevice::createClass (context);
+  def.className = "BidirectionalPushDevice";
+  static const JSStaticFunction methods[]
+  {
+    NX::Classes::IO::SinkDevice::Methods[0],
+    NX::Classes::IO::SinkDevice::Methods[1],
+  };
+  def.staticFunctions = methods;
+  return context->nexus()->defineOrGetClass (def);
+}
+
 
 JSClassRef NX::Classes::IO::SeekableDevice::createClass (NX::Context * context)
 {
@@ -166,7 +181,7 @@ JSClassRef NX::Classes::IO::BidirectionalDualSeekableDevice::createClass (NX::Co
     NX::Classes::IO::PullSourceDevice::Methods[0],
     NX::Classes::IO::PullSourceDevice::Methods[1],
     NX::Classes::IO::SinkDevice::Methods[0],
-    NX::Classes::IO::SinkDevice::Methods[2],
+    NX::Classes::IO::SinkDevice::Methods[1],
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);

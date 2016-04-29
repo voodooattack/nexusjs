@@ -65,7 +65,7 @@ namespace NX
             return myStream.readsome(dest, length);
           }
 
-          virtual bool deviceReady() const { return !myStream.bad(); }
+          virtual bool deviceReady() const { return myStream.good(); }
           virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
             myStream.seekg(pos, (std::ios::seekdir)from);
             return myStream.tellg();
@@ -143,7 +143,7 @@ namespace NX
               NX::Context * context = NX::Context::FromJsContext(ctx);
               JSValueProtect(context->toJSContext(), thisObject);
               JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-                const std::size_t maxBufferSize = 1024 * 1024; // 1MB because we're pulling
+                const std::size_t maxBufferSize = 1024 * 1024;
                 NX::AbstractTask * task = myScheduler->scheduleCoroutine([=](){
                   char * buffer = (char*)std::malloc(maxBufferSize);
                   while(myStream.good()) {
@@ -159,7 +159,7 @@ namespace NX
                       sizeOut = myStream.gcount();
                     }
                     if (sizeOut < toRead && sizeOut)
-                      buffer = (char*)std::realloc(buffer, toRead);
+                      buffer = (char*)std::realloc(buffer, sizeOut);
                     bool eof = myStream.eof();
                     if (sizeOut) {
                       myScheduler->scheduleTask([=]() {

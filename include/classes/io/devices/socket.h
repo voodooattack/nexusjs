@@ -31,7 +31,7 @@ namespace NX {
   namespace Classes {
     namespace IO {
       namespace Devices {
-        class Socket: public virtual BidirectionalDevice
+        class Socket: public virtual BidirectionalPushDevice
         {
         protected:
           Socket(NX::Scheduler * scheduler, const std::shared_ptr<boost::asio::socket_base> & socket): myScheduler(scheduler), mySocket(socket) {}

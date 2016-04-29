@@ -125,10 +125,20 @@ namespace NX
         static JSStaticFunction Methods[];
       };
 
-      struct BidirectionalDevice: public virtual PullSourceDevice, public virtual SinkDevice {
+      struct BidirectionalPullDevice: public virtual PullSourceDevice, public virtual SinkDevice {
 
-        static NX::Classes::IO::BidirectionalDevice * FromObject(JSObjectRef obj) {
-          return dynamic_cast<NX::Classes::IO::BidirectionalDevice *>(NX::Classes::Base::FromObject(obj));
+        static NX::Classes::IO::BidirectionalPullDevice * FromObject(JSObjectRef obj) {
+          return dynamic_cast<NX::Classes::IO::BidirectionalPullDevice *>(NX::Classes::Base::FromObject(obj));
+        }
+
+        static JSClassRef createClass(NX::Context * context);
+
+      };
+
+      struct BidirectionalPushDevice: public virtual PushSourceDevice, public virtual SinkDevice {
+
+        static NX::Classes::IO::BidirectionalPushDevice * FromObject(JSObjectRef obj) {
+          return dynamic_cast<NX::Classes::IO::BidirectionalPushDevice *>(NX::Classes::Base::FromObject(obj));
         }
 
         static JSClassRef createClass(NX::Context * context);
@@ -187,7 +197,7 @@ namespace NX
         static JSStaticFunction Methods[];
       };
 
-      struct BidirectionalDualSeekableDevice: public virtual DualSeekableDevice, public virtual BidirectionalDevice {
+      struct BidirectionalDualSeekableDevice: public virtual DualSeekableDevice, public virtual BidirectionalPullDevice {
         static NX::Classes::IO::BidirectionalDualSeekableDevice * FromObject(JSObjectRef obj) {
           return dynamic_cast<NX::Classes::IO::BidirectionalDualSeekableDevice *>(NX::Classes::Base::FromObject(obj));
         }
