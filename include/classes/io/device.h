@@ -56,8 +56,13 @@ namespace NX
         static JSStaticValue Properties[];
       };
 
-      struct SourceDevice: public virtual Device {
-        virtual std::size_t deviceRead(char * dest, std::size_t length) = 0;
+      struct SourceDevice : public virtual Device {
+        enum SourceType {
+          PullType,
+          PushType
+        };
+
+        virtual SourceType sourceDeviceType() const = 0;
         virtual bool eof() const = 0;
 
         static NX::Classes::IO::SourceDevice * FromObject(JSObjectRef obj) {
@@ -67,6 +72,45 @@ namespace NX
         static JSClassRef createClass(NX::Context * context);
 
         static JSStaticFunction Methods[];
+        static JSStaticValue Properties[];
+      };
+
+      struct PullSourceDevice: public virtual SourceDevice {
+
+        virtual SourceType sourceDeviceType() const { return PullType; }
+        virtual std::size_t deviceRead(char * dest, std::size_t length) = 0;
+
+        static NX::Classes::IO::PullSourceDevice * FromObject(JSObjectRef obj) {
+          return dynamic_cast<NX::Classes::IO::PullSourceDevice *>(NX::Classes::Base::FromObject(obj));
+        }
+
+        static JSClassRef createClass(NX::Context * context);
+
+        static JSStaticFunction Methods[];
+      };
+
+      struct PushSourceDevice: public virtual SourceDevice {
+        enum State {
+          Paused,
+          Resumed,
+        };
+
+        virtual SourceType sourceDeviceType() const { return PushType; }
+
+        virtual State state() const = 0;
+
+        virtual void reset(JSContextRef ctx, JSObjectRef thisObject) = 0;
+        virtual void pause(JSContextRef ctx, JSObjectRef thisObject) = 0;
+        virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject) = 0;
+
+        static NX::Classes::IO::PushSourceDevice * FromObject(JSObjectRef obj) {
+          return dynamic_cast<NX::Classes::IO::PushSourceDevice *>(NX::Classes::Base::FromObject(obj));
+        }
+
+        static JSClassRef createClass(NX::Context * context);
+
+        static JSStaticFunction Methods[];
+        static JSStaticValue Properties[];
       };
 
       struct SinkDevice: public virtual Device {
@@ -81,7 +125,7 @@ namespace NX
         static JSStaticFunction Methods[];
       };
 
-      struct BidirectionalDevice: public virtual SourceDevice, public virtual SinkDevice {
+      struct BidirectionalDevice: public virtual PullSourceDevice, public virtual SinkDevice {
 
         static NX::Classes::IO::BidirectionalDevice * FromObject(JSObjectRef obj) {
           return dynamic_cast<NX::Classes::IO::BidirectionalDevice *>(NX::Classes::Base::FromObject(obj));
@@ -104,7 +148,7 @@ namespace NX
         static JSStaticFunction Methods[];
       };
 
-      struct SeekableSourceDevice: public virtual SourceDevice, public virtual SeekableDevice {
+      struct SeekableSourceDevice: public virtual PullSourceDevice, public virtual SeekableDevice {
         static NX::Classes::IO::SeekableSourceDevice * FromObject(JSObjectRef obj) {
           return dynamic_cast<NX::Classes::IO::SeekableSourceDevice *>(NX::Classes::Base::FromObject(obj));
         }

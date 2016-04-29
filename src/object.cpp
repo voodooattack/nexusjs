@@ -79,7 +79,8 @@ NX::Object::Object (JSContextRef context, const std::exception & e): myContext(c
 
 NX::Object::~Object()
 {
-  JSValueUnprotect(myContext, myObject);
+  if (myContext && myObject)
+    JSValueUnprotect(myContext, myObject);
 }
 
 std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)

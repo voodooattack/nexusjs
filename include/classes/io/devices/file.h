@@ -24,6 +24,8 @@
 #include <fstream>
 
 #include "classes/io/device.h"
+#include "task.h"
+#include <globals/promise.h>
 
 namespace NX
 {
@@ -35,10 +37,10 @@ namespace NX
     {
       namespace Devices
       {
-        class FileSourceDevice: public virtual SeekableSourceDevice {
+        class FilePullDevice: public virtual SeekableSourceDevice {
         public:
-          FileSourceDevice(const std::string & path);
-          virtual ~FileSourceDevice() { myStream.close(); }
+          FilePullDevice(const std::string & path);
+          virtual ~FilePullDevice() { myStream.close(); }
 
         private:
           static const JSClassDefinition Class;
@@ -54,14 +56,13 @@ namespace NX
           static JSClassRef createClass(NX::Context * context);
           static JSObjectRef getConstructor(NX::Context * context);
 
-          static NX::Classes::IO::Devices::FileSourceDevice * FromObject(JSObjectRef obj) {
-            return dynamic_cast<NX::Classes::IO::Devices::FileSourceDevice*>(Emitter::FromObject(obj));
+          static NX::Classes::IO::Devices::FilePullDevice * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::IO::Devices::FilePullDevice*>(Base::FromObject(obj));
           }
 
           virtual std::size_t devicePosition() { return myStream.tellg(); }
           virtual std::size_t deviceRead ( char * dest, std::size_t length ) {
-            myStream.read(dest, length);
-            return myStream.gcount();
+            return myStream.readsome(dest, length);
           }
 
           virtual bool deviceReady() const { return !myStream.bad(); }
@@ -87,6 +88,118 @@ namespace NX
           std::ifstream myStream;
         };
 
+        class FilePushDevice: public virtual PushSourceDevice {
+        public:
+          FilePushDevice(NX::Scheduler * scheduler, const std::string & path);
+          virtual ~FilePushDevice() { myStream.close(); }
+
+        private:
+          static const JSClassDefinition Class;
+          static const JSStaticValue Properties[];
+          static const JSStaticFunction Methods[];
+
+          static void Finalize(JSObjectRef object) { }
+
+          static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                         const JSValueRef arguments[], JSValueRef* exception) {
+            NX::Context * context = NX::Context::FromJsContext(ctx);
+            JSClassRef fileSourceClass = createClass(context);
+            try {
+              if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
+                throw std::runtime_error("argument must be a string path");
+              NX::Value path(ctx, arguments[0]);
+              return JSObjectMake(ctx, fileSourceClass,
+                                  dynamic_cast<NX::Classes::Base*>(
+                                    new NX::Classes::IO::Devices::FilePushDevice(context->nexus()->scheduler(), path.toString())));
+            } catch (const std::exception & e) {
+              JSWrapException(ctx, e, exception);
+              return JSObjectMake(ctx, nullptr, nullptr);
+            }
+          }
+
+        public:
+          static JSClassRef createClass(NX::Context * context) {
+            JSClassDefinition def = NX::Classes::IO::Devices::FilePushDevice::Class;
+            def.parentClass = NX::Classes::IO::PushSourceDevice::createClass (context);
+            return context->nexus()->defineOrGetClass (def);
+          }
+          static JSObjectRef getConstructor(NX::Context * context) {
+            return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Devices::FilePushDevice::Constructor);
+          }
+
+          static NX::Classes::IO::Devices::FilePushDevice * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::IO::Devices::FilePushDevice*>(Base::FromObject(obj));
+          }
+
+          virtual bool deviceReady() const { return myStatus == State::Paused; }
+          virtual bool eof() const { myStream.eof(); }
+          virtual void pause(JSContextRef ctx, JSObjectRef thisObject) {
+            if (NX::AbstractTask * task = myTask) task->abort();
+          }
+          virtual void reset(JSContextRef ctx, JSObjectRef thisObject) { pause(ctx, thisObject); myStream.seekg(0, std::ios::beg); }
+          virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject) {
+            if (myStatus == Paused) {
+              myStatus = Resumed;
+              NX::Context * context = NX::Context::FromJsContext(ctx);
+              JSValueProtect(context->toJSContext(), thisObject);
+              JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+                const std::size_t maxBufferSize = 1024 * 1024; // 1MB because we're pulling
+                NX::AbstractTask * task = myScheduler->scheduleCoroutine([=](){
+                  char * buffer = (char*)std::malloc(maxBufferSize);
+                  while(myStream.good()) {
+                    std::size_t pos = myStream.tellg();
+                    std::size_t toRead = std::min((std::size_t)myStream.rdbuf()->in_avail(), maxBufferSize);
+                    if (!toRead) toRead = maxBufferSize;
+                    if (!buffer)
+                      buffer = (char*)std::malloc(toRead);
+                    std::size_t sizeOut = 0;
+                    sizeOut = myStream.readsome(buffer, toRead);
+                    if (!sizeOut) {
+                      myStream.read(buffer, toRead);
+                      sizeOut = myStream.gcount();
+                    }
+                    if (sizeOut < toRead && sizeOut)
+                      buffer = (char*)std::realloc(buffer, toRead);
+                    bool eof = myStream.eof();
+                    if (sizeOut) {
+                      myScheduler->scheduleTask([=]() {
+                        JSValueRef args[] {
+                          JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, sizeOut,
+                                                                [](void* bytes, void* deallocatorContext) {
+                                                                  std::free(bytes);
+                                                                }, nullptr, nullptr),
+                          JSValueMakeNumber(context->toJSContext(), pos)
+                        };
+                        this->emit(context->toJSContext(), thisObject, "data", 2, args, nullptr);
+                      });
+                      buffer = nullptr;
+                    }
+                    myScheduler->yield();
+                  }
+                  myScheduler->scheduleTask([=]() {
+                    resolve(thisObject);
+                    JSValueUnprotect(context->toJSContext(), thisObject);
+                  });
+                });
+                task->setCancellationHandler([=](){ myTask.store(nullptr); JSValueUnprotect(context->toJSContext(), thisObject); });
+                task->setFinishHandler([this](){ myTask.store(nullptr); });
+                myTask.store(task);
+              });
+              myPromise = NX::Object(context->toJSContext(), promise);
+            }
+            return myPromise;
+          }
+          virtual State state() const { return myStatus; }
+
+        private:
+          NX::Scheduler * myScheduler;
+          boost::atomic<State> myStatus;
+          boost::atomic<NX::AbstractTask*> myTask;
+          std::ifstream myStream;
+          NX::Object myPromise;
+        };
+
+
         class FileSinkDevice: public virtual SeekableSinkDevice {
 
           FileSinkDevice(const std::string & path);
@@ -107,7 +220,7 @@ namespace NX
           static JSObjectRef getConstructor(NX::Context * context);
 
           static NX::Classes::IO::Devices::FileSinkDevice * FromObject(JSObjectRef obj) {
-            return dynamic_cast<NX::Classes::IO::Devices::FileSinkDevice*>(Emitter::FromObject(obj));
+            return dynamic_cast<NX::Classes::IO::Devices::FileSinkDevice*>(Base::FromObject(obj));
           }
 
           virtual std::size_t devicePosition() {

@@ -20,6 +20,7 @@
 #include "context.h"
 #include "globals/io.h"
 
+#include "classes/io/device.h"
 #include "classes/io/filter.h"
 #include "classes/io/stream.h"
 #include "classes/io/devices/file.h"
@@ -51,12 +52,21 @@ const JSStaticValue NX::Globals::IO::Properties[] {
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
-  { "FileSourceDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+  { "FilePullDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.FileSourceDevice"))
+      if (JSObjectRef File = context->getGlobal("IO.FilePullDevice"))
         return File;
-      JSObjectRef constructor = NX::Classes::IO::Devices::FileSourceDevice::getConstructor(context);
-      context->setGlobal("IO.FileSourceDevice", constructor);
+      JSObjectRef constructor = NX::Classes::IO::Devices::FilePullDevice::getConstructor(context);
+      context->setGlobal("IO.FilePullDevice", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "FilePushDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.FilePushDevice"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::Devices::FilePushDevice::getConstructor(context);
+      context->setGlobal("IO.FilePushDevice", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },

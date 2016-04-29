@@ -23,12 +23,12 @@
 #include "classes/io/devices/file.h"
 #include <boost/filesystem.hpp>
 
-NX::Classes::IO::Devices::FileSourceDevice::FileSourceDevice (const std::string & path): myStream(path, std::ifstream::binary) {
+NX::Classes::IO::Devices::FilePullDevice::FilePullDevice (const std::string & path): myStream(path, std::ifstream::binary) {
   if (!boost::filesystem::exists(path))
     throw std::runtime_error("file '" + path + "' not found");
 }
 
-JSObjectRef NX::Classes::IO::Devices::FileSourceDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
+JSObjectRef NX::Classes::IO::Devices::FilePullDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                             size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
@@ -37,37 +37,60 @@ JSObjectRef NX::Classes::IO::Devices::FileSourceDevice::Constructor (JSContextRe
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
       throw std::runtime_error("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
-    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::IO::Devices::FileSourceDevice(path.toString())));
+    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::IO::Devices::FilePullDevice(path.toString())));
   } catch (const std::exception & e) {
     JSWrapException(ctx, e, exception);
     return JSObjectMake(ctx, nullptr, nullptr);
   }
 }
 
-JSClassRef NX::Classes::IO::Devices::FileSourceDevice::createClass (NX::Context * context)
+JSClassRef NX::Classes::IO::Devices::FilePullDevice::createClass (NX::Context * context)
 {
-  JSClassDefinition def = NX::Classes::IO::Devices::FileSourceDevice::Class;
+  JSClassDefinition def = NX::Classes::IO::Devices::FilePullDevice::Class;
   def.parentClass = NX::Classes::IO::SeekableSourceDevice::createClass (context);
   return context->nexus()->defineOrGetClass (def);
 }
 
-JSObjectRef NX::Classes::IO::Devices::FileSourceDevice::getConstructor (NX::Context * context)
+JSObjectRef NX::Classes::IO::Devices::FilePullDevice::getConstructor (NX::Context * context)
 {
-  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Devices::FileSourceDevice::Constructor);
+  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Devices::FilePullDevice::Constructor);
 }
 
-const JSClassDefinition NX::Classes::IO::Devices::FileSourceDevice::Class {
-  0, kJSClassAttributeNone, "FileSourceDevice", nullptr, NX::Classes::IO::Devices::FileSourceDevice::Properties,
-  NX::Classes::IO::Devices::FileSourceDevice::Methods, nullptr, NX::Classes::IO::Devices::FileSourceDevice::Finalize
+const JSClassDefinition NX::Classes::IO::Devices::FilePullDevice::Class {
+  0, kJSClassAttributeNone, "FileSourceDevice", nullptr, NX::Classes::IO::Devices::FilePullDevice::Properties,
+  NX::Classes::IO::Devices::FilePullDevice::Methods, nullptr, NX::Classes::IO::Devices::FilePullDevice::Finalize
 };
 
-const JSStaticValue NX::Classes::IO::Devices::FileSourceDevice::Properties[] {
+const JSStaticValue NX::Classes::IO::Devices::FilePullDevice::Properties[] {
   { nullptr, nullptr, nullptr, 0 }
 };
 
-const JSStaticFunction NX::Classes::IO::Devices::FileSourceDevice::Methods[] {
+const JSStaticFunction NX::Classes::IO::Devices::FilePullDevice::Methods[] {
   { nullptr, nullptr, 0 }
 };
+
+
+const JSStaticValue NX::Classes::IO::Devices::FilePushDevice::Properties[] {
+  { nullptr, nullptr, nullptr, 0 }
+};
+
+const JSStaticFunction NX::Classes::IO::Devices::FilePushDevice::Methods[] {
+  { nullptr, nullptr, 0 }
+};
+
+const JSClassDefinition NX::Classes::IO::Devices::FilePushDevice::Class {
+  0, kJSClassAttributeNone, "FilePushDevice", nullptr, NX::Classes::IO::Devices::FilePushDevice::Properties,
+  NX::Classes::IO::Devices::FilePushDevice::Methods, nullptr, NX::Classes::IO::Devices::FilePushDevice::Finalize
+};
+
+NX::Classes::IO::Devices::FilePushDevice::FilePushDevice (NX::Scheduler * scheduler, const std::string & path) :
+  myScheduler (scheduler), myStream (path, std::ifstream::binary), myStatus (Paused), myTask (nullptr), myPromise()
+{
+  if (!boost::filesystem::exists (path))
+  {
+    throw std::runtime_error ("file '" + path + "' not found");
+  }
+}
 
 JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)

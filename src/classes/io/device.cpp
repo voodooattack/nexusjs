@@ -45,6 +45,27 @@ JSClassRef NX::Classes::IO::SourceDevice::createClass (NX::Context * context)
   def.parentClass = NX::Classes::IO::Device::createClass (context);
   def.className = "SourceDevice";
   def.staticFunctions = NX::Classes::IO::SourceDevice::Methods;
+  def.staticValues = NX::Classes::IO::SourceDevice::Properties;
+  return context->nexus()->defineOrGetClass (def);
+}
+
+JSClassRef NX::Classes::IO::PushSourceDevice::createClass (NX::Context * context)
+{
+  JSClassDefinition def = kJSClassDefinitionEmpty;
+  def.parentClass = NX::Classes::IO::SourceDevice::createClass (context);
+  def.className = "PushSourceDevice";
+  def.staticFunctions = NX::Classes::IO::PushSourceDevice::Methods;
+  def.staticValues = NX::Classes::IO::PushSourceDevice::Properties;
+  return context->nexus()->defineOrGetClass (def);
+}
+
+JSClassRef NX::Classes::IO::PullSourceDevice::createClass (NX::Context * context)
+{
+  JSClassDefinition def = kJSClassDefinitionEmpty;
+  def.parentClass = NX::Classes::IO::SourceDevice::createClass (context);
+  def.className = "PullSourceDevice";
+  def.staticFunctions = NX::Classes::IO::PullSourceDevice::Methods;
+  def.staticValues = NX::Classes::IO::PullSourceDevice::Properties;
   return context->nexus()->defineOrGetClass (def);
 }
 
@@ -53,7 +74,7 @@ JSClassRef NX::Classes::IO::SinkDevice::createClass (Context * context)
   JSClassDefinition def = kJSClassDefinitionEmpty;
   def.parentClass = NX::Classes::IO::Device::createClass (context);
   def.className = "SinkDevice";
-  def.staticFunctions = NX::Classes::IO::SourceDevice::Methods;
+  def.staticFunctions = NX::Classes::IO::SinkDevice::Methods;
   return context->nexus()->defineOrGetClass (def);
 }
 
@@ -64,7 +85,7 @@ JSClassRef NX::Classes::IO::BidirectionalDevice::createClass (Context * context)
   def.className = "BidirectionalDevice";
   static const JSStaticFunction methods[]
   {
-    NX::Classes::IO::SourceDevice::Methods[0],
+    NX::Classes::IO::PullSourceDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[0],
   };
   def.staticFunctions = methods;
@@ -83,14 +104,12 @@ JSClassRef NX::Classes::IO::SeekableDevice::createClass (NX::Context * context)
 JSClassRef NX::Classes::IO::SeekableSourceDevice::createClass (NX::Context * context)
 {
   JSClassDefinition def = kJSClassDefinitionEmpty;
-  def.parentClass = NX::Classes::IO::Device::createClass (context);
+  def.parentClass = NX::Classes::IO::PullSourceDevice::createClass (context);
   def.className = "SeekableSourceDevice";
   static const JSStaticFunction methods[]
   {
     NX::Classes::IO::SeekableDevice::Methods[0],
     NX::Classes::IO::SeekableDevice::Methods[1],
-    NX::Classes::IO::SourceDevice::Methods[0],
-    NX::Classes::IO::SourceDevice::Methods[1],
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -115,16 +134,14 @@ JSClassRef NX::Classes::IO::SeekableSinkDevice::createClass (NX::Context * conte
 JSClassRef NX::Classes::IO::BidirectionalSeekableDevice::createClass (NX::Context * context)
 {
   JSClassDefinition def = kJSClassDefinitionEmpty;
-  def.parentClass = NX::Classes::IO::Device::createClass (context);
+  def.parentClass = NX::Classes::IO::SeekableDevice::createClass (context);
   def.className = "BidirectionalSeekableDevice";
   static const JSStaticFunction methods[]
   {
-    NX::Classes::IO::SourceDevice::Methods[0],
-    NX::Classes::IO::SourceDevice::Methods[1],
+    NX::Classes::IO::PullSourceDevice::Methods[0],
+    NX::Classes::IO::PullSourceDevice::Methods[1],
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[1],
-    NX::Classes::IO::SeekableDevice::Methods[0],
-    NX::Classes::IO::SeekableDevice::Methods[1],
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -142,16 +159,12 @@ JSClassRef NX::Classes::IO::DualSeekableDevice::createClass (NX::Context * conte
 JSClassRef NX::Classes::IO::BidirectionalDualSeekableDevice::createClass (NX::Context * context)
 {
   JSClassDefinition def = kJSClassDefinitionEmpty;
-  def.parentClass = NX::Classes::IO::Device::createClass (context);
+  def.parentClass = NX::Classes::IO::DualSeekableDevice::createClass (context);
   def.className = "BidirectionalSeekableDevice";
   static const JSStaticFunction methods[]
   {
-    NX::Classes::IO::DualSeekableDevice::Methods[0],
-    NX::Classes::IO::DualSeekableDevice::Methods[1],
-    NX::Classes::IO::DualSeekableDevice::Methods[2],
-    NX::Classes::IO::DualSeekableDevice::Methods[3],
-    NX::Classes::IO::SourceDevice::Methods[0],
-    NX::Classes::IO::SourceDevice::Methods[1],
+    NX::Classes::IO::PullSourceDevice::Methods[0],
+    NX::Classes::IO::PullSourceDevice::Methods[1],
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[2],
   };
@@ -172,10 +185,101 @@ JSStaticFunction NX::Classes::IO::Device::Methods[] {
 };
 
 JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
+  { nullptr, nullptr, 0 }
+};
+
+
+JSStaticValue NX::Classes::IO::SourceDevice::Properties[] {
+  { "eof", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+    NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(object);
+    return JSValueMakeBoolean(ctx, dev->eof());
+  }, nullptr, 0 },
+  { "type", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+    NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(object);
+    switch(dev->sourceDeviceType()) {
+      case NX::Classes::IO::SourceDevice::SourceType::PullType:
+        return JSValueMakeString(ctx, ScopedString("pull"));
+      case NX::Classes::IO::SourceDevice::SourceType::PushType:
+        return JSValueMakeString(ctx, ScopedString("push"));
+      default:
+        return JSValueMakeString(ctx, ScopedString("unknown"));
+    }
+  }, nullptr, 0 },
+  { nullptr, nullptr, nullptr, 0 }
+};
+
+JSStaticValue NX::Classes::IO::PushSourceDevice::Properties[] {
+  { "state", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+    NX::Classes::IO::PushSourceDevice * dev = NX::Classes::IO::PushSourceDevice::FromObject(object);
+    switch(dev->state()) {
+      case NX::Classes::IO::PushSourceDevice::Paused:
+        return JSValueMakeString(ctx, ScopedString("paused"));
+      case NX::Classes::IO::PushSourceDevice::Resumed:
+        return JSValueMakeString(ctx, ScopedString("resumed"));
+      default:
+        return JSValueMakeString(ctx, ScopedString("unknown"));
+    }
+  }, nullptr, 0 },
+  { nullptr, nullptr, nullptr, 0 }
+};
+
+
+JSStaticFunction NX::Classes::IO::PushSourceDevice::Methods[] {
+  { "reset", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Classes::IO::PushSourceDevice * dev = NX::Classes::IO::PushSourceDevice::FromObject(thisObject);
+      NX::Context * context = NX::Context::FromJsContext(ctx);
+      try {
+        JSValueProtect(context->toJSContext(), thisObject);
+        return Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+          dev->reset(ctx, thisObject);
+          resolve(thisObject);
+          JSValueUnprotect(context->toJSContext(), thisObject);
+        });
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+      }
+      return JSValueMakeUndefined(ctx);
+    }, 0
+  },
+  { "pause", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Classes::IO::PushSourceDevice * dev = NX::Classes::IO::PushSourceDevice::FromObject(thisObject);
+      NX::Context * context = NX::Context::FromJsContext(ctx);
+      try {
+        JSValueProtect(context->toJSContext(), thisObject);
+        return Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+          dev->pause(ctx, thisObject);
+          resolve(thisObject);
+          JSValueUnprotect(context->toJSContext(), thisObject);
+        });
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+      }
+      return JSValueMakeUndefined(ctx);
+    }, 0
+  },
+  { "resume", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      NX::Classes::IO::PushSourceDevice * dev = NX::Classes::IO::PushSourceDevice::FromObject(thisObject);
+      NX::Context * context = NX::Context::FromJsContext(ctx);
+      try {
+        return dev->resume(ctx, thisObject);
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+      }
+      return JSValueMakeUndefined(ctx);
+    }, 0
+  },
+  { nullptr, nullptr, 0 }
+};
+
+JSStaticFunction NX::Classes::IO::PullSourceDevice::Methods[] {
   { "read", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       std::size_t length = 0;
+      std::size_t bufferSize = 1024 * 1024;
       if (argumentCount > 0) {
         if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
           NX::Value message(ctx, "bad value for length argument");
@@ -185,15 +289,24 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
         }
         length = JSValueToNumber(ctx, arguments[0], exception);
       }
-      NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(thisObject);
+      if (argumentCount > 1) {
+        if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
+          NX::Value message(ctx, "bad value for bufferSize argument");
+          JSValueRef args[] { message.value(), nullptr };
+          *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+          return JSValueMakeUndefined(ctx);
+        }
+        bufferSize = JSValueToNumber(ctx, arguments[1], exception);
+      }
+      NX::Classes::IO::PullSourceDevice * dev = NX::Classes::IO::PullSourceDevice::FromObject(thisObject);
       if (!dev) {
-        NX::Value message(ctx, "SourceDevice object does not implement read()");
+        NX::Value message(ctx, "PushSourceDevice object does not implement read()");
         *exception = message.value();
         return JSValueMakeUndefined(ctx);
       }
       JSValueProtect(context->toJSContext(), thisObject);
       NX::Scheduler * scheduler = context->nexus()->scheduler();
-      std::size_t chunkSize = 8192;
+      std::size_t chunkSize = bufferSize;
       return NX::Globals::Promise::createPromise(context->toJSContext(),
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
@@ -254,7 +367,7 @@ JSStaticFunction NX::Classes::IO::SourceDevice::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         NX::Context * context = NX::Context::FromJsContext(ctx);
-        NX::Classes::IO::SourceDevice * dev = NX::Classes::IO::SourceDevice::FromObject(thisObject);
+        NX::Classes::IO::PullSourceDevice * dev = NX::Classes::IO::PullSourceDevice::FromObject(thisObject);
         if (argumentCount == 0) {
           throw std::runtime_error("must supply length to read");
         } else {
@@ -319,7 +432,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       JSValueProtect(context->toJSContext(), arrayBuffer);
       JSValueProtect(context->toJSContext(), thisObject);
       NX::Scheduler * scheduler = context->nexus()->scheduler();
-      std::size_t chunkSize = 8192;
+      std::size_t chunkSize = 1024 * 1024;
       const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
       return NX::Globals::Promise::createPromise(context->toJSContext(),
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)

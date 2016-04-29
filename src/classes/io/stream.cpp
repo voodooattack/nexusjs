@@ -186,7 +186,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
       if (!stream) {
-        NX::Value message(ctx, "read not implemented on ReadableStream instance");
+        NX::Value message(ctx, "pipe not implemented on ReadableStream instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
@@ -198,8 +198,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
         if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
           throw std::runtime_error("argument not a WritableStream instance");
         NX::Object target(ctx, arguments[0]);
-        NX::Object promise(ctx, stream->read(ctx, thisObject, 0));
-        return promise["then"]->toObject()->call(promise, { target["write"]->toObject()->bind(target, 0, nullptr, exception) }, exception);
+        return stream->pipe(ctx, thisObject, target, exception);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }

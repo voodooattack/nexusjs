@@ -92,7 +92,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
           }
           scheduler->scheduleCoroutine([=] {
             char * newBuffer = nullptr;
-            std::size_t chunkSize = 4096;
+            std::size_t chunkSize = 1024 * 1024;
             std::size_t outPos = 0;
             try {
               std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);

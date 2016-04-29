@@ -33,6 +33,7 @@ namespace NX {
   class Value;
   class Object {
   public:
+    Object(): myContext(nullptr), myObject(nullptr) {}
     Object(JSContextRef, JSClassRef cls = nullptr);
     Object(JSContextRef context, JSObjectRef obj);
     Object(JSContextRef context, JSValueRef val);

@@ -26,7 +26,7 @@
 #include "classes/io/device.h"
 #include "classes/io/filter.h"
 #include "util.h"
-
+#include "globals/promise.h"
 
 namespace NX
 {
@@ -126,6 +126,52 @@ namespace NX
           } catch(const std::exception & e) {
             return JSWrapException(ctx, e, exception);
           }
+        }
+
+        virtual JSValueRef pipe(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef target, JSValueRef * exception) {
+          std::string deviceType(myDevice["type"]->toString());
+          if (deviceType == "pull") {
+            NX::Object promise(ctx, this->read(ctx, thisObject, 0));
+            return promise["then"]->toObject()->call(promise, {
+              NX::Object(ctx, target)["write"]->toObject()->bind(target, 0, nullptr, exception)
+            }, exception);
+          } else if (deviceType == "push") {
+            NX::Object promise(ctx, myDevice["reset"]->toObject()->call(myDevice, std::vector<JSValueRef>(), exception));
+            if (exception && *exception)
+              return JSValueMakeUndefined(ctx);
+            JSObjectRef processFilters = JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
+                                                                                          JSObjectRef thisObject, size_t argumentCount,
+                                                                                          const JSValueRef arguments[],
+                                                                                          JSValueRef* exception) -> JSValueRef
+              {
+                NX::Object target(ctx, arguments[0]);
+                ReadableStream * stream = ReadableStream::FromObject(thisObject);
+                JSValueRef promise = NX::Globals::Promise::resolve(ctx, arguments[1]);
+                for(auto & i : stream->myFilters) {
+                  promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise), std::vector<JSValueRef> {
+                    i["process"]->toObject()->bind(i, 0, nullptr, exception)
+                  });
+                }
+                return NX::Object(ctx,promise)["then"]->toObject()->call(NX::Object(ctx, promise), {
+                  target["write"]->toObject()->bind(target, 0, nullptr, exception)
+                });
+              }
+            );
+            JSValueRef argsForBind[] { target };
+            JSValueRef args[] { JSBindFunction(ctx, processFilters, thisObject, 1, argsForBind, exception) };
+            if (exception && *exception)
+              return JSValueMakeUndefined(ctx);
+            return promise["then"]->toObject()->call(promise, {
+              JSBindFunction(ctx, JSObjectMakeFunction(ctx, nullptr, 0, nullptr,
+                                                       ScopedString("this.on('data', arguments[0]); return this.resume();"),
+                                                       nullptr, 0, exception), myDevice, 1, args, exception)
+            });
+          }
+          else {
+            if (exception)
+              *exception = NX::Object(ctx, std::runtime_error("invalid device type"));
+          }
+          return JSValueMakeUndefined(ctx);
         }
 
       private:
