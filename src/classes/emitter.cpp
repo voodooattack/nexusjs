@@ -83,6 +83,25 @@ JSObjectRef NX::Classes::Emitter::emit (JSContextRef ctx, JSObjectRef thisObject
     return NX::Globals::Promise::resolve(context->toJSContext(), JSValueMakeUndefined(context->toJSContext()));
 }
 
+
+void NX::Classes::Emitter::emitFast (JSContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
+argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+{
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  if (myMap.find(e) != myMap.end()) {
+    ProtectedArguments args(context->toJSContext(), argumentCount, arguments);
+    for(auto & i: myMap[e])
+    {
+      if (i->count > 0)
+        i->count--;
+      NX::Object func(context->toJSContext(), JSBindFunction(context->toJSContext(), i->handler, nullptr, args.count(), args, nullptr));
+      JSValueRef exp = nullptr;
+      func.call(nullptr, args.vector(), exception);
+    }
+    tidy(e);
+  }
+}
+
 JSValueRef NX::Classes::Emitter::removeAllListeners (JSContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string & e)
 {
   myMap.erase(e);

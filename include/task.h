@@ -45,6 +45,7 @@ namespace NX
       PENDING,
       FINISHED,
       ABORTED,
+      UNKNOWN
     };
 
     virtual Scheduler * scheduler() = 0;
@@ -54,9 +55,8 @@ namespace NX
     virtual void enter() = 0;
     virtual void yield() = 0;
     virtual void exit() = 0;
-    virtual void schedule(NX::AbstractTask * task) = 0;
-    virtual void setCancellationHandler(const NX::Scheduler::CompletionHandler &) = 0;
-    virtual void setFinishHandler(const NX::Scheduler::CompletionHandler &) = 0;
+    virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler &) = 0;
+    virtual void addCompletionHandler(const NX::Scheduler::CompletionHandler &) = 0;
 
   };
 
@@ -70,7 +70,7 @@ namespace NX
     }
     virtual Scheduler * scheduler() { return myScheduler; }
     virtual Status status() const { return myStatus; }
-    virtual void abort() { myStatus.store(ABORTED); if (myCancellationHandler) myCancellationHandler(); }
+    virtual void abort() { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }
     virtual void create() { myStatus.store(CREATED); }
     virtual void enter() {
       if (myStatus == ABORTED) return;
@@ -80,29 +80,18 @@ namespace NX
       myStatus.store(FINISHED);
     }
     virtual void yield() { throw std::runtime_error("can't yield on a regular task"); }
-    virtual void exit() {
-      for(auto i : myDependents)
-        if (status() != ABORTED)
-          myScheduler->scheduleAbstractTask(i);
-        else {
-          i->abort();
-          delete i;
-        }
-      if (myFinishHandler)
-        myFinishHandler();
+    virtual void exit() { for(auto & i : myCompletionHandlers) i(); }
+    virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
+      myCancellationHandlers.push_back(handler);
     }
-    virtual void schedule(NX::AbstractTask * task) { myDependents.push_back(task); }
-    virtual void setCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
-      myCancellationHandler = handler;
-    }
-    virtual void setFinishHandler(const NX::Scheduler::CompletionHandler & handler) {
-      myFinishHandler = handler;
+    virtual void addCompletionHandler(const NX::Scheduler::CompletionHandler & handler) {
+      myCompletionHandlers.push_back(handler);
     }
   protected:
-    NX::Scheduler::CompletionHandler myHandler, myCancellationHandler, myFinishHandler;
+    NX::Scheduler::CompletionHandler myHandler;
+    std::vector<NX::Scheduler::CompletionHandler> myCancellationHandlers, myCompletionHandlers;
     NX::Scheduler * myScheduler;
     boost::atomic<Status> myStatus;
-    std::vector<NX::AbstractTask *> myDependents;
   };
 
   class CoroutineTask: public AbstractTask {
@@ -115,37 +104,26 @@ namespace NX
     CoroutineTask(NX::Scheduler::CompletionHandler, NX::Scheduler *);
     virtual Scheduler * scheduler() { return myScheduler; }
     virtual Status status() const { return myStatus; }
-    virtual void abort() { myStatus.store(ABORTED); if (myCancellationHandler) myCancellationHandler(); }
+    virtual void abort() { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }
     virtual void create();
     virtual void enter();
     virtual void yield();
-    virtual void exit() {
-      for(auto i : myDependents)
-        if (status() != ABORTED)
-          myScheduler->scheduleAbstractTask(i);
-        else {
-          i->abort();
-          delete i;
-        }
-        if (myFinishHandler)
-          myFinishHandler();
+    virtual void exit() { for (auto & i: myCompletionHandlers) i(); }
+    virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
+      myCancellationHandlers.push_back(handler);
     }
-    virtual void schedule(NX::AbstractTask * task) { myDependents.push_back(task); }
-    virtual void setCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
-      myCancellationHandler = handler;
-    }
-    virtual void setFinishHandler(const NX::Scheduler::CompletionHandler & handler) {
-      myFinishHandler = handler;
+    virtual void addCompletionHandler(const NX::Scheduler::CompletionHandler & handler) {
+      myCompletionHandlers.push_back(handler);
     }
   protected:
     void coroutine(pull_type & ca);
   protected:
-    NX::Scheduler::CompletionHandler myHandler, myCancellationHandler, myFinishHandler;
+    NX::Scheduler::CompletionHandler myHandler;
+    std::vector<NX::Scheduler::CompletionHandler> myCancellationHandlers, myCompletionHandlers;
     NX::Scheduler * myScheduler;
     std::shared_ptr<push_type> myCoroutine;
     pull_type * myPullCa;
     boost::atomic<Status> myStatus;
-    std::vector<NX::AbstractTask *> myDependents;
   };
 }
 

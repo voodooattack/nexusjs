@@ -71,6 +71,11 @@ namespace NX
       /* Returns a Promise! */
       virtual JSObjectRef emit( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
                                 std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
+
+      /* Faster version that returns nothing */
+      virtual void emitFast( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
+                                std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
+
     protected:
       virtual void tidy(const std::string & e) {
         if (myMap.find(e) != myMap.end()) {

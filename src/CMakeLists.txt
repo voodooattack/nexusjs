@@ -26,6 +26,7 @@ add_executable(nexus
   classes/io/filters/utf8stringfilter.cpp
   classes/context.cpp
   classes/emitter.cpp
+  classes/task.cpp
   classes/base.cpp
 )
 

@@ -3,6 +3,7 @@
 #include "nexus.h"
 #include "value.h"
 #include "task.h"
+#include "classes/task.h"
 
 #include <boost/thread.hpp>
 
@@ -63,7 +64,9 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
         });
         if (!taskPtr) {
           *exception =  NX::Object(ctx, std::runtime_error("task could not be scheduled"));
+          return JSValueMakeUndefined(ctx);
         }
+        return NX::Classes::Task::wrapTask(ctx, taskPtr);
       } else {
         *exception =  NX::Object(ctx, std::runtime_error("argument must be a function"));
       }

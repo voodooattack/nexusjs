@@ -144,7 +144,7 @@ NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, NX
   myTaskCount++;
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
-  taskObject->setCancellationHandler([=]() { timer->cancel(); myTaskCount--; });
+  taskObject->addCancellationHandler([=]() { timer->cancel(); myTaskCount--; });
   return taskObject;
 }
 
@@ -163,7 +163,7 @@ NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::durat
   myTaskCount++;
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
-  taskObject->setCancellationHandler([=]() { timer->cancel(); myTaskCount--; });
+  taskObject->addCancellationHandler([=]() { timer->cancel(); myTaskCount--; });
   return taskObject;
 }
 

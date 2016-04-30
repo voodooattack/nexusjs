@@ -34,7 +34,7 @@ namespace NX {
         class Socket: public virtual BidirectionalPushDevice
         {
         protected:
-          Socket(NX::Scheduler * scheduler, const std::shared_ptr<boost::asio::socket_base> & socket): myScheduler(scheduler), mySocket(socket) {}
+          Socket() {}
         public:
           virtual ~Socket() { }
 
@@ -56,25 +56,39 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::Socket*>(NX::Classes::Base::FromObject(obj));
           }
 
-          virtual std::shared_ptr<boost::asio::socket_base> socket() { return mySocket; }
-
-          virtual std::size_t available() const;
-          virtual void close() = 0;
-          virtual void cancel() = 0;
-          virtual void connect(const std::string & endpoint) = 0;
-          virtual void bind(const std::string & endpoint) = 0;
-
-        private:
-          NX::Scheduler * myScheduler;
-          std::shared_ptr<boost::asio::socket_base> mySocket;
+          virtual std::size_t available() const = 0;
+//           virtual void close() = 0;
+//           virtual void cancel() = 0;
+          virtual void connect(JSContextRef ctx, JSObjectRef thisObject, const std::string & endpoint) = 0;
+          virtual void bind(JSContextRef ctx, JSObjectRef thisObject, const std::string & endpoint) = 0;
         };
 
         class TCPSocket: public virtual Socket {
         public:
-          TCPSocket ( Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket ): Socket(scheduler, socket) {}
+          TCPSocket ( Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket) {}
           virtual ~TCPSocket()  {}
+        private:
+          static const JSClassDefinition Class;
+          static const JSStaticValue Properties[];
+          static const JSStaticFunction Methods[];
+
+          static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                         const JSValueRef arguments[], JSValueRef* exception);
+
+          static void Finalize(JSObjectRef object) { }
+
+        public:
+          static JSClassRef createClass(NX::Context * context);
+          static JSObjectRef getConstructor(NX::Context * context);
+
+          static NX::Classes::IO::Devices::TCPSocket * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::IO::Devices::TCPSocket*>(NX::Classes::Base::FromObject(obj));
+          }
+
+
 
         };
+
       }
     }
   }

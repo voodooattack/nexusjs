@@ -29,6 +29,7 @@
 #include <boost/noncopyable.hpp>
 #include <boost/thread.hpp>
 
+#include "task.h"
 #include "scheduler.h"
 #include "context.h"
 

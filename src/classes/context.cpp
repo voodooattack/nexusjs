@@ -94,8 +94,6 @@ NX::Classes::Context::~Context() {
 
 }
 
-#include <iostream>
-
 JSValueRef NX::Classes::Context::exports(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
 {
   return myContext->exports();

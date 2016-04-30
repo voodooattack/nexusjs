@@ -25,7 +25,6 @@
 
 #include "classes/io/device.h"
 #include "task.h"
-#include <globals/promise.h>
 
 namespace NX
 {
@@ -137,58 +136,7 @@ namespace NX
             if (NX::AbstractTask * task = myTask) task->abort();
           }
           virtual void reset(JSContextRef ctx, JSObjectRef thisObject) { pause(ctx, thisObject); myStream.seekg(0, std::ios::beg); }
-          virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject) {
-            if (myStatus == Paused) {
-              myStatus = Resumed;
-              NX::Context * context = NX::Context::FromJsContext(ctx);
-              JSValueProtect(context->toJSContext(), thisObject);
-              JSObjectRef promise = NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-                const std::size_t maxBufferSize = 1024 * 1024;
-                NX::AbstractTask * task = myScheduler->scheduleCoroutine([=](){
-                  char * buffer = (char*)std::malloc(maxBufferSize);
-                  while(myStream.good()) {
-                    std::size_t pos = myStream.tellg();
-                    std::size_t toRead = std::min((std::size_t)myStream.rdbuf()->in_avail(), maxBufferSize);
-                    if (!toRead) toRead = maxBufferSize;
-                    if (!buffer)
-                      buffer = (char*)std::malloc(toRead);
-                    std::size_t sizeOut = 0;
-                    sizeOut = myStream.readsome(buffer, toRead);
-                    if (!sizeOut) {
-                      myStream.read(buffer, toRead);
-                      sizeOut = myStream.gcount();
-                    }
-                    if (sizeOut < toRead && sizeOut)
-                      buffer = (char*)std::realloc(buffer, sizeOut);
-                    bool eof = myStream.eof();
-                    if (sizeOut) {
-                      myScheduler->scheduleTask([=]() {
-                        JSValueRef args[] {
-                          JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, sizeOut,
-                                                                [](void* bytes, void* deallocatorContext) {
-                                                                  std::free(bytes);
-                                                                }, nullptr, nullptr),
-                          JSValueMakeNumber(context->toJSContext(), pos)
-                        };
-                        this->emit(context->toJSContext(), thisObject, "data", 2, args, nullptr);
-                      });
-                      buffer = nullptr;
-                    }
-                    myScheduler->yield();
-                  }
-                  myScheduler->scheduleTask([=]() {
-                    resolve(thisObject);
-                    JSValueUnprotect(context->toJSContext(), thisObject);
-                  });
-                });
-                task->setCancellationHandler([=](){ myTask.store(nullptr); JSValueUnprotect(context->toJSContext(), thisObject); });
-                task->setFinishHandler([this](){ myTask.store(nullptr); });
-                myTask.store(task);
-              });
-              myPromise = NX::Object(context->toJSContext(), promise);
-            }
-            return myPromise;
-          }
+          virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject);
           virtual State state() const { return myStatus; }
 
         private:
