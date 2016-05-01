@@ -69,10 +69,14 @@ namespace NX
     void yield();
 
     NX::Nexus * nexus() { return myNexus; }
+
     unsigned int concurrency() const { return myThreadCount; }
     unsigned int queued() const { return myTaskCount; }
     unsigned int active() const { return myActiveTaskCount; }
     unsigned int remaining() const { return myActiveTaskCount + myTaskCount; }
+
+    const std::shared_ptr<boost::asio::io_service> service() const { return myService; }
+    std::shared_ptr<boost::asio::io_service> service() { return myService; }
 
     /**
      * Internal use only!

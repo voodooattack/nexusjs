@@ -29,24 +29,32 @@ JSClassRef NX::Classes::Task::createClass (NX::Context * context)
 
 JSObjectRef NX::Classes::Task::wrapTask (JSContextRef ctx, NX::AbstractTask * task)
 {
-  std::cout << "wrap task" << std::endl;
   NX::Context * context = NX::Context::FromJsContext (ctx);
   NX::Classes::Task * wrapper = new Task (task);
   JSObjectRef ret = JSObjectMake (ctx, createClass (context), wrapper);
   JSValueProtect(context->toJSContext(), ret);
   auto handler = [=]() { wrapper->myTask.store(nullptr); JSValueUnprotect(context->toJSContext(), ret); };
   auto completionHandler = [=]{
-//     context->nexus()->scheduler()->scheduleTask([=] {
+    if (dynamic_cast<NX::CoroutineTask*>(task)) {
+      context->nexus()->scheduler()->scheduleTask([=] {
+        wrapper->emitFast(context->toJSContext(), ret, "completed", 0, nullptr, nullptr);
+        handler();
+      });
+    } else {
       wrapper->emitFast(context->toJSContext(), ret, "completed", 0, nullptr, nullptr);
       handler();
-//     });
+    }
   };
   auto cancellationHandler = [=]{
-//     context->nexus()->scheduler()->scheduleTask([=] {
-      wrapper->emitFast(context->toJSContext(), ret, "cancelled", 0, nullptr, nullptr);
+    if (dynamic_cast<NX::CoroutineTask*>(task)) {
+      context->nexus()->scheduler()->scheduleTask([=] {
+        wrapper->emitFast(context->toJSContext(), ret, "aborted", 0, nullptr, nullptr);
+        handler();
+      });
+    } else {
+      wrapper->emitFast(context->toJSContext(), ret, "aborted", 0, nullptr, nullptr);
       handler();
-//     });
-  };
+    }  };
   task->addCompletionHandler(completionHandler);
   task->addCancellationHandler(cancellationHandler);
   return ret;

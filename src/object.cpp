@@ -75,7 +75,17 @@ NX::Object::Object (JSContextRef context, const std::exception & e): myContext(c
   NX::Value message(myContext, e.what());
   JSValueRef args[] { message.value() };
   myObject = JSObjectMakeError(myContext, 1, args, nullptr);
+  JSValueProtect(myContext, myObject);
 }
+
+NX::Object::Object (JSContextRef context, const boost::system::error_code & e)
+{
+  NX::Value message(myContext, e.message());
+  JSValueRef args[] { message.value() };
+  myObject = JSObjectMakeError(myContext, 1, args, nullptr);
+  JSValueProtect(myContext, myObject);
+}
+
 
 NX::Object::~Object()
 {

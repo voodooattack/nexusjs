@@ -25,6 +25,7 @@
 #include <boost/shared_ptr.hpp>
 #include <string>
 #include <JavaScript.h>
+#include <boost/system/error_code.hpp>
 
 #include "scoped_string.h"
 #include "util.h"
@@ -39,6 +40,7 @@ namespace NX {
     Object(JSContextRef context, JSValueRef val);
     Object(JSContextRef context, time_t val);
     Object(JSContextRef context, const std::exception & e);
+    Object(JSContextRef context, const boost::system::error_code & e);
     Object(const Object & other);
     ~Object();
 
