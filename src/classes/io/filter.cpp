@@ -74,7 +74,6 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      ProtectedArguments arguments(context->toJSContext(), argumentCount, originalArguments);
       char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
       JSValueProtect(context->toJSContext(), thisObject);
       JSValueProtect(context->toJSContext(), arrayBuffer);
@@ -83,54 +82,40 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
           NX::Scheduler* scheduler = context->nexus()->scheduler();
           NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
           if (!filter) {
-            scheduler->scheduleTask([=]() {
-              JSValueUnprotect(context->toJSContext(), arrayBuffer);
-              NX::Value message(context->toJSContext(), "filter object does not implement process()");
-              return reject(message.value());
-            });
-            return;
+            JSValueUnprotect(context->toJSContext(), arrayBuffer);
+            NX::Value message(context->toJSContext(), "filter object does not implement process()");
+            return reject(message.value());
           }
-          scheduler->scheduleCoroutine([=] {
-            char * newBuffer = nullptr;
-            std::size_t chunkSize = 1024 * 1024;
-            std::size_t outPos = 0;
-            try {
-              std::size_t outLengthEstimatedTotal = filter->processBuffer(buffer, length);
-              newBuffer = (char *)std::malloc(outLengthEstimatedTotal);
-              for(std::size_t i = 0; i < length; i += chunkSize)
-              {
+          const std::size_t chunkSize = 1024 * 1024;
+          auto handler = [=](auto handler, std::size_t i, char * newBuffer, std::size_t outPos, std::size_t outLengthEstimatedTotal) {
+            if (i < length) {
+              try {
                 if (std::size_t out = filter->processBuffer(buffer + offset + i, std::min(chunkSize, length - i),
                   newBuffer + outPos, outLengthEstimatedTotal))
                 {
                   outLengthEstimatedTotal -= out;
                   outPos += out;
                 } else {
-                  std::size_t newEstimate = filter->processBuffer(buffer + offset + i, length - i);
+                  std::size_t newEstimate = filter->estimateOutputLength(buffer + offset + i, length - i);
                   newBuffer = (char *)std::realloc(newBuffer, outPos + newEstimate);
                   outLengthEstimatedTotal += newEstimate;
                   i -= chunkSize;
                 }
-                scheduler->yield();
+                scheduler->scheduleTask(std::bind(handler, handler, i + chunkSize, newBuffer, outPos, outLengthEstimatedTotal));
+              } catch(const std::exception & e) {
+                reject(NX::Object(context->toJSContext(), e));
+                return;
               }
-              if (outLengthEstimatedTotal)
-                newBuffer = (char *)std::realloc(newBuffer, outPos);
-            } catch(const std::exception & e) {
-              delete newBuffer;
-              scheduler->scheduleTask([=]() {
-                JSValueUnprotect(context->toJSContext(), thisObject);
-                JSValueUnprotect(context->toJSContext(), arrayBuffer);
-                return reject(NX::Object(context->toJSContext(), e));
-              });
-              return;
-            }
-            scheduler->scheduleTask([=]() {
+            } else {
               JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), newBuffer, outPos,
                 [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);
               JSValueUnprotect(context->toJSContext(), thisObject);
               JSValueUnprotect(context->toJSContext(), arrayBuffer);
               return resolve(outputArrayBuffer);
-            });
-          });
+            }
+          };
+          std::size_t outLengthEstimatedTotal = filter->estimateOutputLength(buffer, length);
+          scheduler->scheduleTask(std::bind(handler, handler, 0, (char*)std::malloc(outLengthEstimatedTotal), 0, outLengthEstimatedTotal));
       });
     }, 0
   },
@@ -164,7 +149,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         }
         char * buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
-        std::size_t estimatedOutLength = filter->processBuffer(buffer, length);
+        std::size_t estimatedOutLength = filter->estimateOutputLength(buffer, length);
         newBuffer = (char *)std::malloc(estimatedOutLength);
         std::size_t outLength = filter->processBuffer(buffer, length, newBuffer, estimatedOutLength);
         if (outLength == 0)

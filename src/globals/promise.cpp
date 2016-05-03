@@ -54,21 +54,20 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
       {
         NX::Context * context = NX::Context::FromJsContext(ctx);
         std::vector<JSValueRef> arguments = std::vector<JSValueRef>(originalArguments, originalArguments + argumentCount);
-        NX::Globals::Promise::Executor executor = *(NX::Globals::Promise::Executor*)JSObjectGetPrivate(thisObject);
-        delete (NX::Globals::Promise::Executor*)JSObjectGetPrivate(thisObject);
+        NX::Globals::Promise::Executor executor = *reinterpret_cast<NX::Globals::Promise::Executor*>(JSObjectGetPrivate(thisObject));
+        delete reinterpret_cast<NX::Globals::Promise::Executor*>(JSObjectGetPrivate(thisObject));
         if (!executor) {
           NX::Value message(ctx, "promise executor is null");
           JSValueRef args[] { message.value(), nullptr };
           *exception = JSObjectMakeError(ctx, 1, args, nullptr);
           return JSValueMakeUndefined(ctx);
         }
-        JSObjectRef resolve = NX::Object(context->toJSContext(), arguments[0]);
-        JSObjectRef reject = NX::Object(context->toJSContext(), arguments[1]);
-        JSValueProtect(context->toJSContext(), thisObject);
-        JSValueProtect(context->toJSContext(), resolve);
-        JSValueProtect(context->toJSContext(), reject);
-        NX::Scheduler * scheduler = context->nexus()->scheduler();
+        JSObjectRef resolve = JSValueToObject(ctx, arguments[0], nullptr);
+        JSObjectRef reject = JSValueToObject(ctx, arguments[1], nullptr);
         try {
+          JSValueProtect(context->toJSContext(), thisObject);
+          JSValueProtect(context->toJSContext(), resolve);
+          JSValueProtect(context->toJSContext(), reject);
           executor(context, [=](JSValueRef resolveValue) {
             JSValueRef args[] { resolveValue };
             JSValueRef exp = nullptr;
@@ -77,6 +76,7 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
               throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
             JSValueUnprotect(context->toJSContext(), resolve);
             JSValueUnprotect(context->toJSContext(), reject);
+            JSValueUnprotect(context->toJSContext(), thisObject);
           }, [=](JSValueRef rejectValue) {
             JSValueRef args[] { rejectValue };
             JSValueRef exp = nullptr;
@@ -85,14 +85,15 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
               throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
             JSValueUnprotect(context->toJSContext(), resolve);
             JSValueUnprotect(context->toJSContext(), reject);
+            JSValueUnprotect(context->toJSContext(), thisObject);
           });
         } catch (const std::exception & e) {
           JSValueRef args[] { NX::Object(context->toJSContext(), e) };
-          JSObjectCallAsFunction(ctx, reject, nullptr, 1, args, exception);
+          JSObjectCallAsFunction(context->toJSContext(), reject, nullptr, 1, args, exception);
           JSValueUnprotect(context->toJSContext(), resolve);
           JSValueUnprotect(context->toJSContext(), reject);
+          JSValueUnprotect(context->toJSContext(), thisObject);
         }
-        JSValueUnprotect(ctx, thisObject);
         return JSValueMakeUndefined(ctx);
       }), thisObject, 0, nullptr, nullptr);
   JSValueRef args[] { jsExecutor };

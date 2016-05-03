@@ -27,11 +27,39 @@ JSClassRef NX::Classes::Task::createClass (NX::Context * context)
   return context->nexus()->defineOrGetClass (def);
 }
 
+JSObjectRef NX::Classes::Task::Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+{
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  JSClassRef emitterClass = createClass(context);
+  try {
+    NX::Object fun(context->toJSContext(), arguments[0]);
+    JSObjectRef thisObject = nullptr;
+    thisObject = JSObjectMake(ctx, emitterClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::Task(new NX::Task([=](){
+      JSValueRef exp = nullptr;
+      JSObjectCallAsFunction(context->toJSContext(), fun, nullptr, 0, nullptr, &exp);
+      if (exp) {
+        NX::Nexus::ReportException(context->toJSContext(), exp);
+      }
+      JSValueUnprotect(context->toJSContext(), thisObject);
+    }, context->nexus()->scheduler()))));
+    JSValueProtect(context->toJSContext(), thisObject);
+    return thisObject;
+  } catch (const std::exception & e) {
+    JSWrapException(ctx, e, exception);
+    return JSObjectMake(ctx, nullptr, nullptr);
+  }
+}
+
+JSObjectRef NX::Classes::Task::getConstructor(NX::Context * context)
+{
+  return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::Task::Constructor);
+}
+
 JSObjectRef NX::Classes::Task::wrapTask (JSContextRef ctx, NX::AbstractTask * task)
 {
   NX::Context * context = NX::Context::FromJsContext (ctx);
   NX::Classes::Task * wrapper = new Task (task);
-  JSObjectRef ret = JSObjectMake (ctx, createClass (context), wrapper);
+  JSObjectRef ret = JSObjectMake (context->toJSContext(), createClass (context), wrapper);
   JSValueProtect(context->toJSContext(), ret);
   auto handler = [=]() { wrapper->myTask.store(nullptr); JSValueUnprotect(context->toJSContext(), ret); };
   auto completionHandler = [=]{
@@ -54,7 +82,8 @@ JSObjectRef NX::Classes::Task::wrapTask (JSContextRef ctx, NX::AbstractTask * ta
     } else {
       wrapper->emitFast(context->toJSContext(), ret, "aborted", 0, nullptr, nullptr);
       handler();
-    }  };
+    }
+  };
   task->addCompletionHandler(completionHandler);
   task->addCancellationHandler(cancellationHandler);
   return ret;

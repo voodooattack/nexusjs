@@ -1,11 +1,10 @@
 (function() {
   const resolveValueKey = Symbol(), rejectValueKey = Symbol(),
-        subscribersKey = Symbol(), broadcastResolveKey = Symbol(),
+        subscribersKey = Symbol(), broadcastResolveKey = Symbol(), NullExecutor = Symbol(),
         broadcastRejectKey = Symbol(), taskKey = Symbol(), stateKey = Symbol();
   const PENDING = 0, RESOLVED = 1, REJECTED = 2;
   return class Promise {
     constructor(executor) {
-      if (typeof executor !== 'function') throw new TypeError('not a function');
       this[subscribersKey] = [];
       this[stateKey] = PENDING;
       const broadcastResolve = this[broadcastResolveKey] = function(value) {
@@ -16,11 +15,11 @@
         if (value instanceof Promise)
         {
           if (value[stateKey] !== PENDING) {
-            if (value[resolveValueKey])
+            if (value[stateKey] === RESOLVED)
             {
-              Nexus.Scheduler.schedule(this[broadcastResolveKey].bind(this, value[resolveValueKey]));
-            } else if (value[rejectValueKey]) {
-              Nexus.Scheduler.schedule(this[broadcastRejectKey].bind(this, value[rejectValueKey]));
+              this[taskKey] = Nexus.Scheduler.schedule(this[broadcastResolveKey].bind(this, value[resolveValueKey]));
+            } else if (value[stateKey] === REJECTED) {
+              this[taskKey] = Nexus.Scheduler.schedule(this[broadcastRejectKey].bind(this, value[rejectValueKey]));
             }
           } else {
             value[subscribersKey].push({
@@ -76,6 +75,9 @@
         error.stack = value.stack || error.stack;
         throw value instanceof Error ? error : new Error('unhandled rejection in promise');
       };
+      if (executor === NullExecutor)
+        return;
+      if (typeof executor !== 'function') throw new TypeError('not a function');
       this[taskKey] = Nexus.Scheduler.schedule(() => {
         try {
           return executor(broadcastResolve.bind(this), broadcastReject.bind(this));
@@ -85,7 +87,7 @@
       });
     }
     then(resolve, reject) {
-      if (this[resolveValueKey] || this[rejectValueKey])
+      if (this[stateKey] !== PENDING)
       {
         if (this[resolveValueKey] && resolve) {
           return Promise.resolve(this[resolveValueKey]).then(resolve);
@@ -95,7 +97,7 @@
           return Promise.reject(new TypeError('invalid arguments'));
         }
       } else {
-        const promise = new Promise(function() {});
+        const promise = new Promise(NullExecutor);
         this[subscribersKey].push({ resolve, reject, promise });
         return promise;
       }

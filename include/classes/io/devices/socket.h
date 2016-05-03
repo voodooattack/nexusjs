@@ -22,6 +22,7 @@
 
 #include "classes/io/device.h"
 #include "scheduler.h"
+#include "globals/promise.h"
 
 #include <JavaScript.h>
 #include <memory>
@@ -62,7 +63,7 @@ namespace NX {
           virtual void close() = 0;
           virtual void cancel() = 0;
 
-          virtual JSObjectRef connect(JSContextRef ctx, JSObjectRef thisObject, const std::string & address, JSValueRef * exception) = 0;
+          virtual JSObjectRef connect(JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception) = 0;
 
         };
 
@@ -125,17 +126,41 @@ namespace NX {
           virtual std::size_t available() const { return mySocket->available(); }
           virtual void cancel() { mySocket->cancel(); }
           virtual void close() { mySocket->close(); }
-          virtual JSObjectRef connect ( JSContextRef ctx, JSObjectRef thisObject, const std::string & address, JSValueRef * exception );
+          virtual JSObjectRef connect ( JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception );
           virtual bool deviceReady() const { return mySocket->is_open(); }
+          virtual std::size_t maxWriteBufferSize() const { return 65507; }
+          virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize() * 0.5; }
           virtual void deviceWrite ( const char * buffer, std::size_t length ) {
             boost::system::error_code ec;
-            mySocket->send(boost::asio::buffer(buffer, length), 0, ec);
-            if (ec)
-              throw std::runtime_error(ec.message());
+            const std::size_t maxBufferLength = maxWriteBufferSize();
+            for(std::size_t i = 0; i < length; i += maxBufferLength) {
+              length -= mySocket->send_to(boost::asio::buffer(buffer + i, std::min(maxBufferLength, length)), myEndpoint, 0, ec);
+              if (ec) {
+                throw std::runtime_error(ec.message());
+              }
+            }
           }
           virtual bool eof() const { return !mySocket->is_open(); }
-          virtual void pause ( JSContextRef ctx, JSObjectRef thisObject ) { myState.store(Paused); }
-          virtual void reset ( JSContextRef ctx, JSObjectRef thisObject ) { myState.store(Paused); }
+          virtual JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) {
+            if (myPromise) {
+              myState.store(Paused);
+              return myPromise;
+            } else {
+              NX::Context * context = NX::Context::FromJsContext(ctx);
+              return myPromise = NX::Object(context->toJSContext(),
+                NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+                  myState.store(Paused);
+                  resolve(thisObject);
+                }));
+            }
+          }
+          virtual JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) {
+            if (myState != Paused)
+              return pause(ctx, thisObject);
+            else {
+              return NX::Globals::Promise::resolve(ctx, thisObject);
+            }
+          }
           virtual JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject );
           virtual State state() const { return myState; }
         private:
@@ -143,6 +168,7 @@ namespace NX {
           std::shared_ptr< boost::asio::ip::udp::socket> mySocket;
           std::atomic<State> myState;
           boost::asio::ip::udp::endpoint myEndpoint;
+          NX::Object myPromise;
         };
 
       }

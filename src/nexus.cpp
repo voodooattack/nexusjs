@@ -92,9 +92,11 @@ void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
   NX::Object exp(ctx, exception);
   std::ostringstream stream;
   try {
+    stream << std::endl;
     stream << exp["message"]->toString() << std::endl;
     stream << "stack trace:\n" << exp["stack"]->toString() << std::endl;
     std::cerr << stream.str();
+    stream << std::endl << std::endl;
   } catch(const std::runtime_error & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
   }

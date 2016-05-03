@@ -41,8 +41,12 @@ namespace NX {
         delete FromObject(object);
       }
 
+      static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                     const JSValueRef arguments[], JSValueRef* exception);
+
     public:
       static JSClassRef createClass(NX::Context * context);
+      static JSObjectRef getConstructor(NX::Context * context);
       static JSObjectRef wrapTask(JSContextRef ctx, NX::AbstractTask * task);
 
       static NX::Classes::Task * FromObject(JSObjectRef object) {

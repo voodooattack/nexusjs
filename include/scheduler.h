@@ -31,6 +31,7 @@
 #include <boost/atomic.hpp>
 #include <boost/assert.hpp>
 #include <boost/noncopyable.hpp>
+#include <boost/thread/recursive_mutex.hpp>
 
 #include <thread>
 
@@ -60,11 +61,11 @@ namespace NX
 
     NX::AbstractTask * scheduleAbstractTask(NX::AbstractTask * task);
 
-    NX::Task * scheduleTask(CompletionHandler handler);
-    NX::Task * scheduleTask(const duration & time, CompletionHandler handler);
+    NX::Task * scheduleTask(const CompletionHandler & handler);
+    NX::Task * scheduleTask(const duration & time, const CompletionHandler & handler);
 
-    NX::CoroutineTask * scheduleCoroutine(CompletionHandler handler);
-    NX::CoroutineTask * scheduleCoroutine(const duration & time, CompletionHandler handler);
+    NX::CoroutineTask * scheduleCoroutine(const CompletionHandler & handler);
+    NX::CoroutineTask * scheduleCoroutine(const duration & time, const CompletionHandler & handler);
 
     void yield();
 
@@ -74,6 +75,9 @@ namespace NX
     unsigned int queued() const { return myTaskCount; }
     unsigned int active() const { return myActiveTaskCount; }
     unsigned int remaining() const { return myActiveTaskCount + myTaskCount; }
+
+    void hold() { myTaskCount++; }
+    void release() { myTaskCount--; }
 
     const std::shared_ptr<boost::asio::io_service> service() const { return myService; }
     std::shared_ptr<boost::asio::io_service> service() { return myService; }
@@ -94,11 +98,12 @@ namespace NX
     boost::atomic_uint myThreadCount;
     std::shared_ptr<boost::asio::io_service> myService;
     std::shared_ptr<boost::asio::io_service::work> myWork;
-    std::vector<std::thread> myThreadGroup;
+    boost::thread_group myThreadGroup;
     boost::thread_specific_ptr<NX::AbstractTask> myCurrentTask;
     TaskQueue myTaskQueue;
     boost::atomic_uint myTaskCount, myActiveTaskCount;
     boost::atomic_bool myPauseTasks;
+    boost::recursive_mutex myBalancerMutex;
   };
 }
 #endif // SCHEDULER_H

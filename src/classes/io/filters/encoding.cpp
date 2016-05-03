@@ -19,51 +19,30 @@
 
 #include "classes/io/filters/encoding.h"
 
-#include <iconv.h>
-#include <errno.h>
-
 NX::Classes::IO::Filters::EncodingConversionFilter::EncodingConversionFilter (const std::string & fromEncoding,
                                                                      const std::string & toEncoding)
-  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding), myCD(nullptr), myBuffer()
+  : Filter (), myEncodingFrom(fromEncoding), myEncodingTo(toEncoding), mySource(), myTarget()
 {
-  iconv_t cd = iconv_open(myEncodingTo.c_str(), myEncodingFrom.c_str());
-  if (cd == (iconv_t)-1)
-    throw std::runtime_error("invalid encoding specified while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
-  else
-    myCD = cd;
+  UErrorCode err = U_ZERO_ERROR;
+  mySource = ucnv_open(fromEncoding.c_str(), &err);
+  if (U_FAILURE(err))
+    throw std::runtime_error("invalid source encoding '" + myEncodingFrom + "': " + std::string(u_errorName(err)));
+  myTarget = ucnv_open(toEncoding.c_str(), &err);
+  if (U_FAILURE(err))
+    throw std::runtime_error("invalid target encoding '" + myEncodingFrom + "': " + std::string(u_errorName(err)));
 }
 
 NX::Classes::IO::Filters::EncodingConversionFilter::~EncodingConversionFilter()
 {
-  iconv_close(myCD);
+  ucnv_close(mySource);
+  ucnv_close(myTarget);
 }
 
-std::size_t NX::Classes::IO::Filters::EncodingConversionFilter::processBuffer (char * buffer, std::size_t length, char * dest, std::size_t outLength)
+std::size_t NX::Classes::IO::Filters::EncodingConversionFilter::processBuffer (const char * buffer, std::size_t length, char * dest, std::size_t outLength)
 {
-  if (!dest) return length * 4;
-  char * outPtrBeforeWriting = dest;
-  size_t result = 0;
-  errno = 0;
-  if (myBuffer.length()) {
-    myBuffer.append(buffer, length);
-    buffer = &myBuffer[0];
-    length = myBuffer.size();
-  }
-  result = iconv(myCD, &buffer, &length, &dest, &outLength);
-  myBuffer.clear();
-  if (result == (size_t)-1) {
-    if (errno == E2BIG) {
-      return 0;
-    } else if (errno == EILSEQ) {
-      throw std::runtime_error("illegal byte sequence while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
-    } else if (errno == EINVAL) {
-      if (length) {
-        myBuffer.assign(buffer, length);
-      }
-    } else {
-      std::cout << errno << std::endl;
-      throw std::runtime_error("an error occurred while converting from '" + myEncodingFrom + "' to '" + myEncodingTo + "'");
-    }
-  }
-  return dest - outPtrBeforeWriting;
+  UErrorCode err = U_ZERO_ERROR;
+  std::size_t size = ucnv_convert(myEncodingTo.c_str(), myEncodingFrom.c_str(), dest, outLength, buffer, length, &err);
+  if (U_FAILURE(err))
+    throw std::runtime_error("encoding conversion error: " + std::string(u_errorName(err)));
+  return size;
 }

@@ -85,14 +85,6 @@ const JSClassDefinition NX::Classes::IO::Devices::FilePushDevice::Class {
   NX::Classes::IO::Devices::FilePushDevice::Methods, nullptr, NX::Classes::IO::Devices::FilePushDevice::Finalize
 };
 
-NX::Classes::IO::Devices::FilePushDevice::FilePushDevice (NX::Scheduler * scheduler, const std::string & path) :
-  myScheduler (scheduler), myStream (path, std::ifstream::binary), myStatus (Paused), myTask (nullptr), myPromise()
-{
-  if (!boost::filesystem::exists (path))
-  {
-    throw std::runtime_error ("file '" + path + "' not found");
-  }
-}
 
 JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                           size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
@@ -127,88 +119,66 @@ JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::getConstructor (NX::Contex
   return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::IO::Devices::FileSinkDevice::Constructor);
 }
 
+NX::Classes::IO::Devices::FilePushDevice::FilePushDevice (NX::Scheduler * scheduler, const std::string & path) :
+  myScheduler(scheduler), myState(Paused), myTask(nullptr), myStream(path, std::ifstream::binary), myPromise(), myMutex()
+{
+  if (!boost::filesystem::exists (path))
+  {
+    throw std::runtime_error ("file '" + path + "' not found");
+  }
+}
+
 JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, JSObjectRef thisObject)
 {
-  if (myStatus == Paused)
+  if (myState == Paused)
   {
-    myStatus = Resumed;
+    myState = Resumed;
     NX::Context * context = NX::Context::FromJsContext (ctx);
-    JSValueProtect (context->toJSContext(), thisObject);
-    JSObjectRef promise = NX::Globals::Promise::createPromise (ctx, [ = ] (NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
+    JSValueProtect(context->toJSContext(), thisObject);
+    JSObjectRef promise = NX::Globals::Promise::createPromise (context->toJSContext(),
+      [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
     {
-      const std::size_t maxBufferSize = 1024 * 1024;
-      NX::AbstractTask * task = myScheduler->scheduleCoroutine ([ = ]()
-      {
-        char * buffer = (char *) std::malloc (maxBufferSize);
-
-        while (myStream.good())
-        {
-          std::size_t pos = myStream.tellg();
-          std::size_t toRead = std::min ( (std::size_t) myStream.rdbuf()->in_avail(), maxBufferSize);
-
-          if (!toRead)
-          {
-            toRead = maxBufferSize;
+      auto readHandler = [=](auto readHandler) {
+        boost::recursive_mutex::scoped_lock lock(myMutex);
+        if(myState == Resumed) {
+          const std::size_t maxSize = std::size_t(1024 * 1024);
+          char * buffer = (char*)std::malloc(maxSize);
+          myStream.read(buffer, maxSize);
+          std::size_t sizeOut = myStream.gcount();
+          if (sizeOut) {
+            JSValueRef exp = nullptr;
+            lock.unlock();
+            JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, sizeOut,
+                                                                              [](void * ptr, void * ctx) {
+                                                                                std::free(ptr);
+                                                                              }, nullptr, &exp);
+            JSValueRef args[] { arrayBuffer };
+            this->emitFast(context->toJSContext(), thisObject, "data", 1, args, &exp);
+            if (exp) {
+              std::free(buffer);
+              reject(exp);
+              myState = Paused;
+              myPromise = NX::Object();
+              JSValueUnprotect(context->toJSContext(), thisObject);
+              return;
+            }
+            lock.lock();
+          } else {
+            std::free(buffer);
           }
-
-          if (!buffer)
-          {
-            buffer = (char *) std::malloc (toRead);
-          }
-
-          std::size_t sizeOut = 0;
-          sizeOut = myStream.readsome (buffer, toRead);
-
-          if (!sizeOut)
-          {
-            myStream.read (buffer, toRead);
-            sizeOut = myStream.gcount();
-          }
-
-          if (sizeOut < toRead && sizeOut)
-          {
-            buffer = (char *) std::realloc (buffer, sizeOut);
-          }
-
-          bool eof = myStream.eof();
-
-          if (sizeOut)
-          {
-            myScheduler->scheduleTask ([ = ]()
-            {
-              JSValueRef args[]
-              {
-                JSObjectMakeArrayBufferWithBytesNoCopy (context->toJSContext(), buffer, sizeOut,
-                [] (void * bytes, void * deallocatorContext)
-                {
-                  std::free (bytes);
-                }, nullptr, nullptr),
-                JSValueMakeNumber (context->toJSContext(), pos)
-              };
-              this->emit (context->toJSContext(), thisObject, "data", 2, args, nullptr);
-            });
-            buffer = nullptr;
-          }
-
-          myScheduler->yield();
         }
-
-        myScheduler->scheduleTask ([ = ]()
-        {
-          resolve (thisObject);
-          JSValueUnprotect (context->toJSContext(), thisObject);
-        });
-      });
-      task->addCancellationHandler ([ = ]()
-      {
-        myTask.store (nullptr);
-        JSValueUnprotect (context->toJSContext(), thisObject);
-      });
-      task->addCompletionHandler ([this]()
-      {
-        myTask.store (nullptr);
-      });
-      myTask.store (task);
+        if (myStream.eof()) {
+          lock.unlock();
+          resolve(thisObject);
+          JSValueUnprotect(context->toJSContext(), thisObject);
+          myState = Paused;
+          myPromise = NX::Object();
+        } else {
+          lock.unlock();
+          myScheduler->scheduleTask(std::bind(readHandler, std::move(readHandler)));
+        }
+      };
+      myScheduler->scheduleTask(std::bind(readHandler, std::move(readHandler)));
     });
     myPromise = NX::Object (context->toJSContext(), promise);
   }

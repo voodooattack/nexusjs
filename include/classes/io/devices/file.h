@@ -22,9 +22,10 @@
 
 #include <JavaScript.h>
 #include <fstream>
-
+#include <atomic>
 #include "classes/io/device.h"
 #include "task.h"
+#include "globals/promise.h"
 
 namespace NX
 {
@@ -61,7 +62,8 @@ namespace NX
 
           virtual std::size_t devicePosition() { return myStream.tellg(); }
           virtual std::size_t deviceRead ( char * dest, std::size_t length ) {
-            return myStream.readsome(dest, length);
+            myStream.read(dest, length);
+            return myStream.gcount();
           }
 
           virtual bool deviceReady() const { return myStream.good(); }
@@ -71,7 +73,6 @@ namespace NX
           }
           virtual bool eof() const { return myStream.eof(); }
           virtual std::size_t sourceSize() {
-            std::size_t size = 0;
             std::streampos current = myStream.tellg();
             myStream.seekg(0, std::ios::beg);
             std::streampos beg = myStream.tellg();
@@ -130,21 +131,34 @@ namespace NX
             return dynamic_cast<NX::Classes::IO::Devices::FilePushDevice*>(Base::FromObject(obj));
           }
 
-          virtual bool deviceReady() const { return myStatus == State::Paused; }
-          virtual bool eof() const { myStream.eof(); }
-          virtual void pause(JSContextRef ctx, JSObjectRef thisObject) {
-            if (NX::AbstractTask * task = myTask) task->abort();
+          virtual bool deviceReady() const { return myState == State::Paused; }
+          virtual bool eof() const { boost::recursive_mutex::scoped_lock lock(myMutex); return myStream.eof(); }
+          virtual JSObjectRef pause(JSContextRef ctx, JSObjectRef thisObject) {
+            if (myState == Resumed) {
+              myState.store(Paused);
+              return myPromise;
+            } else {
+              NX::Context * context = NX::Context::FromJsContext(ctx);
+              return myPromise = NX::Object(context->toJSContext(), NX::Globals::Promise::resolve(ctx, thisObject));
+            }
           }
-          virtual void reset(JSContextRef ctx, JSObjectRef thisObject) { pause(ctx, thisObject); myStream.seekg(0, std::ios::beg); }
+          virtual JSObjectRef reset(JSContextRef ctx, JSObjectRef thisObject) {
+            return NX::Object(ctx, pause(ctx, thisObject)).then([=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
+              boost::recursive_mutex::scoped_lock lock(myMutex);
+              myStream.seekg(0, std::ios::beg);
+              return arg;
+            });
+          }
           virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject);
-          virtual State state() const { return myStatus; }
+          virtual State state() const { return myState; }
 
         private:
           NX::Scheduler * myScheduler;
-          boost::atomic<State> myStatus;
-          boost::atomic<NX::AbstractTask*> myTask;
+          std::atomic<State> myState;
+          std::atomic<NX::AbstractTask*> myTask;
           std::ifstream myStream;
           NX::Object myPromise;
+          mutable boost::recursive_mutex myMutex;
         };
 
 
@@ -172,22 +186,29 @@ namespace NX
           }
 
           virtual std::size_t devicePosition() {
+            boost::recursive_mutex::scoped_lock lock(myMutex);
             return myStream.tellp();
           }
           virtual bool deviceReady() const {
+            boost::recursive_mutex::scoped_lock lock(myMutex);
             return myStream.good();
           }
           virtual std::size_t deviceSeek ( std::size_t pos, Position from ) {
+            boost::recursive_mutex::scoped_lock lock(myMutex);
             myStream.seekp(pos, (std::ios::seekdir)from);
             return myStream.tellp();
           }
+          virtual std::size_t recommendedWriteBufferSize() const { return 1024 * 1024; }
+          virtual std::size_t maxWriteBufferSize() const { return UINT64_MAX; }
           virtual void deviceWrite ( const char * buffer, std::size_t length ) {
+            boost::recursive_mutex::scoped_lock lock(myMutex);
             myStream.write(buffer, length);
             myStream.flush();
           }
 
         private:
           std::ofstream myStream;
+          mutable boost::recursive_mutex myMutex;
         };
 
 //         class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {

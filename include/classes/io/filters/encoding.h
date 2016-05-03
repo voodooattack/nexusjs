@@ -22,7 +22,7 @@
 
 #include "classes/io/filter.h"
 
-#include <iconv.h>
+#include <unicode/ucnv.h>
 
 namespace NX {
   namespace Classes {
@@ -52,7 +52,8 @@ namespace NX {
                                     const std::string & toEncoding);
           virtual ~EncodingConversionFilter();
 
-          virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 );
+          virtual std::size_t estimateOutputLength(const char * buffer, std::size_t length) { return length * 4; }
+          virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest, std::size_t outLength);
 
           static NX::Classes::IO::Filters::EncodingConversionFilter * FromObject(JSObjectRef obj) {
             auto filter = reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
@@ -65,8 +66,7 @@ namespace NX {
 
         protected:
           std::string myEncodingFrom, myEncodingTo;
-          iconv_t myCD;
-          std::string myBuffer;
+          UConverter * mySource, * myTarget;
         };
       }
     }

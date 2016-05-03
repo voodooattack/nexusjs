@@ -62,11 +62,12 @@ namespace NX
 
   class Task: public AbstractTask {
   protected:
-    virtual ~Task() { }
+    virtual ~Task() { myScheduler->release(); }
   public:
-    Task(NX::Scheduler::CompletionHandler handler, NX::Scheduler * scheduler):
+    Task(const NX::Scheduler::CompletionHandler & handler, NX::Scheduler * scheduler):
       myHandler(handler), myScheduler(scheduler), myStatus(INACTIVE)
     {
+      scheduler->hold();
     }
     virtual Scheduler * scheduler() { return myScheduler; }
     virtual Status status() const { return myStatus; }
@@ -99,9 +100,9 @@ namespace NX
     typedef boost::coroutines::coroutine<void>::push_type push_type;
     typedef boost::coroutines::coroutine<void>::pull_type pull_type;
   protected:
-    virtual ~CoroutineTask() { }
+    virtual ~CoroutineTask() { myScheduler->release(); }
   public:
-    CoroutineTask(NX::Scheduler::CompletionHandler, NX::Scheduler *);
+    CoroutineTask(const NX::Scheduler::CompletionHandler &, NX::Scheduler *);
     virtual Scheduler * scheduler() { return myScheduler; }
     virtual Status status() const { return myStatus; }
     virtual void abort() { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }

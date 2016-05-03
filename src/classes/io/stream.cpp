@@ -48,20 +48,29 @@ JSClassRef NX::Classes::IO::ReadableStream::createClass (NX::Context * context)
   return context->nexus()->defineOrGetClass(def);
 }
 
-JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef thisObject, std::size_t length)
+JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef thisObject, std::size_t length, JSValueRef * exception)
 {
-  JSValueRef exception = nullptr;
   JSValueProtect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
-  JSValueRef promise = myDevice["read"]->toObject()->call(myDevice, std::vector<JSValueRef> { NX::Value(ctx, length).value() }, &exception);
-  if (exception) {
-    throw std::runtime_error(NX::Value(ctx, exception).toString());
+  std::string deviceType(myDevice["type"]->toString());
+  if (deviceType == "push") {
+    if (exception)
+    {
+      NX::Value message(ctx, "attempting to pull from a PushSourceDevice");
+      JSValueRef args[] { message.value(), nullptr };
+      *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+    }
+    return JSValueMakeUndefined(ctx);
+  }
+  JSValueRef promise = myDevice["read"]->toObject()->call(myDevice, std::vector<JSValueRef> { NX::Value(ctx, length).value() }, exception);
+  if (exception && *exception) {
+    return JSValueMakeUndefined(ctx);
   }
   for(auto & i : myFilters) {
     promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise).value(), std::vector<JSValueRef> {
-      NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, &exception)
+      NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, exception)
     });
-    if (exception)
-      throw std::runtime_error(NX::Value(ctx, exception).toString());
+    if (exception && *exception)
+      return JSValueMakeUndefined(ctx);
   }
   promise = NX::Object(ctx, promise)["then"]->toObject()->call(JSValueToObject(ctx, promise, nullptr), std::vector<JSValueRef> {
     JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
@@ -71,7 +80,7 @@ JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef 
     {
       JSValueUnprotect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
       return arguments[0];
-    }), thisObject, 0, nullptr, nullptr)
+    }), thisObject, 0, nullptr, exception)
   });
   return promise;
 }
@@ -105,7 +114,6 @@ JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
 JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
 {
   JSValueRef exception = nullptr;
-  JSValueProtect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
   JSValueRef promise = myDevice["write"]->toObject()->call(myDevice, std::vector<JSValueRef> { buffer }, &exception);
   if (exception) {
     throw std::runtime_error(NX::Value(ctx, exception).toString());
@@ -117,13 +125,13 @@ JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef
     if (exception)
       throw std::runtime_error(NX::Value(ctx, exception).toString());
   }
+  /* keep thisObject alive */
   promise = NX::Object(ctx, promise)["then"]->toObject()->call(JSValueToObject(ctx, promise, nullptr), std::vector<JSValueRef> {
     JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
                                                                           JSObjectRef thisObject, size_t argumentCount,
                                                                           const JSValueRef arguments[],
                                                                           JSValueRef* exception) -> JSValueRef
     {
-      JSValueUnprotect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
       return arguments[0];
     }), thisObject, 0, nullptr, nullptr)
   });
@@ -175,7 +183,7 @@ const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
         }
       }
       try {
-        return stream->read(ctx, thisObject, length);
+        return stream->read(ctx, thisObject, length, exception);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }

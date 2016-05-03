@@ -49,6 +49,9 @@ namespace NX {
     std::shared_ptr<NX::Value> operator[] (unsigned int index);
     std::shared_ptr<NX::Value> operator[] (const char * name);
 
+    std::shared_ptr<NX::Value> operator[] (unsigned int index) const;
+    std::shared_ptr<NX::Value> operator[] (const char * name) const;
+
     void set(const std::string & name, JSValueRef value, JSPropertyAttributes attr = kJSPropertyAttributeNone,
              JSValueRef * exception = nullptr)
     {
@@ -56,12 +59,17 @@ namespace NX {
       JSObjectSetProperty(myContext, myObject, propertyName, value, attr, exception);
     }
 
+    JSContextRef context() const { return myContext; }
     JSObjectRef value() const { return myObject; }
 
     operator JSObjectRef() const { return myObject; }
 
     JSObjectRef construct(const std::vector<JSValueRef> & args = std::vector<JSValueRef>(), JSValueRef * exception = nullptr) {
       return JSObjectCallAsConstructor(myContext, myObject, args.size(), &args[0], exception);
+    }
+
+    JSValueRef call(JSObjectRef thisObject, const std::vector<JSValueRef> & args = std::vector<JSValueRef>(), JSValueRef * exception = nullptr) const {
+      return JSObjectCallAsFunction(myContext, myObject, thisObject, args.size(), &args[0], exception);
     }
 
     JSValueRef call(JSObjectRef thisObject, const std::vector<JSValueRef> & args = std::vector<JSValueRef>(), JSValueRef * exception = nullptr) {
@@ -76,6 +84,10 @@ namespace NX {
 
     void * getPrivate() { return JSObjectGetPrivate(myObject); }
     void setPrivate(void * priv) { JSObjectSetPrivate(myObject, priv); }
+
+    typedef std::function<JSValueRef(JSContextRef, JSValueRef, JSValueRef *)> PromiseCallback;
+
+    JSObjectRef then(PromiseCallback onResolve, PromiseCallback onReject = PromiseCallback());
 
   private:
     JSContextRef myContext;

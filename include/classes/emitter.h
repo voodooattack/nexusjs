@@ -25,6 +25,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <boost/noncopyable.hpp>
+#include <boost/thread/recursive_mutex.hpp>
 
 #include "object.h"
 #include "classes/base.h"
@@ -58,18 +59,18 @@ namespace NX
       Emitter(): myMap() {}
       virtual ~Emitter() {}
 
-      virtual JSValueRef addListener(JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback) {
+      virtual JSValueRef addListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback) {
         return addManyListener(ctx, thisObject, e, callback, -1);
       }
-      virtual JSValueRef addOnceListener(JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback) {
+      virtual JSValueRef addOnceListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback) {
         return addManyListener(ctx, thisObject, e, callback, 1);
       }
-      virtual JSValueRef addManyListener( JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback, int count );
-      virtual JSValueRef removeListener( JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback );
-      virtual JSValueRef removeAllListeners( JSContextRef ctx, JSObjectRef thisObject, const std::string & e );
+      virtual JSValueRef addManyListener( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback, int count );
+      virtual JSValueRef removeListener( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback );
+      virtual JSValueRef removeAllListeners( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e );
 
       /* Returns a Promise! */
-      virtual JSObjectRef emit( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
+      virtual JSObjectRef emit( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string e,
                                 std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
 
       /* Faster version that returns nothing */
@@ -78,6 +79,7 @@ namespace NX
 
     protected:
       virtual void tidy(const std::string & e) {
+        boost::recursive_mutex::scoped_lock lock(myMutex);
         if (myMap.find(e) != myMap.end()) {
           for(auto i = myMap[e].begin(); i != myMap[e].end();)
           {
@@ -94,12 +96,22 @@ namespace NX
 
     private:
       struct Event: public boost::noncopyable {
-        Event(const std::string & name, const NX::Object & handler, int count): name(name), handler(handler), count(count) {  }
+        Event(const std::string & name, JSObjectRef handler, JSGlobalContextRef context, int count):
+          name(name), handler(handler), context(context), count(count)
+        {
+          JSGlobalContextRetain(context);
+          JSValueProtect(context, handler);
+        }
+        ~Event() {
+          JSValueUnprotect(context, handler);
+          JSGlobalContextRelease(context);
+        }
         std::string name;
-        NX::Object handler;
+        JSObjectRef handler;
+        JSGlobalContextRef context;
         std::atomic_int count;
       };
-
+      boost::recursive_mutex myMutex;
       std::unordered_map<std::string, std::vector<std::shared_ptr<NX::Classes::Emitter::Event>>> myMap;
     };
   }

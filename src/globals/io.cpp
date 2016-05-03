@@ -23,6 +23,7 @@
 #include "classes/io/device.h"
 #include "classes/io/filter.h"
 #include "classes/io/stream.h"
+#include "classes/io/devices/socket.h"
 #include "classes/io/devices/file.h"
 #include "classes/io/filters/encoding.h"
 #include "classes/io/filters/utf8stringfilter.h"
@@ -76,6 +77,24 @@ const JSStaticValue NX::Globals::IO::Properties[] {
         return File;
       JSObjectRef constructor = NX::Classes::IO::Devices::FileSinkDevice::getConstructor(context);
       context->setGlobal("IO.FileSinkDevice", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "SocketDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.Socket"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::Devices::Socket::getConstructor(context);
+      context->setGlobal("IO.Socket", constructor);
+      return constructor;
+    },
+    nullptr, kJSPropertyAttributeNone },
+  { "UDPSocketDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      NX::Context * context = Context::FromJsContext(ctx);
+      if (JSObjectRef File = context->getGlobal("IO.UDPSocket"))
+        return File;
+      JSObjectRef constructor = NX::Classes::IO::Devices::UDPSocket::getConstructor(context);
+      context->setGlobal("IO.UDPSocket", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },

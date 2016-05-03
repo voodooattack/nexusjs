@@ -2,8 +2,20 @@
 project(nexus)
 
 find_package(Boost 1.58 COMPONENTS program_options system thread filesystem coroutine context REQUIRED)
-find_package(Iconv REQUIRED)
+find_package(ICU REQUIRED)
 find_package(JavaScriptCore REQUIRED)
+
+if(MSVC)
+  # Force to always compile with W4
+  if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+  endif()
+elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  # Update if necessary
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
+endif()
 
 add_subdirectory(js)
 add_executable(nexus
@@ -30,10 +42,10 @@ add_executable(nexus
   classes/base.cpp
 )
 
-target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICONV_LIBRARIES} pthread)
+target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICU_LIBRARIES} pthread)
 target_include_directories(nexus
   PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/generated/
-  SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICONV_INCLUDE_DIR}
+  SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICU_INCLUDE_DIR}
 )
 
 link_directories(${Boost_LIBRARY_DIRS})

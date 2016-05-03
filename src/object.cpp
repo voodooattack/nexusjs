@@ -19,7 +19,9 @@
 
 #include "object.h"
 #include "value.h"
+#include "context.h"
 #include "scoped_string.h"
+#include <nexus.h>
 
 #include <stdexcept>
 
@@ -78,7 +80,7 @@ NX::Object::Object (JSContextRef context, const std::exception & e): myContext(c
   JSValueProtect(myContext, myObject);
 }
 
-NX::Object::Object (JSContextRef context, const boost::system::error_code & e)
+NX::Object::Object (JSContextRef context, const boost::system::error_code & e): myContext(context), myObject(nullptr)
 {
   NX::Value message(myContext, e.message());
   JSValueRef args[] { message.value() };
@@ -118,8 +120,63 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index)
   return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
 
+std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name) const
+{
+  if (!myObject) return std::shared_ptr<NX::Value>(nullptr);
+  NX::ScopedString nameRef(name);
+  JSValueRef exception = nullptr;
+  JSValueRef val = JSObjectGetProperty(myContext, myObject, nameRef, &exception);
+  if (exception) {
+    NX::Value except(myContext, exception);
+    throw std::runtime_error(except.toString());
+  }
+  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+}
+
+std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index) const
+{
+  if (!myObject) return std::shared_ptr<NX::Value>(nullptr);
+  JSValueRef exception;
+  JSValueRef val = JSObjectGetPropertyAtIndex(myContext, myObject, index, &exception);
+  if (exception) {
+    NX::Value except(myContext, exception);
+    throw std::runtime_error(except.toString());
+  }
+  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+}
+
 std::string NX::Object::toString()
 {
   NX::Value val(myContext, myObject);
   return val.toString();
+}
+
+JSObjectRef NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::PromiseCallback onReject)
+{
+  struct PromiseData {
+    PromiseCallback onResolve;
+    PromiseCallback onReject;
+  };
+  JSObjectRef dataCarrier = JSObjectMake(myContext, NX::Context::FromJsContext(myContext)->nexus()->genericClass(), new PromiseData { onResolve, onReject });
+  JSValueRef resolve = onResolve ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, nullptr, [](JSContextRef ctx, JSObjectRef function,
+                                                                                                         JSObjectRef thisObject, size_t argumentCount,
+                                                                                                         const JSValueRef arguments[],
+                                                                                                         JSValueRef* exception) -> JSValueRef
+  {
+    PromiseData * promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
+    JSValueRef val = promiseData->onResolve(ctx, arguments[0], exception);
+    delete promiseData;
+    return val;
+  }), dataCarrier, 0, nullptr, nullptr) : JSValueMakeUndefined(myContext);
+  JSValueRef reject = onReject ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, nullptr, [](JSContextRef ctx, JSObjectRef function,
+                                                                                                         JSObjectRef thisObject, size_t argumentCount,
+                                                                                                         const JSValueRef arguments[],
+                                                                                                         JSValueRef* exception) -> JSValueRef
+  {
+    PromiseData * promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
+    JSValueRef val = promiseData->onReject(ctx, arguments[0], exception);
+    delete promiseData;
+    return val;
+  }), dataCarrier, 0, nullptr, nullptr) : JSValueMakeUndefined(myContext);
+  return JSValueToObject(myContext, operator[]("then")->toObject()->call(myObject, std::vector<JSValueRef> { resolve, reject }, nullptr), nullptr);
 }

@@ -2,7 +2,7 @@ const promises = [];
 const startTime = Date.now();
 
 for(let i = 0; i < 4; i++) {
-  const device = new Nexus.IO.FilePullDevice('enwik8');
+  const device = new Nexus.IO.FilePushDevice('enwik8');
   const stream = new Nexus.IO.ReadableStream(device);
 
   stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-16LE"));

@@ -29,7 +29,8 @@ JSClassRef NX::Classes::Emitter::createClass (NX::Context * context)
   return context->nexus()->defineOrGetClass (def);
 }
 
-JSObjectRef NX::Classes::Emitter::Constructor (JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+JSObjectRef NX::Classes::Emitter::Constructor (JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
+                                               const JSValueRef arguments[], JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSClassRef emitterClass = createClass(context);
@@ -46,73 +47,77 @@ JSObjectRef NX::Classes::Emitter::getConstructor (NX::Context * context)
   return JSObjectMakeConstructor(context->toJSContext(), createClass(context), NX::Classes::Emitter::Constructor);
 }
 
-JSValueRef NX::Classes::Emitter::addManyListener (JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback, int count)
+JSValueRef NX::Classes::Emitter::addManyListener (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback, int count)
 {
-  myMap[e].push_back(std::shared_ptr<Event>(new Event(e, callback, count)));
+  boost::recursive_mutex::scoped_lock lock(myMutex);
+  myMap[e].push_back(std::shared_ptr<Event>(new Event(e, callback, ctx, count)));
   return JSValueMakeUndefined(ctx);
 }
 
-JSObjectRef NX::Classes::Emitter::emit (JSContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
+JSObjectRef NX::Classes::Emitter::emit (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
                                         argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  NX::Context * context = NX::Context::FromJsContext(ctx);
+  boost::recursive_mutex::scoped_lock lock(myMutex);
   if (myMap.find(e) != myMap.end()) {
-    ProtectedArguments args(context->toJSContext(), argumentCount, arguments);
+    ProtectedArguments args(ctx, argumentCount, arguments);
     std::vector<JSValueRef> promises;
     for(auto & i: myMap[e])
     {
-      JSValueProtect(context->toJSContext(), thisObject);
+      JSValueProtect(ctx, thisObject);
       if (i->count > 0)
         i->count--;
-      NX::Object func(context->toJSContext(), JSBindFunction(context->toJSContext(), i->handler, nullptr, args.count(), args, nullptr));
-      promises.push_back(NX::Globals::Promise::createPromise(context->toJSContext(),
+      NX::Object func(i->context, i->handler);
+      promises.push_back(NX::Globals::Promise::createPromise(ctx,
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-          NX::Object funcCopy(context->toJSContext(), func);
+          NX::Object funcCopy(func);
           JSValueRef exp = nullptr;
           JSValueRef val = funcCopy.call(nullptr, args.vector(), &exp);
           if (exp)
             reject(exp);
           else
             resolve(val);
-          JSValueUnprotect(context->toJSContext(), thisObject);
+          JSValueUnprotect(ctx, thisObject);
         }));
     }
     tidy(e);
-    return NX::Globals::Promise::all(context->toJSContext(), promises);
+    return NX::Globals::Promise::all(ctx, promises);
   } else
-    return NX::Globals::Promise::resolve(context->toJSContext(), JSValueMakeUndefined(context->toJSContext()));
+    return NX::Globals::Promise::resolve(ctx, JSValueMakeUndefined(ctx));
 }
 
 
 void NX::Classes::Emitter::emitFast (JSContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
-argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+                                     argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  NX::Context * context = NX::Context::FromJsContext(ctx);
+  boost::recursive_mutex::scoped_lock lock(myMutex);
   if (myMap.find(e) != myMap.end()) {
-    ProtectedArguments args(context->toJSContext(), argumentCount, arguments);
-    for(auto & i: myMap[e])
+    for(auto i: myMap[e])
     {
       if (i->count > 0)
         i->count--;
-      NX::Object func(context->toJSContext(), JSBindFunction(context->toJSContext(), i->handler, nullptr, args.count(), args, nullptr));
-      JSValueRef exp = nullptr;
-      func.call(nullptr, args.vector(), exception);
+      lock.unlock();
+      JSObjectCallAsFunction(i->context, i->handler, nullptr, argumentCount, arguments, exception);
+      lock.lock();
+      if (exception && *exception)
+        break;
     }
     tidy(e);
   }
 }
 
-JSValueRef NX::Classes::Emitter::removeAllListeners (JSContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string & e)
+JSValueRef NX::Classes::Emitter::removeAllListeners (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e)
 {
+  boost::recursive_mutex::scoped_lock lock(myMutex);
   myMap.erase(e);
   return JSValueMakeUndefined(ctx);
 }
 
-JSValueRef NX::Classes::Emitter::removeListener (JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback)
+JSValueRef NX::Classes::Emitter::removeListener (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback)
 {
+  boost::recursive_mutex::scoped_lock lock(myMutex);
   if (myMap.find(e) != myMap.end()) {
-    myMap[e].erase(std::remove_if(myMap[e].begin(), myMap[e].end(), [&](auto & e) {
-      return JSValueIsStrictEqual(ctx, callback.value(), e->handler.value());
+    myMap[e].erase(std::remove_if(myMap[e].begin(), myMap[e].end(), [&](auto & event) {
+      return JSValueIsStrictEqual(ctx, callback, event->handler);
     }), myMap[e].end());
   }
   return JSValueMakeUndefined(ctx);
@@ -123,21 +128,6 @@ const JSClassDefinition NX::Classes::Emitter::Class {
   NX::Classes::Emitter::Methods, nullptr, NX::Classes::Emitter::Finalize
 };
 
-// virtual void addListener(JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback) {
-//   return addManyListener(ctx, thisObject, e, callback, -1);
-// }
-// virtual void addOnceListener(JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback) {
-//   return addManyListener(ctx, thisObject, e, callback, 1);
-// }
-// virtual void addManyListener( JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback, int count );
-// virtual void removeListener( JSContextRef ctx, JSObjectRef thisObject, const std::string & e, const NX::Object & callback );
-// virtual void removeAllListeners( JSContextRef ctx, JSObjectRef thisObject, const std::string & e );
-//
-// /* Returns a Promise! */
-// virtual JSObjectRef emit( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
-//                           std::size_t argumentCount, JSValueRef arguments[], JSValueRef * exception );
-
-
 const JSStaticValue NX::Classes::Emitter::Properties[] {
   { nullptr, nullptr, nullptr, 0 }
 };
@@ -146,12 +136,15 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
   { "on", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
+        NX::Context * context = NX::Context::FromJsContext(ctx);
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
           throw std::runtime_error("invalid arguments");
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
-        return emitter->addListener(ctx, thisObject, NX::Value(ctx, arguments[0]).toString(), NX::Object(ctx, arguments[1]));
+        return emitter->addListener(context->toJSContext(), thisObject,
+                                    NX::Value(context->toJSContext(), arguments[0]).toString(),
+                                    NX::Object(context->toJSContext(), arguments[1]));
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -162,10 +155,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
           throw std::runtime_error("invalid arguments");
+        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
-        return emitter->addOnceListener(ctx, thisObject, NX::Value(ctx, arguments[0]).toString(), NX::Object(ctx, arguments[1]));
+        return emitter->addOnceListener(context->toJSContext(), thisObject, NX::Value(context->toJSContext(), arguments[0]).toString(), NX::Object(context->toJSContext(), arguments[1]));
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -177,11 +171,14 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
         if (argumentCount != 3 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject ||
           JSValueGetType(ctx, arguments[2]) != kJSTypeNumber)
             throw std::runtime_error("invalid arguments");
+        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
-        return emitter->addManyListener(ctx, thisObject, NX::Value(ctx, arguments[0]).toString(),
-                                        NX::Object(ctx, arguments[1]), NX::Value(ctx, arguments[2]).toNumber());
+        return emitter->addManyListener(context->toJSContext(), thisObject,
+                                        NX::Value(context->toJSContext(), arguments[0]).toString(),
+                                        NX::Object(context->toJSContext(), arguments[1]),
+                                        NX::Value(context->toJSContext(), arguments[2]).toNumber());
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -192,10 +189,13 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
           throw std::runtime_error("invalid arguments");
+        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
-        return emitter->removeListener(ctx, thisObject, NX::Value(ctx, arguments[0]).toString(), NX::Object(ctx, arguments[1]));
+        return emitter->removeListener(context->toJSContext(), thisObject,
+                                       NX::Value(context->toJSContext(), arguments[0]).toString(),
+                                       NX::Object(context->toJSContext(), arguments[1]));
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -206,10 +206,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
           throw std::runtime_error("invalid arguments");
+        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
-        return emitter->removeAllListeners(ctx, thisObject, NX::Value(ctx, arguments[0]).toString());
+        return emitter->removeAllListeners(context->toJSContext(), thisObject, NX::Value(context->toJSContext(), arguments[0]).toString());
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -220,10 +221,12 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
           throw std::runtime_error("invalid arguments");
+        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
-        return emitter->emit(ctx, thisObject, NX::Value(ctx, arguments[0]).toString(), argumentCount - 1, arguments + 1, exception);
+        return emitter->emit(context->toJSContext(), thisObject,
+                             NX::Value(context->toJSContext(), arguments[0]).toString(), argumentCount - 1, arguments + 1, exception);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }

@@ -34,22 +34,25 @@ NX::Scheduler::Scheduler (NX::Nexus * nexus, unsigned int maxThreads):
 
 NX::Scheduler::~Scheduler()
 {
-
+  this->stop();
+  myThreadGroup.join_all();
 }
 
 void NX::Scheduler::addThread()
 {
-  myThreadGroup.emplace_back(std::bind(&NX::Scheduler::dispatcher, this));
+  myThreadGroup.add_thread(new boost::thread(boost::bind(&NX::Scheduler::dispatcher, this)));
 }
 
 void NX::Scheduler::dispatcher()
 {
   myThreadCount++;
-  while (!myService->stopped() && remaining())
+  while (myService->poll_one() || remaining())
   {
-    if (!processTasks() & !myService->poll())
+    if (!processTasks())
       std::this_thread::sleep_for(std::chrono::microseconds(200));
     std::this_thread::yield();
+    if (myService->stopped())
+      break;
   }
   myThreadCount--;
 }
@@ -65,7 +68,6 @@ bool NX::Scheduler::processTasks()
   NX::AbstractTask * task = nullptr;
   if (myTaskQueue.pop(task))
   {
-    myTaskCount--;
     myActiveTaskCount++;
     myCurrentTask.reset(task);
     if (myCurrentTask->status() != NX::AbstractTask::ABORTED) {
@@ -77,7 +79,6 @@ bool NX::Scheduler::processTasks()
       if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::PENDING)
       {
         myTaskQueue.push(myCurrentTask.release());
-        myTaskCount++;
       }
       else if (myCurrentTask.get()) {
         myCurrentTask->exit();
@@ -95,11 +96,6 @@ void NX::Scheduler::balanceThreads()
 {
   while(myThreadGroup.size() < myMaxThreads && myThreadGroup.size() < myTaskCount)
     addThread();
-  for(auto i = myThreadGroup.begin(); i != myThreadGroup.end();)
-    if (!i->joinable())
-      myThreadGroup.erase(i++);
-    else
-      ++i;
 }
 
 void NX::Scheduler::start()
@@ -113,13 +109,12 @@ void NX::Scheduler::start()
 void NX::Scheduler::stop()
 {
   myWork.reset();
+  myService->stop();
 }
 
 void NX::Scheduler::join()
 {
-  for(auto & i: myThreadGroup)
-    if (i.joinable())
-      i.join();
+  myThreadGroup.join_all();
 }
 
 NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task)
@@ -129,41 +124,37 @@ NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task)
   return task;
 }
 
-NX::Task * NX::Scheduler::scheduleTask (NX::Scheduler::CompletionHandler handler)
+NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::CompletionHandler & handler)
 {
   NX::Task * task = new NX::Task(handler, this);
-  myTaskCount++;
   scheduleAbstractTask(task);
   return task;
 }
 
-NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, NX::Scheduler::CompletionHandler handler)
+NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, const NX::Scheduler::CompletionHandler & handler)
 {
   NX::Task * taskObject = new NX::Task(handler, this);
   std::shared_ptr<timer_type> timer(new timer_type(*myService));
-  myTaskCount++;
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
-  taskObject->addCancellationHandler([=]() { timer->cancel(); myTaskCount--; });
+  taskObject->addCancellationHandler([=]() { timer->cancel(); });
   return taskObject;
 }
 
-NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (NX::Scheduler::CompletionHandler handler)
+NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::CompletionHandler & handler)
 {
   NX::CoroutineTask * task = new NX::CoroutineTask(handler, this);
-  myTaskCount++;
   scheduleAbstractTask(task);
   return task;
 }
 
-NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::duration & time, NX::Scheduler::CompletionHandler handler)
+NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::duration & time, const NX::Scheduler::CompletionHandler & handler)
 {
   NX::CoroutineTask * taskObject = new NX::CoroutineTask(handler, this);
   std::shared_ptr<timer_type> timer(new timer_type(*myService));
-  myTaskCount++;
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
-  taskObject->addCancellationHandler([=]() { timer->cancel(); myTaskCount--; });
+  taskObject->addCancellationHandler([=]() { timer->cancel(); });
   return taskObject;
 }
 

@@ -22,10 +22,10 @@
 
 #include <iostream>
 
-NX::CoroutineTask::CoroutineTask (NX::Scheduler::CompletionHandler handler, NX::Scheduler * scheduler):
+NX::CoroutineTask::CoroutineTask (const NX::Scheduler::CompletionHandler & handler, NX::Scheduler * scheduler):
   myHandler(handler), myScheduler(scheduler), myCoroutine(), myPullCa(nullptr), myStatus(INACTIVE)
 {
-
+  scheduler->hold();
 }
 
 void NX::CoroutineTask::create()

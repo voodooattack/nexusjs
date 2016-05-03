@@ -99,8 +99,8 @@ namespace NX
 
         virtual State state() const = 0;
 
-        virtual void reset(JSContextRef ctx, JSObjectRef thisObject) = 0;
-        virtual void pause(JSContextRef ctx, JSObjectRef thisObject) = 0;
+        virtual JSObjectRef reset(JSContextRef ctx, JSObjectRef thisObject) = 0;
+        virtual JSObjectRef pause(JSContextRef ctx, JSObjectRef thisObject) = 0;
         virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject) = 0;
 
         static NX::Classes::IO::PushSourceDevice * FromObject(JSObjectRef obj) {
@@ -114,6 +114,8 @@ namespace NX
       };
 
       struct SinkDevice: public virtual Device {
+        virtual std::size_t maxWriteBufferSize() const = 0;
+        virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize(); }
         virtual void deviceWrite(const char * buffer, std::size_t length) = 0;
 
         static NX::Classes::IO::SinkDevice * FromObject(JSObjectRef obj) {

@@ -245,12 +245,7 @@ JSStaticFunction NX::Classes::IO::PushSourceDevice::Methods[] {
       NX::Classes::IO::PushSourceDevice * dev = NX::Classes::IO::PushSourceDevice::FromObject(thisObject);
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
-        JSValueProtect(context->toJSContext(), thisObject);
-        return Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-          dev->reset(ctx, thisObject);
-          resolve(thisObject);
-          JSValueUnprotect(context->toJSContext(), thisObject);
-        });
+        return dev->reset(ctx, thisObject);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -262,12 +257,7 @@ JSStaticFunction NX::Classes::IO::PushSourceDevice::Methods[] {
       NX::Classes::IO::PushSourceDevice * dev = NX::Classes::IO::PushSourceDevice::FromObject(thisObject);
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
-        JSValueProtect(context->toJSContext(), thisObject);
-        return Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-          dev->pause(ctx, thisObject);
-          resolve(thisObject);
-          JSValueUnprotect(context->toJSContext(), thisObject);
-        });
+        return dev->pause(ctx, thisObject);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -348,7 +338,7 @@ JSStaticFunction NX::Classes::IO::PullSourceDevice::Methods[] {
               std::size_t read = dev->deviceRead(buffer + i, std::min(chunkSize, readLength - i));
               readSoFar += read;
               if (!read || dev->eof()) break;
-                                     scheduler->yield();
+              scheduler->yield();
             }
             if (readSoFar != readLength)
               buffer = (char *)std::realloc(buffer, readSoFar);
@@ -447,34 +437,33 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       JSValueProtect(context->toJSContext(), arrayBuffer);
       JSValueProtect(context->toJSContext(), thisObject);
       NX::Scheduler * scheduler = context->nexus()->scheduler();
-      std::size_t chunkSize = 1024 * 1024;
+      std::size_t chunkSize = dev->recommendedWriteBufferSize();
       const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
       return NX::Globals::Promise::createPromise(context->toJSContext(),
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        scheduler->scheduleCoroutine([=]{
+        auto handler = [=](auto handler, std::size_t i, std::size_t length) {
           try {
             if(!dev->deviceReady())
               throw std::runtime_error("device not ready");
-            for(std::size_t i = 0; i < length; i += chunkSize)
+            if(i < length)
             {
               dev->deviceWrite(buffer + offset + i, std::min(chunkSize, length - i));
-              if (length - i > chunkSize)
-                scheduler->yield();
-            }
-            scheduler->scheduleTask([=]() {
+            } else {
               resolve(thisObject);
               JSValueUnprotect(context->toJSContext(), thisObject);
               JSValueUnprotect(context->toJSContext(), arrayBuffer);
-            });
+              return;
+            }
           } catch (const std::exception & e) {
-            scheduler->scheduleTask([=]() {
-              reject(NX::Object(context->toJSContext(), e));
-              JSValueUnprotect(context->toJSContext(), thisObject);
-              JSValueUnprotect(context->toJSContext(), arrayBuffer);
-            });
+            reject(NX::Object(context->toJSContext(), e));
+            JSValueUnprotect(context->toJSContext(), thisObject);
+            JSValueUnprotect(context->toJSContext(), arrayBuffer);
+            return;
           }
-        });
+          scheduler->scheduleTask(std::bind(handler, handler, i + chunkSize, length));
+        };
+        scheduler->scheduleTask(std::bind(handler, handler, 0, length));
       });
     }, 0
   },

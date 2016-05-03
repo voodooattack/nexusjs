@@ -49,7 +49,8 @@ namespace NX {
           UTF8StringFilter () {}
           virtual ~UTF8StringFilter() {}
 
-          virtual std::size_t processBuffer(char * buffer, std::size_t length, char * dest = nullptr, std::size_t outLength = 0 ) { return 0; }
+          virtual std::size_t estimateOutputLength(const char * buffer, std::size_t length) { return length; }
+          virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest, std::size_t outLength) { return 0; }
 
           static NX::Classes::IO::Filters::UTF8StringFilter * FromObject(JSObjectRef obj) {
             auto filter = reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
