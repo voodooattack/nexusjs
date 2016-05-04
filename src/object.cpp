@@ -151,7 +151,7 @@ std::string NX::Object::toString()
   return val.toString();
 }
 
-JSObjectRef NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::PromiseCallback onReject)
+NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::PromiseCallback onReject)
 {
   struct PromiseData {
     PromiseCallback onResolve;
@@ -178,5 +178,5 @@ JSObjectRef NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::
     delete promiseData;
     return val;
   }), dataCarrier, 0, nullptr, nullptr) : JSValueMakeUndefined(myContext);
-  return JSValueToObject(myContext, operator[]("then")->toObject()->call(myObject, std::vector<JSValueRef> { resolve, reject }, nullptr), nullptr);
+  return NX::Object(myContext, operator[]("then")->toObject()->call(myObject, std::vector<JSValueRef> { resolve, reject }, nullptr));
 }

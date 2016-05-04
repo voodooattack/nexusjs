@@ -59,6 +59,14 @@ namespace NX {
       JSObjectSetProperty(myContext, myObject, propertyName, value, attr, exception);
     }
 
+    NX::Object & operator= (const NX::Object & other) {
+      myContext = other.myContext;
+      myObject = other.myObject;
+      if (myContext && myObject)
+        JSValueProtect(myContext, myObject);
+      return *this;
+    }
+
     JSContextRef context() const { return myContext; }
     JSObjectRef value() const { return myObject; }
 
@@ -87,7 +95,7 @@ namespace NX {
 
     typedef std::function<JSValueRef(JSContextRef, JSValueRef, JSValueRef *)> PromiseCallback;
 
-    JSObjectRef then(PromiseCallback onResolve, PromiseCallback onReject = PromiseCallback());
+    NX::Object then(PromiseCallback onResolve, PromiseCallback onReject = PromiseCallback());
 
   private:
     JSContextRef myContext;

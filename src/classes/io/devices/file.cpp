@@ -135,52 +135,76 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
     myState = Resumed;
     NX::Context * context = NX::Context::FromJsContext (ctx);
     JSValueProtect(context->toJSContext(), thisObject);
-    JSObjectRef promise = NX::Globals::Promise::createPromise (context->toJSContext(),
-      [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
-    {
-      auto readHandler = [=](auto readHandler) {
-        boost::recursive_mutex::scoped_lock lock(myMutex);
-        if(myState == Resumed) {
-          const std::size_t maxSize = std::size_t(1024 * 1024);
-          char * buffer = (char*)std::malloc(maxSize);
-          myStream.read(buffer, maxSize);
-          std::size_t sizeOut = myStream.gcount();
-          if (sizeOut) {
-            JSValueRef exp = nullptr;
-            lock.unlock();
-            JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, sizeOut,
-                                                                              [](void * ptr, void * ctx) {
-                                                                                std::free(ptr);
-                                                                              }, nullptr, &exp);
-            JSValueRef args[] { arrayBuffer };
-            this->emitFast(context->toJSContext(), thisObject, "data", 1, args, &exp);
-            if (exp) {
-              std::free(buffer);
-              reject(exp);
-              myState = Paused;
-              myPromise = NX::Object();
-              JSValueUnprotect(context->toJSContext(), thisObject);
-              return;
+    JSValueRef exp = nullptr;
+    myPromise = NX::Object(ctx, this->emit(context->toJSContext(), thisObject, "resumed", 0, nullptr, &exp)).then(
+      [=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
+       return NX::Globals::Promise::createPromise (context->toJSContext(),
+          [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
+        {
+          auto readHandler = [=](auto readHandler) {
+            boost::recursive_mutex::scoped_lock lock(myMutex);
+            if(myState == Resumed) {
+              const std::size_t maxSize = std::size_t(1024 * 1024);
+              char * buffer = (char*)std::malloc(maxSize);
+              std::size_t sizeOut = myStream.readsome(buffer, maxSize);
+              if (!sizeOut) {
+                myStream.read(buffer, maxSize);
+                sizeOut = myStream.gcount();
+              }
+              if (sizeOut) {
+                JSValueRef exp = nullptr;
+                lock.unlock();
+                JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, sizeOut,
+                                                                                  [](void * ptr, void * ctx) {
+                                                                                    std::free(ptr);
+                                                                                  }, nullptr, &exp);
+                JSValueRef args[] { arrayBuffer };
+                NX::Object(context->toJSContext(), this->emit(context->toJSContext(), thisObject, "data", 1, args, &exp))
+                  .then([=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
+                    myScheduler->scheduleTask(std::bind(readHandler, readHandler));
+                    return arg;
+                  }, [=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
+                    reject(arg);
+                    return arg;
+                  });
+                if (exp) {
+                  std::free(buffer);
+                  reject(exp);
+                  myState = Paused;
+                  JSValueUnprotect(context->toJSContext(), thisObject);
+                }
+              } else {
+                std::free(buffer);
+                if (myStream.eof()) {
+                  lock.unlock();
+                  resolve(NX::Globals::Promise::createPromise (context->toJSContext(),
+                    [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
+                  {
+                    JSValueRef exp = nullptr;
+                    JSObjectRef result = this->emit(context->toJSContext(), thisObject, "end", 0, nullptr, &exp);
+                    JSValueUnprotect(context->toJSContext(), thisObject);
+                    if (!exp)
+                      resolve(result);
+                    else
+                      reject(exp);
+                  }));
+                  myState = Paused;
+                } else {
+                  lock.unlock();
+                  myScheduler->scheduleTask(std::bind(readHandler, readHandler));
+                }
+              }
             }
-            lock.lock();
-          } else {
-            std::free(buffer);
-          }
-        }
-        if (myStream.eof()) {
-          lock.unlock();
-          resolve(thisObject);
-          JSValueUnprotect(context->toJSContext(), thisObject);
-          myState = Paused;
-          myPromise = NX::Object();
-        } else {
-          lock.unlock();
-          myScheduler->scheduleTask(std::bind(readHandler, std::move(readHandler)));
-        }
-      };
-      myScheduler->scheduleTask(std::bind(readHandler, std::move(readHandler)));
-    });
-    myPromise = NX::Object (context->toJSContext(), promise);
+          };
+          myScheduler->scheduleTask(std::bind(readHandler, readHandler));
+        });
+      }
+    );
+    if (exp) {
+      myState = Paused;
+      myPromise = NX::Object(context->toJSContext(), NX::Globals::Promise::reject(ctx, exp));
+      JSValueUnprotect(context->toJSContext(), thisObject);
+    }
   }
   return myPromise;
 }
