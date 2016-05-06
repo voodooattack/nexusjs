@@ -92,18 +92,18 @@
     then(resolve, reject) {
       if (this[stateKey] !== PENDING)
       {
-        if (this[resolveValueKey] && resolve) {
+        if (this[stateKey] === RESOLVED && resolve) {
           return Promise.resolve(this[resolveValueKey]).then(resolve);
-        } else if (this[rejectValueKey] && reject) {
+        } else if (this[stateKey] === REJECTED && reject) {
           return Promise.reject(this[rejectValueKey]).then(reject);
-        } else {
-          return Promise.reject(new TypeError('invalid arguments'));
         }
-      } else {
-        const promise = new Promise(NullExecutor);
-        this[subscribersKey].push({ resolve, reject, promise });
-        return promise;
       }
+      if (!resolve && !reject) {
+        return Promise.reject(new TypeError('invalid arguments passed to promise.then'));
+      }
+      const promise = new Promise(NullExecutor);
+      this[subscribersKey].push({ resolve, reject, promise });
+      return promise;
     }
     catch(handler) {
       return this.then(undefined, handler);
@@ -116,7 +116,7 @@
     }
     static all(collection) {
       if (typeof collection[Symbol.iterator] !== 'function')
-        throw new TypeError('argument must be an iterable');
+        throw new TypeError('argument must be iterable');
       function allOrReject(resolve, reject) {
         const filtered = collection.filter(v => v[stateKey] !== PENDING);
         const rejection = filtered.find(v => v[stateKey] === REJECTED);
@@ -132,7 +132,7 @@
     }
     static race(collection) {
       if (typeof collection[Symbol.iterator] !== 'function')
-        throw new TypeError('argument must be an iterable');
+        throw new TypeError('argument must be iterable');
       function firstOrReject(resolve, reject) {
         const filtered = collection.filter(v => v[stateKey] !== PENDING);
         const rejection = filtered.find(v => v[stateKey] === REJECTED);

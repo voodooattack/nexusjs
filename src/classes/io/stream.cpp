@@ -18,332 +18,35 @@
  */
 
 #include "context.h"
-#include "globals/promise.h"
 #include "classes/io/stream.h"
 
-JSClassRef NX::Classes::IO::Stream::createClass (NX::Context * context)
-{
-  JSClassDefinition def = NX::Classes::IO::Stream::Class;
-  def.parentClass = NX::Classes::Emitter::createClass(context);
-  return context->nexus()->defineOrGetClass(def);
-}
-
-const JSClassDefinition NX::Classes::IO::Stream::Class {
-  0, kJSClassAttributeNone, "Stream", nullptr, NX::Classes::IO::Stream::Properties,
-  NX::Classes::IO::Stream::Methods, nullptr, NX::Classes::IO::Stream::Finalize
-};
-
-const JSStaticValue NX::Classes::IO::Stream::Properties[] {
-  { nullptr, nullptr, nullptr, 0 }
-};
-
-const JSStaticFunction NX::Classes::IO::Stream::Methods[] {
-  { nullptr, nullptr, 0 }
-};
-
-JSClassRef NX::Classes::IO::ReadableStream::createClass (NX::Context * context)
-{
-  JSClassDefinition def = NX::Classes::IO::ReadableStream::Class;
-  def.parentClass = NX::Classes::IO::Stream::createClass(context);
-  return context->nexus()->defineOrGetClass(def);
-}
-
-JSValueRef NX::Classes::IO::ReadableStream::read (JSContextRef ctx, JSObjectRef thisObject, std::size_t length, JSValueRef * exception)
-{
-  JSValueProtect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
-  std::string deviceType(myDevice["type"]->toString());
-  if (deviceType == "push") {
-    if (exception)
-    {
-      NX::Value message(ctx, "attempting to pull from a PushSourceDevice");
-      JSValueRef args[] { message.value(), nullptr };
-      *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-    }
-    return JSValueMakeUndefined(ctx);
-  }
-  JSValueRef promise = myDevice["read"]->toObject()->call(myDevice, std::vector<JSValueRef> { NX::Value(ctx, length).value() }, exception);
-  if (exception && *exception) {
-    return JSValueMakeUndefined(ctx);
-  }
-  for(auto & i : myFilters) {
-    promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise).value(), std::vector<JSValueRef> {
-      NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, exception)
-    });
-    if (exception && *exception)
-      return JSValueMakeUndefined(ctx);
-  }
-  promise = NX::Object(ctx, promise)["then"]->toObject()->call(JSValueToObject(ctx, promise, nullptr), std::vector<JSValueRef> {
-    JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
-                                                                          JSObjectRef thisObject, size_t argumentCount,
-                                                                          const JSValueRef arguments[],
-                                                                          JSValueRef* exception) -> JSValueRef
-    {
-      JSValueUnprotect(NX::Context::FromJsContext(ctx)->toJSContext(), thisObject);
-      return arguments[0];
-    }), thisObject, 0, nullptr, exception)
-  });
-  return promise;
-}
-
-JSValueRef NX::Classes::IO::ReadableStream::readSync (JSContextRef ctx, JSObjectRef thisObject,
-                                                              std::size_t length, JSValueRef * exception)
-{
-  try {
-    JSValueRef result = myDevice["readSync"]->toObject()->call(myDevice, std::vector<JSValueRef> {
-      NX::Value(ctx, length).value()
-    }, nullptr);
-    for(auto & i : myFilters) {
-      result = NX::Object(ctx, i)["processSync"]->toObject()->call(i, std::vector<JSValueRef> { result }, exception);
-      if (exception && *exception)
-        break;
-    }
-    return result;
-  } catch(const std::exception & e) {
-    return JSWrapException(ctx, e, nullptr);
-  }
-}
+#include "readable_stream.js.inc"
+#include "writable_stream.js.inc"
 
 
-JSClassRef NX::Classes::IO::WritableStream::createClass (NX::Context * context)
-{
-  JSClassDefinition def = NX::Classes::IO::WritableStream::Class;
-  def.parentClass = NX::Classes::IO::Stream::createClass(context);
-  return context->nexus()->defineOrGetClass(def);
-}
-
-JSValueRef NX::Classes::IO::WritableStream::write (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef buffer)
-{
+JSObjectRef NX::Classes::IO::ReadableStream::getConstructor(NX::Context * context) {
   JSValueRef exception = nullptr;
-  JSValueRef promise = myDevice["write"]->toObject()->call(myDevice, std::vector<JSValueRef> { buffer }, &exception);
-  if (exception) {
-    throw std::runtime_error(NX::Value(ctx, exception).toString());
-  }
-  for(auto & i : myFilters) {
-    promise = NX::Object(ctx, promise)["then"]->toObject()->call(NX::Object(ctx, promise).value(), std::vector<JSValueRef> {
-      NX::Object(ctx, i)["process"]->toObject()->bind(i, 0, nullptr, &exception)
-    });
-    if (exception)
-      throw std::runtime_error(NX::Value(ctx, exception).toString());
-  }
-  /* keep thisObject alive */
-  promise = NX::Object(ctx, promise)["then"]->toObject()->call(JSValueToObject(ctx, promise, nullptr), std::vector<JSValueRef> {
-    JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
-                                                                          JSObjectRef thisObject, size_t argumentCount,
-                                                                          const JSValueRef arguments[],
-                                                                          JSValueRef* exception) -> JSValueRef
-    {
-      return arguments[0];
-    }), thisObject, 0, nullptr, nullptr)
-  });
-  return promise;
-}
-
-
-JSValueRef NX::Classes::IO::ReadableStream::pipe(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef target, JSValueRef * exception) {
-  std::string deviceType(myDevice["type"]->toString());
-  if (deviceType == "pull") {
-    NX::Object promise(ctx, this->read(ctx, thisObject, 0, exception));
-    if (exception && *exception)
-      return JSValueMakeUndefined(ctx);
-    return promise["then"]->toObject()->call(promise, {
-      NX::Object(ctx, target)["write"]->toObject()->bind(target, 0, nullptr, exception)
-    }, exception);
-  } else if (deviceType == "push") {
-    NX::Object processFilters(ctx, JSObjectMakeFunctionWithCallback(ctx, ScopedString("processFilters"),
-      [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-         size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef
-      {
-        ReadableStream * stream = ReadableStream::FromObject(thisObject);
-        JSValueRef promise = NX::Globals::Promise::resolve(ctx, arguments[1]);
-        for(auto & i : stream->myFilters) {
-          NX::Object p(ctx, promise);
-          promise = p.then([ = ](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {
-            return i["process"]->toObject()->call(i, std::vector<JSValueRef> { value }, exception);
-          });
-          if (exception && *exception) break;
-        }
-        if (exception && *exception) return JSValueMakeUndefined(ctx);
-                                                  NX::Context * context = NX::Context::FromJsContext(ctx);
-        NX::Object target(context->toJSContext(), arguments[0]);
-        return NX::Object(context->toJSContext(), promise).then([=](auto ctx, auto value, auto exception) {
-          return target["write"]->toObject()->call(target, std::vector<JSValueRef> { value }, exception);
-        });
-      }
-    ));
-    JSValueRef argsForBind[] { target };
-    JSValueRef boundProcessor = processFilters.bind(thisObject, 1, argsForBind, exception);
-    if (exception && *exception)
-      return JSValueMakeUndefined(ctx);
-    myDevice["on"]->toObject()->call(myDevice, std::vector<JSValueRef> {
-      NX::Value(ctx, "data").value(), boundProcessor
-    }, exception);
-    if (exception && *exception)
-      return JSValueMakeUndefined(ctx);
-    return NX::Object(ctx, myDevice["reset"]->toObject()->call(myDevice, std::vector<JSValueRef>(), exception))
-      .then([ = ](JSContextRef ctx, JSValueRef arg, auto exception) {
-        return myDevice["resume"]->toObject()->call(myDevice, std::vector<JSValueRef>(), exception);
-      });
-  }
+  JSValueRef ctor = context->evaluateScript(std::string(readable_stream_js, readable_stream_js + readable_stream_js_len),
+                                               nullptr, "readable_stream.js", 1, &exception);
+  JSObjectRef ctorObject = JSValueToObject(context->toJSContext(), ctor, &exception);
+  if (!exception)
+    return ctorObject;
   else {
-    if (exception)
-      *exception = NX::Object(ctx, std::runtime_error("invalid device type"));
+    NX::Nexus::ReportException(context->toJSContext(), exception);
   }
-  return JSValueMakeUndefined(ctx);
+  return JSObjectMake(context->toJSContext(), nullptr, nullptr);
+}
+
+JSObjectRef NX::Classes::IO::WritableStream::getConstructor(Context * context) {
+  JSValueRef exception = nullptr;
+  JSValueRef ctor = context->evaluateScript(std::string(writable_stream_js, writable_stream_js + writable_stream_js_len),
+                                            nullptr, "writable_stream.js", 1, &exception);
+  JSObjectRef ctorObject = JSValueToObject(context->toJSContext(), ctor, &exception);
+  if (!exception)
+    return ctorObject;
+  else
+    NX::Nexus::ReportException(context->toJSContext(), exception);
+  return JSObjectMake(context->toJSContext(), nullptr, nullptr);
 }
 
 
-JSValueRef NX::Classes::IO::WritableStream::writeSync (JSContextRef ctx, JSObjectRef thisObject,
-                                                             JSObjectRef buffer, JSValueRef * exception)
-{
-  try {
-    JSValueRef result = myDevice["writeSync"]->toObject()->call(myDevice, std::vector<JSValueRef> { buffer }, nullptr);
-    for(auto & i : myFilters) {
-      result = NX::Object(ctx, i)["processSync"]->toObject()->call(i, std::vector<JSValueRef> { result }, exception);
-      if (exception && *exception)
-        break;
-    }
-    return result;
-  } catch(const std::exception & e) {
-    return JSWrapException(ctx, e, nullptr);
-  }
-}
-
-const JSClassDefinition NX::Classes::IO::ReadableStream::Class {
-  0, kJSClassAttributeNone, "ReadableStream", nullptr, NX::Classes::IO::ReadableStream::Properties,
-  NX::Classes::IO::ReadableStream::Methods, nullptr, NX::Classes::IO::ReadableStream::Finalize
-};
-
-const JSStaticValue NX::Classes::IO::ReadableStream::Properties[] {
-  { nullptr, nullptr, nullptr, 0 }
-};
-
-const JSStaticFunction NX::Classes::IO::ReadableStream::Methods[] {
-  { "read", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
-      if (!stream) {
-        NX::Value message(ctx, "read not implemented on ReadableStream instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      std::size_t length = 0;
-      if (argumentCount >= 1) {
-        length = JSValueToNumber(ctx, arguments[0], exception);
-        if (exception && *exception)
-        {
-          return JSValueMakeUndefined(ctx);
-        }
-      }
-      try {
-        return stream->read(ctx, thisObject, length, exception);
-      } catch(const std::exception & e) {
-        return JSWrapException(ctx, e, exception);
-      }
-    }, 0
-  },
-  { "pipe", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
-      if (!stream) {
-        NX::Value message(ctx, "pipe not implemented on ReadableStream instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      try {
-        JSContextRef ctx = context->toJSContext();
-        if (argumentCount < 1)
-          throw std::runtime_error("must provide WritableStream to pipe to");
-        if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-          throw std::runtime_error("argument not a WritableStream instance");
-        NX::Object target(ctx, arguments[0]);
-        return stream->pipe(ctx, thisObject, target, exception);
-      } catch(const std::exception & e) {
-        return JSWrapException(ctx, e, exception);
-      }
-    }, 0
-  },
-  { "readSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
-      if (!stream) {
-        NX::Value message(ctx, "readSync not implemented on ReadableStream instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      std::size_t length = 0;
-      try {
-        if (argumentCount >= 1) {
-          length = NX::Value(ctx, arguments[0]).toNumber();
-        }
-        return stream->readSync(ctx, thisObject, length, exception);
-      } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-      }
-      return JSValueMakeUndefined(ctx);
-    }, 0
-  },
-  { "pushFilter", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::IO::ReadableStream * stream = NX::Classes::IO::ReadableStream::FromObject(thisObject);
-      if (!stream) {
-        NX::Value message(ctx, "pushFilter not implemented on ReadableStream instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      try {
-        if (argumentCount != 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments");
-        JSObjectRef filter = NX::Object(ctx, arguments[0]);
-        return stream->pushReadFilter(ctx, thisObject, filter, exception);
-      } catch(const std::exception & e) {
-        return JSWrapException(ctx, e, exception);
-      }
-    }, 0
-  },
-  { nullptr, nullptr, 0 }
-};
-
-const JSClassDefinition NX::Classes::IO::WritableStream::Class {
-  0, kJSClassAttributeNone, "WritableStream", nullptr, NX::Classes::IO::WritableStream::Properties,
-  NX::Classes::IO::WritableStream::Methods, nullptr, NX::Classes::IO::WritableStream::Finalize
-};
-
-const JSStaticValue NX::Classes::IO::WritableStream::Properties[] {
-  { nullptr, nullptr, nullptr, 0 }
-};
-
-const JSStaticFunction NX::Classes::IO::WritableStream::Methods[] {
-  { "write", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Classes::IO::WritableStream * stream = NX::Classes::IO::WritableStream::FromObject(thisObject);
-      if (!stream) {
-        NX::Value message(ctx, "write not implemented on WritableStream instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
-      }
-      try {
-        JSObjectRef buffer = nullptr;
-        if (argumentCount >= 1) {
-          buffer = NX::Object(ctx, arguments[0]).value();
-        } else
-          throw std::runtime_error("must supply buffer to write");
-        return stream->write(ctx, thisObject, buffer);
-      } catch(const std::exception & e) {
-        return JSWrapException(ctx, e, exception);
-      }
-    }, 0
-  },
-  { nullptr, nullptr, 0 }
-};

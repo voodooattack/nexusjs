@@ -250,6 +250,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
         if (buffer) std::free(buffer);
         reject(NX::Object(context->toJSContext(), ec));
         JSValueUnprotect(context->toJSContext(), thisObject);
+        myScheduler->release();
         return;
       }
       else
@@ -268,6 +269,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
             if (exp) {
               reject(exp);
               JSValueUnprotect(context->toJSContext(), thisObject);
+              myScheduler->release();
               return;
             }
           } else {
@@ -290,6 +292,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
         }
       }
     };
+    myState = Resumed;
     recvHandler(recvHandler, nullptr, 0, std::shared_ptr<Endpoint>(), boost::system::error_code(), 0);
   }));
 }

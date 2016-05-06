@@ -411,7 +411,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
           throw std::runtime_error("must supply buffer to write");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-            throw std::runtime_error("bad value for buffer argument");
+            throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
           length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);

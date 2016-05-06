@@ -46,91 +46,91 @@ const JSClassDefinition NX::Globals::IO::Class {
 const JSStaticValue NX::Globals::IO::Properties[] {
   { "Filter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.Filter"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.Filter"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Filter::getConstructor(context);
-      context->setGlobal("IO.Filter", constructor);
+      context->setGlobal("Nexus.IO.Filter", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "FilePullDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.FilePullDevice"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.FilePullDevice"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Devices::FilePullDevice::getConstructor(context);
-      context->setGlobal("IO.FilePullDevice", constructor);
+      context->setGlobal("Nexus.IO.FilePullDevice", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "FilePushDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.FilePushDevice"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.FilePushDevice"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Devices::FilePushDevice::getConstructor(context);
-      context->setGlobal("IO.FilePushDevice", constructor);
+      context->setGlobal("Nexus.IO.FilePushDevice", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "FileSinkDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.FileSinkDevice"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.FileSinkDevice"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Devices::FileSinkDevice::getConstructor(context);
-      context->setGlobal("IO.FileSinkDevice", constructor);
+      context->setGlobal("Nexus.IO.FileSinkDevice", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "SocketDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.Socket"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.Socket"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Devices::Socket::getConstructor(context);
-      context->setGlobal("IO.Socket", constructor);
+      context->setGlobal("Nexus.IO.Socket", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "UDPSocketDevice", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.UDPSocket"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.UDPSocket"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Devices::UDPSocket::getConstructor(context);
-      context->setGlobal("IO.UDPSocket", constructor);
+      context->setGlobal("Nexus.IO.UDPSocket", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "ReadableStream", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.ReadableStream"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.ReadableStream"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::ReadableStream::getConstructor(context);
-      context->setGlobal("IO.ReadableStream", constructor);
+      context->setGlobal("Nexus.IO.ReadableStream", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "WritableStream", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.WritableStream"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.WritableStream"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::WritableStream::getConstructor(context);
-      context->setGlobal("IO.WritableStream", constructor);
+      context->setGlobal("Nexus.IO.WritableStream", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "EncodingConversionFilter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.EncodingConversionFilter"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.EncodingConversionFilter"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Filters::EncodingConversionFilter::getConstructor(context);
-      context->setGlobal("IO.EncodingConversionFilter", constructor);
+      context->setGlobal("Nexus.IO.EncodingConversionFilter", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },
   { "UTF8StringFilter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef File = context->getGlobal("IO.UTF8StringFilter"))
+      if (JSObjectRef File = context->getGlobal("Nexus.IO.UTF8StringFilter"))
         return File;
       JSObjectRef constructor = NX::Classes::IO::Filters::UTF8StringFilter::getConstructor(context);
-      context->setGlobal("IO.UTF8StringFilter", constructor);
+      context->setGlobal("Nexus.IO.UTF8StringFilter", constructor);
       return constructor;
     },
     nullptr, kJSPropertyAttributeNone },

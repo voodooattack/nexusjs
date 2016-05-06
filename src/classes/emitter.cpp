@@ -138,7 +138,7 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         NX::Context * context = NX::Context::FromJsContext(ctx);
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments");
+          throw std::runtime_error("invalid arguments passed to EventEmitter.on");
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
           throw std::runtime_error("invalid Emitter instance");
@@ -154,7 +154,7 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments");
+          throw std::runtime_error("invalid arguments passed to EventEmitter.once");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
@@ -170,11 +170,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         if (argumentCount != 3 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject ||
           JSValueGetType(ctx, arguments[2]) != kJSTypeNumber)
-            throw std::runtime_error("invalid arguments");
+            throw std::runtime_error("invalid arguments passed to EventEmitter.many");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid Emitter instance");
+          throw std::runtime_error("invalid EventEmitter instance");
         return emitter->addManyListener(context->toJSContext(), thisObject,
                                         NX::Value(context->toJSContext(), arguments[0]).toString(),
                                         NX::Object(context->toJSContext(), arguments[1]),
@@ -188,7 +188,7 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments");
+          throw std::runtime_error("invalid arguments passed to EventEmitter.off");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
@@ -205,7 +205,7 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-          throw std::runtime_error("invalid arguments");
+          throw std::runtime_error("invalid arguments passed to EventEmitter.allOff");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
@@ -220,7 +220,7 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-          throw std::runtime_error("invalid arguments");
+          throw std::runtime_error("invalid arguments passed to EventEmitter.emit");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
