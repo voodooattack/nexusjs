@@ -64,12 +64,13 @@ namespace NX {
           virtual void cancel() = 0;
 
           virtual JSObjectRef connect(JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception) = 0;
+          virtual JSObjectRef bind( JSContextRef ctx, JSObjectRef thisObject, const std::string & protocol, unsigned int port, JSValueRef * exception ) = 0;
 
         };
 
         class TCPSocket: public virtual Socket {
         public:
-          TCPSocket ( NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
+          TCPSocket ( NX::Scheduler * scheduler, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket):
             myScheduler(scheduler), mySocket(socket)
           {
           }
@@ -126,7 +127,8 @@ namespace NX {
           virtual std::size_t available() const { return mySocket->available(); }
           virtual void cancel() { mySocket->cancel(); }
           virtual void close() { mySocket->close(); }
-          virtual JSObjectRef connect ( JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception );
+          virtual JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception);
+          virtual JSObjectRef bind( JSContextRef ctx, JSObjectRef thisObject, const std::string & protocol, unsigned int port, JSValueRef * exception );
           virtual bool deviceReady() const { return mySocket->is_open(); }
           virtual std::size_t maxWriteBufferSize() const { return 65507; }
           virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize() * 0.5; }

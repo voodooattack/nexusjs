@@ -68,7 +68,7 @@ const JSStaticValue NX::Classes::IO::Devices::Socket::Properties[] {
   { "available", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(object);
     if (!socket) {
-      NX::Value message(ctx, "available not implemented on Socket instance");
+      NX::Value message(ctx, ".available not implemented on Socket instance");
       JSValueRef args[] { message.value(), nullptr };
       *exception = JSObjectMakeError(ctx, 1, args, nullptr);
       return JSValueMakeUndefined(ctx);
@@ -84,7 +84,7 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(thisObject);
       if (!socket) {
-        NX::Value message(ctx, "close not implemented on Socket instance");
+        NX::Value message(ctx, "close() not implemented on Socket instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
@@ -102,7 +102,7 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(thisObject);
       if (!socket) {
-        NX::Value message(ctx, "cancel not implemented on Socket instance");
+        NX::Value message(ctx, "cancel() not implemented on Socket instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
@@ -120,7 +120,7 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(thisObject);
       if (!socket) {
-        NX::Value message(ctx, "connect not implemented on Socket instance");
+        NX::Value message(ctx, "connect() not implemented on Socket instance");
         JSValueRef args[] { message.value(), nullptr };
         *exception = JSObjectMakeError(ctx, 1, args, nullptr);
         return JSValueMakeUndefined(ctx);
@@ -129,7 +129,9 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
         if (argumentCount < 2)
           throw std::runtime_error("invalid arguments");
         std::string addr = NX::Value(ctx, arguments[0]).toString();
-        return socket->connect(ctx, thisObject, addr, NX::Value(ctx, arguments[1]).toString(), exception);
+        std::string port = NX::Value(ctx, arguments[1]).toString();
+        JSValueRef ret = socket->connect(ctx, thisObject, addr, port, exception);
+        return ret;
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
@@ -211,15 +213,39 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
   });
 }
 
+JSObjectRef NX::Classes::IO::Devices::UDPSocket::bind(JSContextRef ctx, JSObjectRef thisObject, const std::string & address,
+                                                      unsigned int port, JSValueRef * exception)
+{
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  JSValueProtect(context->toJSContext(), thisObject);
+  return Globals::Promise::createPromise(ctx, [=](NX::Context * context, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
+    boost::system::error_code ec;
+    mySocket->bind(boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(address), port), ec);
+    if (ec) {
+      reject(NX::Object(context->toJSContext(), ec));
+      JSValueUnprotect(context->toJSContext(), thisObject);
+      return;
+    } else {
+      resolve(thisObject);
+      JSValueUnprotect(context->toJSContext(), thisObject);
+      return;
+    }
+  });
+}
+
+
 JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObjectRef thisObject)
 {
+  typedef boost::asio::ip::udp::endpoint Endpoint;
   if (myState == Resumed)
     return myPromise;
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSValueProtect(context->toJSContext(), thisObject);
+  myScheduler->hold();
   return myPromise = NX::Object(context->toJSContext(),
                                 Globals::Promise::createPromise(ctx, [=](NX::Context *, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
-    auto recvHandler = [=](auto next, char * buffer, std::size_t len, const boost::system::error_code& ec, std::size_t bytes_transferred) -> void {
+    auto recvHandler = [=](auto next, char * buffer, std::size_t len, const std::shared_ptr<Endpoint> & endpoint,
+                           const boost::system::error_code& ec, std::size_t bytes_transferred) -> void {
       if (ec) {
         if (buffer) std::free(buffer);
         reject(NX::Object(context->toJSContext(), ec));
@@ -233,9 +259,12 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
             JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, bytes_transferred, [](void * ptr, void * ctx) {
               std::free(ptr);
             }, nullptr, nullptr);
-            JSValueRef args[] { arrayBuffer };
+            NX::Object endpointData(context->toJSContext());
+            endpointData.set("address", NX::Value(context->toJSContext(), endpoint->address().to_string()).value());
+            endpointData.set("port", NX::Value(context->toJSContext(), endpoint->port()).value());
+            JSValueRef args[] { arrayBuffer, endpointData };
             JSValueRef exp = nullptr;
-            this->emitFast(context->toJSContext(), thisObject, "data", 1, args, &exp);
+            this->emitFast(context->toJSContext(), thisObject, "data", 2, args, &exp);
             if (exp) {
               reject(exp);
               JSValueUnprotect(context->toJSContext(), thisObject);
@@ -246,19 +275,21 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
             buffer = nullptr;
           }
         }
-        if (mySocket->is_open()) {
+        if (mySocket->is_open() && myState == Resumed) {
           std::size_t bufSize = mySocket->available();
           if (!bufSize) bufSize = 1024;
           char * buf = (char *)std::malloc(bufSize);
-          mySocket->async_receive(boost::asio::buffer(buf, bufSize),
-            boost::bind<void>(next, next, buf, bufSize, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+          std::shared_ptr<Endpoint> newEndpoint(new Endpoint());
+          mySocket->async_receive_from(boost::asio::buffer(buf, bufSize), *newEndpoint,
+            boost::bind<void>(next, next, buf, bufSize, newEndpoint, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
         } else {
           resolve(JSValueMakeUndefined(context->toJSContext()));
           JSValueUnprotect(context->toJSContext(), thisObject);
+          myScheduler->release();
           return;
         }
       }
     };
-    recvHandler(recvHandler, nullptr, 0, boost::system::error_code(), 0);
+    recvHandler(recvHandler, nullptr, 0, std::shared_ptr<Endpoint>(), boost::system::error_code(), 0);
   }));
 }

@@ -128,59 +128,7 @@ namespace NX
           }
         }
 
-        virtual JSValueRef pipe(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef target, JSValueRef * exception) {
-          std::string deviceType(myDevice["type"]->toString());
-          if (deviceType == "pull") {
-            NX::Object promise(ctx, this->read(ctx, thisObject, 0, exception));
-            if (exception && *exception)
-              return JSValueMakeUndefined(ctx);
-            return promise["then"]->toObject()->call(promise, {
-              NX::Object(ctx, target)["write"]->toObject()->bind(target, 0, nullptr, exception)
-            }, exception);
-          } else if (deviceType == "push") {
-            NX::Object processFilters(ctx, JSObjectMakeFunctionWithCallback(
-              ctx, nullptr, [](JSContextRef ctx, JSObjectRef function,
-              JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[],
-              JSValueRef* exception) -> JSValueRef
-              {
-                ReadableStream * stream = ReadableStream::FromObject(thisObject);
-                JSValueRef promise = NX::Globals::Promise::resolve(ctx, arguments[1]);
-                for(auto & i : stream->myFilters) {
-                  NX::Object p(ctx, promise);
-                  promise = p.then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception){
-                    return i["process"]->toObject()->call(i, std::vector<JSValueRef> { value }, exception);
-                  });
-                  if (exception && *exception) break;
-                }
-                if (exception && *exception) return JSValueMakeUndefined(ctx);
-                NX::Context * context = NX::Context::FromJsContext(ctx);
-                NX::Object target(context->toJSContext(), arguments[0]);
-                return NX::Object(context->toJSContext(), promise).then([=](auto ctx, auto value, auto exception) {
-                  return target["write"]->toObject()->call(target, std::vector<JSValueRef> { value }, exception);
-                });
-              }
-            ));
-            JSValueRef argsForBind[] { target };
-            JSValueRef boundProcessor = processFilters.bind(thisObject, 1, argsForBind, exception);
-            if (exception && *exception)
-              return JSValueMakeUndefined(ctx);
-            myDevice["on"]->toObject()->call(myDevice, std::vector<JSValueRef> {
-              NX::Value(ctx, "data").value(),
-              boundProcessor
-            }, exception);
-            if (exception && *exception)
-              return JSValueMakeUndefined(ctx);
-            return NX::Object(ctx, myDevice["reset"]->toObject()->call(myDevice, std::vector<JSValueRef>(), exception))
-              .then([=](JSContextRef ctx, JSValueRef arg, auto exception) {
-                return myDevice["resume"]->toObject()->call(myDevice, std::vector<JSValueRef>(), exception);
-              });
-          }
-          else {
-            if (exception)
-              *exception = NX::Object(ctx, std::runtime_error("invalid device type"));
-          }
-          return JSValueMakeUndefined(ctx);
-        }
+        virtual JSValueRef pipe(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef target, JSValueRef * exception);
 
       private:
         NX::Object myDevice;

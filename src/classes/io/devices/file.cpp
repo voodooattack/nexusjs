@@ -154,10 +154,11 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
               if (sizeOut) {
                 JSValueRef exp = nullptr;
                 lock.unlock();
-                JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, sizeOut,
-                                                                                  [](void * ptr, void * ctx) {
-                                                                                    std::free(ptr);
-                                                                                  }, nullptr, &exp);
+                JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(
+                  context->toJSContext(), buffer, sizeOut,
+                  [](void * ptr, void * ctx) {
+                    std::free(ptr);
+                  }, nullptr, &exp);
                 JSValueRef args[] { arrayBuffer };
                 NX::Object(context->toJSContext(), this->emit(context->toJSContext(), thisObject, "data", 1, args, &exp))
                   .then([=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
@@ -165,6 +166,8 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
                     return arg;
                   }, [=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
                     reject(arg);
+                    myState = Paused;
+                    JSValueUnprotect(context->toJSContext(), thisObject);
                     return arg;
                   });
                 if (exp) {
@@ -181,12 +184,12 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
                     [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
                   {
                     JSValueRef exp = nullptr;
-                    JSObjectRef result = this->emit(context->toJSContext(), thisObject, "end", 0, nullptr, &exp);
-                    JSValueUnprotect(context->toJSContext(), thisObject);
+                    JSObjectRef promise = this->emit(context->toJSContext(), thisObject, "end", 0, nullptr, &exp);
                     if (!exp)
-                      resolve(result);
+                      resolve(promise);
                     else
                       reject(exp);
+                    JSValueUnprotect(context->toJSContext(), thisObject);
                   }));
                   myState = Paused;
                 } else {

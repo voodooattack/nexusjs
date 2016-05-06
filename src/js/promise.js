@@ -38,7 +38,10 @@
               try {
                 promise[broadcastResolveKey](resolve(value));
               } catch(e) {
-                promise[boradcastRejectKey](e);
+                if (reject)
+                  promise[broadcastResolveKey](reject(e));
+                else
+                  promise[broadcastRejectKey](e);
               }
             }.bind(this));
           }
@@ -58,7 +61,7 @@
                 promise[broadcastResolveKey](reject(value));
               } catch(e) {
                 e.innerException = value;
-                promise[broadcastRejectKey](value);
+                promise[broadcastRejectKey](e);
               }
             }.bind(this));
           });
