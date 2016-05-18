@@ -83,10 +83,10 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
           NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
           if (!filter) {
             JSValueUnprotect(context->toJSContext(), arrayBuffer);
-            NX::Value message(context->toJSContext(), "filter object does not implement process()");
-            return reject(message.value());
+            NX::Object exp(context->toJSContext(), std::runtime_error("filter object does not implement process()"));
+            return reject(exp);
           }
-          const std::size_t chunkSize = 1024 * 1024;
+          const std::size_t chunkSize = 1024 * 1024; // TODO: MAKE THIS ADJUSTABLE
           auto handler = [=](auto handler, std::size_t i, char * newBuffer, std::size_t outPos, std::size_t outLengthEstimatedTotal) {
             if (i < length) {
               try {

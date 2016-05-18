@@ -94,7 +94,7 @@ bool NX::Scheduler::processTasks()
 
 void NX::Scheduler::balanceThreads()
 {
-  while(myThreadGroup.size() < myMaxThreads && myThreadGroup.size() < myTaskCount)
+  while(myTaskCount > myThreadGroup.size() && myThreadGroup.size() < myMaxThreads)
     addThread();
 }
 

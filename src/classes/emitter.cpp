@@ -204,7 +204,7 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
   { "allOff", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
-        if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
+        if (argumentCount != 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
           throw std::runtime_error("invalid arguments passed to EventEmitter.allOff");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);

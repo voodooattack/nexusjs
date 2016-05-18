@@ -1,16 +1,10 @@
-const promises = [];
 const startTime = Date.now();
 
-for(let i = 0; i < 4; i++) {
-  const device = new Nexus.IO.FilePushDevice('enwik8');
-  const stream = new Nexus.IO.ReadableStream(device);
+const device = new Nexus.IO.FilePushDevice('enwik8');
+const stream = new Nexus.IO.ReadableStream(device);
 
-  stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-16LE"));
+stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-16LE"));
 
-  const wdevice = new Nexus.IO.FileSinkDevice('enwik16-' + i);
-  const wstream = new Nexus.IO.WritableStream(wdevice);
+const wstreams = [0,1,2,3].map (i => new Nexus.IO.WritableStream(new Nexus.IO.FileSinkDevice('enwik16-' + i)));
 
-  promises.push(stream.pipe(wstream));
-}
-
-Promise.all(promises).then(v => console.log(`finished in ${(Date.now() - startTime) / 1000} seconds!`));
+stream.pipe(...wstreams).then(v => console.log(`finished in ${(Date.now() - startTime) / 1000} seconds!`));
