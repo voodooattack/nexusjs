@@ -315,6 +315,7 @@ JSStaticFunction NX::Classes::IO::PullSourceDevice::Methods[] {
       return NX::Globals::Promise::createPromise(context->toJSContext(),
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
+        std::cout << "coroutine!\n";
         scheduler->scheduleCoroutine([=]() {
           std::size_t readLength = length;
           try {

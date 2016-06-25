@@ -1,6 +1,6 @@
 (function() {
   const deviceKey = Symbol(), filtersKey = Symbol();
-  return class WritableStream {
+  class WritableStream {
     constructor(device) {
       this[deviceKey] = device;
       this[filtersKey] = [];
@@ -23,4 +23,5 @@
       return this.filters.pop();
     }
   };
+  return WritableStream;
 })();

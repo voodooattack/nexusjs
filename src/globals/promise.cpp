@@ -72,8 +72,13 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
             JSValueRef args[] { resolveValue };
             JSValueRef exp = nullptr;
             JSObjectCallAsFunction(context->toJSContext(), resolve, nullptr, 1, args, &exp);
-            if (exp)
-              throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+            if (exp) {
+              JSValueRef rejectArgs[] { exp };
+              JSValueRef rejExp = nullptr;
+              JSObjectCallAsFunction(context->toJSContext(), reject, nullptr, 1, rejectArgs, &rejExp);
+              if (rejExp)
+                NX::Nexus::ReportException(context->toJSContext(), rejExp);
+            }
             JSValueUnprotect(context->toJSContext(), resolve);
             JSValueUnprotect(context->toJSContext(), reject);
             JSValueUnprotect(context->toJSContext(), thisObject);
@@ -82,7 +87,7 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
             JSValueRef exp = nullptr;
             JSObjectCallAsFunction(context->toJSContext(), reject, nullptr, 1, args, &exp);
             if (exp)
-              throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+              NX::Nexus::ReportException(context->toJSContext(), exp);
             JSValueUnprotect(context->toJSContext(), resolve);
             JSValueUnprotect(context->toJSContext(), reject);
             JSValueUnprotect(context->toJSContext(), thisObject);

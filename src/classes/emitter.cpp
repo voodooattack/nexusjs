@@ -26,6 +26,7 @@
 JSClassRef NX::Classes::Emitter::createClass (NX::Context * context)
 {
   JSClassDefinition def = NX::Classes::Emitter::Class;
+  def.parentClass = NX::Classes::Base::createClass(context);
   return context->nexus()->defineOrGetClass (def);
 }
 
@@ -124,8 +125,7 @@ JSValueRef NX::Classes::Emitter::removeListener (JSGlobalContextRef ctx, JSObjec
 }
 
 const JSClassDefinition NX::Classes::Emitter::Class {
-  0, kJSClassAttributeNone, "Emitter", nullptr, NX::Classes::Emitter::Properties,
-  NX::Classes::Emitter::Methods, nullptr, NX::Classes::Emitter::Finalize
+  0, kJSClassAttributeNone, "EventEmitter", nullptr, NX::Classes::Emitter::Properties, NX::Classes::Emitter::Methods
 };
 
 const JSStaticValue NX::Classes::Emitter::Properties[] {

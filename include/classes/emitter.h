@@ -44,9 +44,6 @@ namespace NX
       static JSObjectRef Constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount,
                                      const JSValueRef arguments[], JSValueRef* exception);
 
-      static void Finalize(JSObjectRef object) {
-      }
-
     public:
       static JSClassRef createClass(NX::Context * context);
       static JSObjectRef getConstructor(NX::Context * context);
