@@ -31,6 +31,7 @@
 #include "globals/filesystem.h"
 #include "globals/context.h"
 #include "globals/io.h"
+#include "globals/net.h"
 
 #include "classes/emitter.h"
 
@@ -193,6 +194,7 @@ JSStaticValue NX::Global::NexusProperties[] {
   }, nullptr, kJSPropertyAttributeNone },
   NX::Globals::Scheduler::GetStaticProperty(),
   NX::Globals::IO::GetStaticProperty(),
+  NX::Globals::Net::GetStaticProperty(),
   NX::Globals::FileSystem::GetStaticProperty(),
   NX::Globals::Context::GetStaticProperty(),
   NX::Globals::Module::GetStaticProperty(),

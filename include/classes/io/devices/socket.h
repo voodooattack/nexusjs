@@ -64,7 +64,6 @@ namespace NX {
           virtual void cancel() = 0;
 
           virtual JSObjectRef connect(JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception) = 0;
-          virtual JSObjectRef bind( JSContextRef ctx, JSObjectRef thisObject, const std::string & protocol, unsigned int port, JSValueRef * exception ) = 0;
 
         };
 
@@ -88,15 +87,58 @@ namespace NX {
         public:
           static JSClassRef createClass(NX::Context * context);
           static JSObjectRef getConstructor(NX::Context * context);
+          static JSObjectRef wrapSocket(NX::Context * context, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
 
           static NX::Classes::IO::Devices::TCPSocket * FromObject(JSObjectRef obj) {
             return dynamic_cast<NX::Classes::IO::Devices::TCPSocket*>(NX::Classes::Base::FromObject(obj));
           }
 
 
+          virtual std::size_t available() const { return mySocket->available(); }
+          virtual void cancel() { mySocket->cancel(); }
+          virtual void close() { mySocket->close(); }
+          virtual JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception);
+          virtual bool deviceReady() const { return mySocket->is_open(); }
+          virtual std::size_t maxWriteBufferSize() const { return 65507; }
+          virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize() * 0.5; }
+          virtual void deviceWrite ( const char * buffer, std::size_t length ) {
+            const std::size_t maxBufferLength = maxWriteBufferSize();
+            for(std::size_t i = 0; i < length; i += maxBufferLength) {
+              length -= mySocket->send(boost::asio::buffer(buffer + i, std::min(maxBufferLength, length)));
+            }
+          }
+          virtual bool eof() const { return !mySocket->is_open(); }
+          virtual JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) {
+            if (myPromise) {
+              myState.store(Paused);
+              return myPromise;
+            } else {
+              NX::Context * context = NX::Context::FromJsContext(ctx);
+              return myPromise = NX::Object(context->toJSContext(),
+                                            NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+                                              myState.store(Paused);
+                                              resolve(thisObject);
+                                            }));
+            }
+          }
+          virtual JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) {
+            if (myState != Paused)
+              return pause(ctx, thisObject);
+            else {
+              return NX::Globals::Promise::resolve(ctx, thisObject);
+            }
+          }
+          virtual JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject );
+          virtual State state() const { return myState; }
+
+
+
         private:
           NX::Scheduler * myScheduler;
           std::shared_ptr< boost::asio::ip::tcp::socket> mySocket;
+          std::atomic<State> myState;
+          NX::Object myPromise;
+          boost::asio::ip::tcp::endpoint myEndpoint;
         };
 
         class UDPSocket: public virtual Socket {

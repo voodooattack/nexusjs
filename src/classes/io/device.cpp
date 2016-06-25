@@ -414,8 +414,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
-          length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
-          if (!except)
+          if (length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except))
             arrayBuffer = obj.value();
           else {
             except = nullptr;
@@ -461,7 +460,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             JSValueUnprotect(context->toJSContext(), arrayBuffer);
             return;
           }
-          scheduler->scheduleTask(std::bind(handler, handler, i + chunkSize, length));
+          scheduler->scheduleTask(std::bind(handler, handler, i + std::min(chunkSize, length - i), length));
         };
         scheduler->scheduleTask(std::bind(handler, handler, 0, length));
       });

@@ -2,3 +2,4 @@ add_test(NAME transaction WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests" COMMAND 
 add_test(NAME atomic WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests" COMMAND nexus ${CMAKE_SOURCE_DIR}/tests/basic/atmoic.js)
 add_test(NAME promise WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests" COMMAND nexus ${CMAKE_SOURCE_DIR}/tests/basic/promise.js)
 add_test(NAME emitter WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests" COMMAND nexus ${CMAKE_SOURCE_DIR}/tests/basic/emitter.js)
+add_test(NAME async_generator WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/tests" COMMAND nexus ${CMAKE_SOURCE_DIR}/tests/basic/async_generator.js)

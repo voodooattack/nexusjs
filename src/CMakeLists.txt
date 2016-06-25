@@ -29,6 +29,7 @@ add_executable(nexus
   globals/filesystem.cpp
   globals/context.cpp
   globals/io.cpp
+  globals/net.cpp
   classes/io/stream.cpp
   classes/io/filter.cpp
   classes/io/device.cpp
@@ -36,6 +37,7 @@ add_executable(nexus
   classes/io/devices/socket.cpp
   classes/io/filters/encoding.cpp
   classes/io/filters/utf8stringfilter.cpp
+  classes/net/tcp/acceptor.cpp
   classes/context.cpp
   classes/emitter.cpp
   classes/task.cpp

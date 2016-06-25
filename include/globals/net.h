@@ -17,36 +17,32 @@
  *
  */
 
-#ifndef CLASSES_IO_STREAM_H
-#define CLASSES_IO_STREAM_H
+
+#ifndef GLOBALS_NET_H
+#define GLOBALS_NET_H
 
 #include <JavaScript.h>
 
-#include "classes/emitter.h"
-#include "classes/io/device.h"
-#include "classes/io/filter.h"
-#include "util.h"
-#include "globals/promise.h"
-
-namespace NX
-{
+namespace NX {
   class Nexus;
-  class Context;
-  namespace Classes
-  {
-    namespace IO
+  namespace Globals {
+    class Net
     {
-      class ReadableStream {
-      public:
-        static JSObjectRef getConstructor(NX::Context * context);
-      };
+      static const JSClassDefinition Class;
+      static const JSStaticFunction Methods[];
+      static const JSStaticValue Properties[];
 
-      class WritableStream {
-      public:
-        static JSObjectRef getConstructor(NX::Context * context);
-      };
-    }
+      static const JSClassDefinition TCPClass;
+      static const JSStaticFunction TCPMethods[];
+      static const JSStaticValue TCPProperties[];
+
+      static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
+    public:
+      static constexpr JSStaticValue GetStaticProperty() {
+        return JSStaticValue { "Net", &NX::Globals::Net::Get, nullptr, kJSPropertyAttributeNone };
+      }
+    };
   }
 }
 
-#endif // CLASSES_IO_STREAM_H
+#endif // GLOBALS_NET_H
