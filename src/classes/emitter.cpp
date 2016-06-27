@@ -106,6 +106,33 @@ void NX::Classes::Emitter::emitFast (JSContextRef ctx, JSObjectRef thisObject, c
   }
 }
 
+void NX::Classes::Emitter::emitFastAndSchedule(JSContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string e,
+                                               std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+{
+  boost::recursive_mutex::scoped_lock lock(myMutex);
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  if (myMap.find(e) != myMap.end()) {
+    for(auto i: myMap[e])
+    {
+      if (i->count > 0)
+        i->count--;
+      ProtectedArguments args(ctx, argumentCount, arguments);
+      NX::Object func(i->context, i->handler);
+      context->nexus()->scheduler()->scheduleTask([=]() {
+        NX::Object funcCopy(func);
+        JSValueRef exp = nullptr;
+        funcCopy.call(nullptr, args.vector(), &exp);
+        if (exp)
+          NX::Nexus::ReportException(context->toJSContext(), exp);
+      });
+      if (exception && *exception)
+        break;
+    }
+    tidy(e);
+  }
+}
+
+
 JSValueRef NX::Classes::Emitter::removeAllListeners (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e)
 {
   boost::recursive_mutex::scoped_lock lock(myMutex);

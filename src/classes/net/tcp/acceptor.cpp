@@ -97,9 +97,9 @@ JSValueRef NX::Classes::Net::TCP::Acceptor::listen(JSContextRef ctx, JSObjectRef
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSValueProtect(context->toJSContext(), thisObject);
+  myScheduler->hold();
   try {
     myAcceptor->listen(maxConnections);
-    myScheduler->hold();
     beginAccept(context, thisObject);
   } catch(const std::exception & e) {
     JSValueUnprotect(context->toJSContext(), thisObject);
@@ -118,14 +118,18 @@ void NX::Classes::Net::TCP::Acceptor::beginAccept(NX::Context * context, JSObjec
 void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
 {
   NX::Object remoteEndpoint(context->toJSContext());
-  remoteEndpoint.set("address", NX::Value(context->toJSContext(), socket->remote_endpoint().address().to_string()).value());
-  remoteEndpoint.set("port", NX::Value(context->toJSContext(), socket->remote_endpoint().port()).value());
+  try {
+    remoteEndpoint.set("address", NX::Value(context->toJSContext(), socket->remote_endpoint().address().to_string()).value());
+    remoteEndpoint.set("port", NX::Value(context->toJSContext(), socket->remote_endpoint().port()).value());
+  } catch(const std::exception & e) {
+    // FIXME: DO SOMETHING HERE!
+  }
   const JSValueRef arguments[] {
     NX::Classes::IO::Devices::TCPSocket::wrapSocket(context, socket),
     remoteEndpoint.value()
   };
   JSValueRef exception = nullptr;
-  emit(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
+  emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
   JSValueUnprotect(context->toJSContext(), thisObject);
   if (!exception)
     beginAccept(context, thisObject);

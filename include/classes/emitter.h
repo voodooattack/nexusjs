@@ -74,6 +74,11 @@ namespace NX
       virtual void emitFast( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
                                 std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
 
+      /* Faster version that returns nothing and schedules the call */
+      virtual void emitFastAndSchedule( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
+                             std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
+
+
     protected:
       virtual void tidy(const std::string & e) {
         boost::recursive_mutex::scoped_lock lock(myMutex);
