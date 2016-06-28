@@ -90,23 +90,23 @@ You can read more on Nexus.js and the progress of development in the following a
 
 ## FAQ
 
-* #### Will you implement `require()`?
+* Will you implement `require()`?
 
 > Not likely. Nexus.js will use the Promise-based `System.import` API for dynamic loading, and otherwise use the `import` and `export` keywords for normal module loading.
 > `require()` can still be implemented by a third-party in pure JavaScript of course, it just won't come built-in.
 
-* #### Why are you avoiding `require()`? Are you planning on breaking all backward-compatibility with Node.js?
+* Why are you avoiding `require()`? Are you planning on breaking all backward-compatibility with Node.js?
 
 > Yes. I know the decision is harsh, but it will be better in the long run.
 > It will make porting libraries harder, but the result will be a pure ES6 ecosystem with ES6 modules at its core.
 > This is necessary because Nexus.js is multi-threaded, and most Node.js libraries use globals in one form or another, which means they'd be broken anyway.
 > While accessing globals concurrently will not corrupt them or crash the program, it will produce unexpected behaviour in any event-loop based code. Since it assumes a single-threaded environment.
 
-* #### How does concurrent access to variables work? Do you use a Mutex for every variable?
+* How does concurrent access to variables work? Do you use a Mutex for every variable?
 
 > No, please see [Locking in WebKit](https://webkit.org/blog/6161/locking-in-webkit/), it explains it better than I ever could.
 
-* #### Can Nexus libraries override globals?
+* Can Nexus libraries override globals?
 
 > The globals are created on-demand in every context that accesses them, and this makes it impossible to replace them.
 > For example, `Nexus.EventEmitter` exists in every context, but if you replace it in a library it will not affect the `Nexus.EventEmitter` available in a different library, or in the main context.
