@@ -117,25 +117,30 @@ void NX::Classes::Net::TCP::Acceptor::beginAccept(NX::Context * context, JSObjec
 
 void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
 {
-  NX::Object remoteEndpoint(context->toJSContext());
-  try {
-    remoteEndpoint.set("address", NX::Value(context->toJSContext(), socket->remote_endpoint().address().to_string()).value());
-    remoteEndpoint.set("port", NX::Value(context->toJSContext(), socket->remote_endpoint().port()).value());
-  } catch(const std::exception & e) {
-    // FIXME: DO SOMETHING HERE!
-  }
-  const JSValueRef arguments[] {
-    NX::Classes::IO::Devices::TCPSocket::wrapSocket(context, socket),
-    remoteEndpoint.value()
-  };
-  JSValueRef exception = nullptr;
-  emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
-  JSValueUnprotect(context->toJSContext(), thisObject);
-  if (!exception)
-    beginAccept(context, thisObject);
-  else {
-    myScheduler->release();
+  if (socket->is_open()) {
+    NX::Object remoteEndpoint(context->toJSContext());
+    try {
+      remoteEndpoint.set("address", NX::Value(context->toJSContext(), socket->remote_endpoint().address().to_string()).value());
+      remoteEndpoint.set("port", NX::Value(context->toJSContext(), socket->remote_endpoint().port()).value());
+    } catch(const std::exception & e) {
+      remoteEndpoint.set("address", JSValueMakeUndefined(context->toJSContext()));
+      remoteEndpoint.set("port", JSValueMakeUndefined(context->toJSContext()));
+    }
+    const JSValueRef arguments[] {
+      NX::Classes::IO::Devices::TCPSocket::wrapSocket(context, socket),
+      remoteEndpoint.value()
+    };
+    JSValueRef exception = nullptr;
+    emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
     JSValueUnprotect(context->toJSContext(), thisObject);
-    NX::Nexus::ReportException(context->toJSContext(), exception);
+    if (!exception)
+      beginAccept(context, thisObject);
+    else {
+      myScheduler->release();
+      JSValueUnprotect(context->toJSContext(), thisObject);
+      NX::Nexus::ReportException(context->toJSContext(), exception);
+    }
+  } else {
+    beginAccept(context, thisObject);
   }
 }
