@@ -17,34 +17,23 @@
  *
  */
 
+#include "classes/net/http/connection.h"
 
-#ifndef CLASSES_BASE_H
-#define CLASSES_BASE_H
 
-#include <JavaScript.h>
-#include <context.h>
-#include <nexus.h>
+const JSClassDefinition NX::Classes::Net::HTTP::Connection::Class {
+  0, kJSClassAttributeNone, "HTTPConnection", nullptr, NX::Classes::Net::HTTP::Connection::Properties,
+  NX::Classes::Net::HTTP::Connection::Methods, nullptr
+};
 
-namespace NX {
-  namespace Classes {
-    class Base
-    {
-    private:
+const JSStaticValue NX::Classes::Net::HTTP::Connection::Properties[] {
+  { nullptr, nullptr, nullptr, 0 }
+};
 
-      static JSClassDefinition Class;
+const JSStaticFunction NX::Classes::Net::HTTP::Connection::Methods[] {
+  { nullptr, nullptr, 0 }
+};
 
-    public:
-      virtual ~Base() {}
-
-      static NX::Classes::Base * FromObject(JSObjectRef object) {
-        return reinterpret_cast<NX::Classes::Base *>(JSObjectGetPrivate(object));
-      }
-
-      static JSClassRef createClass(NX::Context * context) {
-        return context->nexus()->defineOrGetClass(NX::Classes::Base::Class);
-      }
-    };
-  }
+JSObjectRef NX::Classes::Net::HTTP::Connection::start(NX::Context * context, JSObjectRef thisObject)
+{
+  
 }
-
-#endif

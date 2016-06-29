@@ -87,6 +87,7 @@ namespace NX {
         public:
           static JSClassRef createClass(NX::Context * context);
           static JSObjectRef getConstructor(NX::Context * context);
+          
           static JSObjectRef wrapSocket(NX::Context * context, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
 
           static NX::Classes::IO::Devices::TCPSocket * FromObject(JSObjectRef obj) {

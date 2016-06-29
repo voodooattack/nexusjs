@@ -65,7 +65,7 @@ If you've installed WebKit to `/usr/local/`, use the following:
 
 ## Documentation
 
-The Nexus.js API is an ever-evolving creature of unbound dreams. Because it changes so much from commit to commit, no documentation is currently available; but you can look into the [tests directory](tests/) for an insight into how to use it.
+The Nexus.js API is a shifting haze. Because it changes so much from commit to commit, no documentation is currently available; but you can look into the [tests directory](tests/) for an insight into how to use it.
 
 Fear not, though! For a comprehensive manual is planned! Along with a package manager to make Nexus proud!
 

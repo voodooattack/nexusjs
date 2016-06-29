@@ -17,34 +17,22 @@
  *
  */
 
+#include "classes/net/http2/server.h"
 
-#ifndef CLASSES_BASE_H
-#define CLASSES_BASE_H
+const JSClassDefinition NX::Classes::Net::HTTP2::Server::Class {
+  0, kJSClassAttributeNone, "HTTP2Server", nullptr, NX::Classes::Net::HTTP2::Server::Properties,
+  NX::Classes::Net::HTTP2::Server::Methods, nullptr, NX::Classes::Net::HTTP2::Server::Finalize
+};
 
-#include <JavaScript.h>
-#include <context.h>
-#include <nexus.h>
+const JSStaticValue NX::Classes::Net::HTTP2::Server::Properties[] {
+  { nullptr, nullptr, nullptr, 0 }
+};
 
-namespace NX {
-  namespace Classes {
-    class Base
-    {
-    private:
+const JSStaticFunction NX::Classes::Net::HTTP2::Server::Methods[] {
+  { nullptr, nullptr, 0 }
+};
 
-      static JSClassDefinition Class;
-
-    public:
-      virtual ~Base() {}
-
-      static NX::Classes::Base * FromObject(JSObjectRef object) {
-        return reinterpret_cast<NX::Classes::Base *>(JSObjectGetPrivate(object));
-      }
-
-      static JSClassRef createClass(NX::Context * context) {
-        return context->nexus()->defineOrGetClass(NX::Classes::Base::Class);
-      }
-    };
-  }
+void NX::Classes::Net::HTTP2::Server::handleAccept(NX::Context * context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
+{
+  beginAccept(context, thisObject);
 }
-
-#endif

@@ -38,6 +38,9 @@ add_executable(nexus
   classes/io/filters/encoding.cpp
   classes/io/filters/utf8stringfilter.cpp
   classes/net/tcp/acceptor.cpp
+  classes/net/http/server.cpp
+  classes/net/http/connection.cpp
+  classes/net/http2/server.cpp
   classes/context.cpp
   classes/emitter.cpp
   classes/task.cpp

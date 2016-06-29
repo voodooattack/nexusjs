@@ -37,6 +37,7 @@ namespace NX
     {
       namespace TCP {
         class Acceptor: public NX::Classes::Emitter {
+        protected:
           Acceptor (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::acceptor> & acceptor):
             myScheduler(scheduler), myAcceptor(acceptor)
           {
@@ -87,9 +88,11 @@ namespace NX
 
         protected:
 
+          virtual void beginAccept(NX::Context* context, JSObjectRef thisObject);
+          virtual void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
 
-          void beginAccept(NX::Context* context, JSObjectRef thisObject);
-          void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
+          NX::Scheduler * scheduler() { return myScheduler; }
+          std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor() { return myAcceptor; }
 
         private:
           NX::Scheduler * myScheduler;

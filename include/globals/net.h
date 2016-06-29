@@ -36,6 +36,14 @@ namespace NX {
       static const JSStaticFunction TCPMethods[];
       static const JSStaticValue TCPProperties[];
 
+      static const JSClassDefinition HTTPClass;
+      static const JSStaticFunction HTTPMethods[];
+      static const JSStaticValue HTTPProperties[];
+
+      static const JSClassDefinition HTTP2Class;
+      static const JSStaticFunction HTTP2Methods[];
+      static const JSStaticValue HTTP2Properties[];
+
       static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
     public:
       static constexpr JSStaticValue GetStaticProperty() {

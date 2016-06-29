@@ -20,6 +20,8 @@
 #include "context.h"
 #include "globals/net.h"
 #include "classes/net/tcp/acceptor.h"
+#include "classes/net/http/server.h"
+#include "classes/net/http2/server.h"
 
 JSValueRef NX::Globals::Net::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
@@ -73,4 +75,47 @@ const JSStaticValue NX::Globals::Net::TCPProperties[] {
 const JSStaticFunction NX::Globals::Net::TCPMethods[] {
   { nullptr, nullptr, 0 }
 };
+
+const JSClassDefinition NX::Globals::Net::HTTPClass {
+  0, kJSClassAttributeNone, "HTTP", nullptr, NX::Globals::Net::HTTPProperties, NX::Globals::Net::HTTPMethods
+};
+
+const JSStaticValue NX::Globals::Net::HTTPProperties[] {
+  { "Server", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+    NX::Context * context = Context::FromJsContext(ctx);
+    if (JSObjectRef Server = context->getGlobal("Nexus.Net.HTTP.Server"))
+      return Server;
+    JSObjectRef ctor = NX::Classes::Net::HTTP::Server::getConstructor(context);
+    context->setGlobal("Nexus.Net.HTTP.Server", ctor);
+    return ctor;
+  },
+  nullptr, kJSPropertyAttributeNone },
+  { nullptr, nullptr, nullptr, 0 }
+};
+
+const JSStaticFunction NX::Globals::Net::HTTPMethods[] {
+  { nullptr, nullptr, 0 }
+};
+
+const JSClassDefinition NX::Globals::Net::HTTP2Class {
+  0, kJSClassAttributeNone, "TCP", nullptr, NX::Globals::Net::HTTP2Properties, NX::Globals::Net::HTTP2Methods
+};
+
+const JSStaticValue NX::Globals::Net::HTTP2Properties[] {
+  { "Server", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+    NX::Context * context = Context::FromJsContext(ctx);
+    if (JSObjectRef Server = context->getGlobal("Nexus.Net.HTTP2.Server"))
+      return Server;
+    JSObjectRef ctor = NX::Classes::Net::HTTP2::Server::getConstructor(context);
+    context->setGlobal("Nexus.Net.HTTP2.Server", ctor);
+    return ctor;
+  },
+  nullptr, kJSPropertyAttributeNone },
+  { nullptr, nullptr, nullptr, 0 }
+};
+
+const JSStaticFunction NX::Globals::Net::HTTP2Methods[] {
+  { nullptr, nullptr, 0 }
+};
+
 

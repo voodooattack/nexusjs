@@ -117,6 +117,7 @@ void NX::Classes::Net::TCP::Acceptor::beginAccept(NX::Context * context, JSObjec
 
 void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
 {
+  beginAccept(context, thisObject);
   if (socket->is_open()) {
     NX::Object remoteEndpoint(context->toJSContext());
     try {
@@ -133,14 +134,8 @@ void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, JSObjec
     JSValueRef exception = nullptr;
     emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
     JSValueUnprotect(context->toJSContext(), thisObject);
-    if (!exception)
-      beginAccept(context, thisObject);
-    else {
-      myScheduler->release();
-      JSValueUnprotect(context->toJSContext(), thisObject);
+    if (exception) {
       NX::Nexus::ReportException(context->toJSContext(), exception);
     }
-  } else {
-    beginAccept(context, thisObject);
   }
 }
