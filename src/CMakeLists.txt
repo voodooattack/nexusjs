@@ -4,6 +4,7 @@ project(nexus)
 find_package(Boost 1.58 COMPONENTS program_options system thread filesystem coroutine context REQUIRED)
 find_package(ICU REQUIRED)
 find_package(JavaScriptCore REQUIRED)
+find_package(YaHTTP REQUIRED)
 
 if(MSVC)
   # Force to always compile with W4
@@ -47,10 +48,10 @@ add_executable(nexus
   classes/base.cpp
 )
 
-target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${ICU_LIBRARIES} pthread)
+target_link_libraries(nexus js_bundle ${JAVASCRIPTCORE_LIBRARY} ${Boost_LIBRARIES} ${YAHTTP_LIBRARY} ${ICU_LIBRARIES} pthread)
 target_include_directories(nexus
   PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/generated/
-  SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICU_INCLUDE_DIR}
+  SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICU_INCLUDE_DIR} ${YAHTTP_INCLUDE_DIR}
 )
 
 link_directories(${Boost_LIBRARY_DIRS})

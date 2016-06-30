@@ -22,6 +22,8 @@
 #define CLASSES_NET_HTTP_CONNECTION_H
 
 #include <JavaScript.h>
+#include <yahttp/yahttp.hpp>
+
 #include "classes/io/devices/socket.h"
 
 namespace NX {
@@ -57,6 +59,11 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
+        protected:
+          YaHTTP::Request myRequest;
+          YaHTTP::Response myResponse;
+          YaHTTP::AsyncRequestLoader myReqLoader;
+          YaHTTP::AsyncResponseLoader myResLoader;
         };
       }
     }

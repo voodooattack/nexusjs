@@ -56,6 +56,16 @@ namespace NX
       Emitter(): myMap() {}
       virtual ~Emitter() {}
 
+      typedef std::function<JSValueRef(JSContextRef, std::size_t argumentCount, const JSValueRef arguments[], JSValueRef *)> EventCallback;
+
+      virtual JSValueRef addListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, EventCallback callback) {
+        return addManyListener(ctx, thisObject, e, callback, -1);
+      }
+      virtual JSValueRef addOnceListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, EventCallback callback) {
+        return addManyListener(ctx, thisObject, e, callback, 1);
+      }
+      virtual JSValueRef addManyListener( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, EventCallback callback, int count );
+
       virtual JSValueRef addListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback) {
         return addManyListener(ctx, thisObject, e, callback, -1);
       }

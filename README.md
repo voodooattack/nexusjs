@@ -17,6 +17,7 @@ Nexus.js is Promise-based and embraces ES6 in full; as a result, it is not compa
 * [CMake](https://cmake.org)
 * [Boost](http://www.boost.org)
 * [ICU](http://site.icu-project.org/)
+* [YaHTTP](https://github.com/cmouse/yahttp)
 
 #### Obtaining WebKit
 

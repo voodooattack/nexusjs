@@ -55,6 +55,27 @@ JSValueRef NX::Classes::Emitter::addManyListener (JSGlobalContextRef ctx, JSObje
   return JSValueMakeUndefined(ctx);
 }
 
+JSValueRef NX::Classes::Emitter::addManyListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string & e, EventCallback callback, int count)
+{
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  JSObjectRef thisObjectForBind = JSObjectMake(ctx, context->nexus()->genericClass(), new EventCallback(callback));
+  JSObjectRef jsCallback = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
+    [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
+       const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+      EventCallback * callback = reinterpret_cast<EventCallback*>(JSObjectGetPrivate(thisObject));
+      try {
+        JSValueRef ret = (*callback)(ctx, argumentCount, arguments, exception);
+        delete callback;
+        return ret;
+      } catch(const std::exception & e) {
+        return JSWrapException(ctx, e, exception);
+        delete callback;
+      }
+    }), thisObjectForBind, 0, nullptr, nullptr);
+
+  addManyListener(ctx, thisObject, e, jsCallback, count);
+}
+
 JSObjectRef NX::Classes::Emitter::emit (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
                                         argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {

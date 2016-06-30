@@ -50,9 +50,19 @@ void NX::Classes::Net::HTTP::Server::handleAccept(NX::Context * context, JSObjec
       connection,
       remoteEndpoint
     };
-    JSValueRef exception = nullptr;
-    emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
-    if (exception)
-      NX::Nexus::ReportException(context->toJSContext(), exception);
+    NX::ProtectedArguments args(context->toJSContext(), 2, arguments);
+    NX::Classes::Net::HTTP::Connection * conn = NX::Classes::Net::HTTP::Connection::FromObject(connection);
+    NX::Object promise (context->toJSContext(),
+                        conn->start(context, connection));
+    promise.then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {
+      JSValueRef exp = nullptr;
+      emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, args, &exp);
+      if (exp)
+        NX::Nexus::ReportException(context->toJSContext(), exp);
+      return value;
+    }, [=](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {
+      NX::Nexus::ReportException(context->toJSContext(), value);
+      return JSValueMakeUndefined(ctx);
+    });
   }
 }

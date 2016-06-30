@@ -19,7 +19,6 @@
 
 #include "classes/net/http/connection.h"
 
-
 const JSClassDefinition NX::Classes::Net::HTTP::Connection::Class {
   0, kJSClassAttributeNone, "HTTPConnection", nullptr, NX::Classes::Net::HTTP::Connection::Properties,
   NX::Classes::Net::HTTP::Connection::Methods, nullptr
@@ -35,5 +34,34 @@ const JSStaticFunction NX::Classes::Net::HTTP::Connection::Methods[] {
 
 JSObjectRef NX::Classes::Net::HTTP::Connection::start(NX::Context * context, JSObjectRef thisObject)
 {
-  
+  JSValueProtect(context->toJSContext(), thisObject);
+  return NX::Globals::Promise::createPromise(context->toJSContext(),
+    [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+      myRequest.initialize();
+      myResponse.initialize();
+      myReqLoader.initialize(&myRequest);
+      myResLoader.initialize(&myResponse);
+      addListener(context->toJSContext(), thisObject, "data",
+        [=](JSContextRef ctx, std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef {
+          JSValueUnprotect(context->toJSContext(), thisObject);
+          try {
+            NX::Object buffer(ctx, arguments[0]);
+            const char * data = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, buffer, exception);
+            std::size_t size = JSObjectGetArrayBufferByteLength(ctx, buffer, exception);
+            myReqLoader.feed(std::string(data, data + size));
+            if (myReqLoader.ready()) {
+              myReqLoader.finalize();
+              NX::Object req(context->toJSContext());
+              req.set("method", NX::Value(ctx, myRequest.method).value());
+              req.set("url", NX::Value(ctx, myRequest.url.to_string()).value());
+              NX::Object thisObj(context->toJSContext(), thisObject);
+              thisObj.set("request", req.value());
+              resolve(thisObject);
+            }
+          } catch(const std::exception & e) {
+            return JSWrapException(ctx, e, exception);
+          }
+        });
+      resume(context->toJSContext(), thisObject);
+    });
 }

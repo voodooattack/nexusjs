@@ -48,6 +48,15 @@ const JSStaticValue NX::Globals::Net::Properties[] {
     return tcpObject;
   },
   nullptr, kJSPropertyAttributeNone },
+  { "HTTP", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+    NX::Context * context = Context::FromJsContext(ctx);
+    if (JSObjectRef HTTP = context->getGlobal("Nexus.Net.HTTP"))
+      return HTTP;
+    JSObjectRef tcpObject = JSObjectMake(ctx, context->nexus()->defineOrGetClass(NX::Globals::Net::HTTPClass), nullptr);
+    context->setGlobal("Nexus.Net.HTTP", tcpObject);
+    return tcpObject;
+  },
+  nullptr, kJSPropertyAttributeNone },
   { nullptr, nullptr, nullptr, 0 }
 };
 
