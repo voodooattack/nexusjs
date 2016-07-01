@@ -18,41 +18,38 @@
  */
 
 
-#ifndef CLASSES_NET_HTTP_CONNECTION_H
-#define CLASSES_NET_HTTP_CONNECTION_H
+#ifndef CLASSES_NET_HTCOMMON_CONNECTION_H
+#define CLASSES_NET_HTCOMMON_CONNECTION_H
 
 #include <JavaScript.h>
 
-#include "classes/net/htcommon/connection.h"
+#include "classes/io/devices/socket.h"
 
 namespace NX {
   namespace Classes {
     namespace Net {
-      namespace HTTP {
-        class Connection: public NX::Classes::Net::HTCommon::Connection {
+      namespace HTCommon {
+        class Connection: public NX::Classes::IO::Devices::TCPSocket {
+        public:
           Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
-            NX::Classes::Net::HTCommon::Connection(scheduler, socket)
+            TCPSocket(scheduler, socket)
           {
           }
 
         public:
           virtual ~Connection() {}
 
-          static NX::Classes::Net::HTTP::Connection * FromObject(JSObjectRef obj) {
-            return dynamic_cast<NX::Classes::Net::HTTP::Connection*>(NX::Classes::Base::FromObject(obj));
+          static NX::Classes::Net::HTCommon::Connection * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::Net::HTCommon::Connection*>(NX::Classes::Base::FromObject(obj));
           }
 
           static JSClassRef createClass(NX::Context * context) {
-            JSClassDefinition def = NX::Classes::Net::HTTP::Connection::Class;
-            def.parentClass = NX::Classes::Net::HTCommon::Connection::createClass (context);
+            JSClassDefinition def = NX::Classes::Net::HTCommon::Connection::Class;
+            def.parentClass = NX::Classes::IO::Devices::TCPSocket::createClass (context);
             return context->nexus()->defineOrGetClass (def);
           }
 
-          static JSObjectRef wrapSocket(NX::Context * context, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket) {
-            return JSObjectMake(context->toJSContext(), createClass(context), new Connection(context->nexus()->scheduler(), socket));
-          }
-
-          JSObjectRef start(NX::Context * context, JSObjectRef thisObject);
+          virtual JSObjectRef start(NX::Context * context, JSObjectRef thisObject) = 0;
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];

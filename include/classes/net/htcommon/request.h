@@ -18,45 +18,47 @@
  */
 
 
-#ifndef CLASSES_NET_HTTP_CONNECTION_H
-#define CLASSES_NET_HTTP_CONNECTION_H
+#ifndef CLASSES_NET_HTCOMMON_REQUEST_H
+#define CLASSES_NET_HTCOMMON_REQUEST_H
 
 #include <JavaScript.h>
 
 #include "classes/net/htcommon/connection.h"
+#include "classes/io/device.h"
 
 namespace NX {
   namespace Classes {
     namespace Net {
-      namespace HTTP {
-        class Connection: public NX::Classes::Net::HTCommon::Connection {
-          Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
-            NX::Classes::Net::HTCommon::Connection(scheduler, socket)
+      namespace HTCommon {
+        class Request: public NX::Classes::IO::PushSourceDevice {
+        protected:
+          Request (NX::Classes::Net::HTCommon::Connection * connection):
+            PushSourceDevice(), myConnection(connection)
           {
           }
 
         public:
-          virtual ~Connection() {}
+          virtual ~Request() {}
 
-          static NX::Classes::Net::HTTP::Connection * FromObject(JSObjectRef obj) {
-            return dynamic_cast<NX::Classes::Net::HTTP::Connection*>(NX::Classes::Base::FromObject(obj));
+          static NX::Classes::Net::HTCommon::Request * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::Net::HTCommon::Request*>(NX::Classes::Base::FromObject(obj));
           }
 
           static JSClassRef createClass(NX::Context * context) {
-            JSClassDefinition def = NX::Classes::Net::HTTP::Connection::Class;
-            def.parentClass = NX::Classes::Net::HTCommon::Connection::createClass (context);
+            JSClassDefinition def = NX::Classes::Net::HTCommon::Request::Class;
+            def.parentClass = NX::Classes::IO::PushSourceDevice::createClass (context);
             return context->nexus()->defineOrGetClass (def);
           }
 
-          static JSObjectRef wrapSocket(NX::Context * context, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket) {
-            return JSObjectMake(context->toJSContext(), createClass(context), new Connection(context->nexus()->scheduler(), socket));
-          }
-
-          JSObjectRef start(NX::Context * context, JSObjectRef thisObject);
+          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject) = 0;
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
+
+          NX::Classes::Net::HTCommon::Connection * connection() { return myConnection; }
+        private:
+          NX::Classes::Net::HTCommon::Connection * myConnection;
         };
       }
     }
