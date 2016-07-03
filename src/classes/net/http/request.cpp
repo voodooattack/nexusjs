@@ -19,13 +19,16 @@
 
 #include "classes/net/http/request.h"
 
-JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectRef thisObject) {
+JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) {
   NX::Context * context = NX::Context::FromJsContext(ctx);
+  NX::Object thisObj(context->toJSContext(), thisObject);
+  NX::Object connectionObj(context->toJSContext(), connection);
   return NX::Globals::Promise::createPromise(context->toJSContext(),
     [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-      myConnection->addListener(context->toJSContext(), thisObject, "data",
+      myConnection->addListener(context->toJSContext(), connection, "data",
         [=](JSContextRef ctx, std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef {
-          JSValueUnprotect(context->toJSContext(), thisObject);
+          NX::Object thisObjCopy(thisObj);
+          NX::Object connObjCopy(connectionObj);
           try {
             NX::Object buffer(ctx, arguments[0]);
             const char * data = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, buffer, exception);

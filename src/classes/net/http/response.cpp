@@ -19,7 +19,7 @@
 
 #include "classes/net/http/response.h"
 
-JSObjectRef NX::Classes::Net::HTTP::Response::attach(JSContextRef ctx, JSObjectRef thisObject)
+JSObjectRef NX::Classes::Net::HTTP::Response::attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection)
 {
   return NX::Globals::Promise::resolve(ctx, thisObject);
 }

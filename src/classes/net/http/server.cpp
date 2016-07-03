@@ -52,8 +52,7 @@ void NX::Classes::Net::HTTP::Server::handleAccept(NX::Context * context, JSObjec
     };
     NX::ProtectedArguments args(context->toJSContext(), 2, arguments);
     NX::Classes::Net::HTTP::Connection * conn = NX::Classes::Net::HTTP::Connection::FromObject(connection);
-    NX::Object promise (context->toJSContext(),
-                        conn->start(context, connection));
+    NX::Object promise (context->toJSContext(), conn->start(context, connection));
     promise.then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {
       JSValueRef exp = nullptr;
       emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, args, &exp);

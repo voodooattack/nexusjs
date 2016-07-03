@@ -89,6 +89,8 @@ namespace NX
                              std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
 
 
+      static const JSClassDefinition EventCallbackClass;
+
     protected:
       virtual void tidy(const std::string & e) {
         boost::recursive_mutex::scoped_lock lock(myMutex);

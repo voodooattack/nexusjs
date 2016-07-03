@@ -27,18 +27,6 @@ const JSClassDefinition NX::Classes::Net::HTTP::Connection::Class {
 };
 
 const JSStaticValue NX::Classes::Net::HTTP::Connection::Properties[] {
-//   { "request", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-//     try {
-//       NX::Context * context = Context::FromJsContext(ctx);
-//       NX::Classes::Net::HTTP::Connection * conn = NX::Classes::Net::HTTP::Connection::FromObject(object);
-//       if (!conn)
-//         throw std::runtime_error(".request not implemented on Connection object");
-//       return conn->requestObject();
-//     } catch(const std::exception & e) {
-//       return JSWrapException(ctx, e, exception);
-//     }
-//   },
-//   nullptr, kJSPropertyAttributeNone },
   { nullptr, nullptr, nullptr, 0 }
 };
 
@@ -55,10 +43,16 @@ JSObjectRef NX::Classes::Net::HTTP::Connection::start(NX::Context * context, JSO
   JSObjectRef resObj = JSObjectMake(context->toJSContext(), NX::Classes::Net::HTTP::Response::createClass(context), res);
   thisObj.set("request", reqObj);
   thisObj.set("response", resObj);
+  JSObjectSetProperty(context->toJSContext(), reqObj, ScopedString("connection"), thisObj,
+                      kJSPropertyAttributeDontDelete | kJSPropertyAttributeDontEnum | kJSPropertyAttributeReadOnly, nullptr);
+  JSObjectSetProperty(context->toJSContext(), resObj, ScopedString("connection"), thisObj,
+                      kJSPropertyAttributeDontDelete | kJSPropertyAttributeDontEnum | kJSPropertyAttributeReadOnly, nullptr);
+  JSValueProtect(context->toJSContext(), thisObject);
   return NX::Object(context->toJSContext(), NX::Globals::Promise::all(context->toJSContext(), std::vector<JSValueRef> {
-    req->attach(context->toJSContext(), reqObj),
-    res->attach(context->toJSContext(), resObj)
+    req->attach(context->toJSContext(), reqObj, thisObject),
+    res->attach(context->toJSContext(), resObj, thisObject)
   })).then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception){
+    JSValueUnprotect(context->toJSContext(), thisObject);
     return thisObject;
   });
 }

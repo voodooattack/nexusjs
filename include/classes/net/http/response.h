@@ -61,12 +61,15 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
-          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject);
+          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection);
 
           NX::Classes::Net::HTTP::Connection * connection() { return myConnection; }
 
           virtual bool deviceReady() const { return myConnection->deviceReady(); }
-          virtual void deviceWrite ( const char * buffer, std::size_t length ) { myResLoader.feed(std::string(buffer, buffer + length)); }
+          virtual void deviceWrite ( const char * buffer, std::size_t length ) {
+            std::cout << "reponse:" << myResponse;
+            myResLoader.feed(std::string(buffer, buffer + length));
+          }
           virtual std::size_t maxWriteBufferSize() const { return myResLoader.maxbody; }
 
         protected:

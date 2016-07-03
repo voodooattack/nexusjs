@@ -50,7 +50,7 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject) = 0;
+          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) = 0;
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];

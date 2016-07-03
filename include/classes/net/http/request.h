@@ -61,7 +61,7 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
-          virtual JSObjectRef attach (JSContextRef ctx, JSObjectRef thisObject);
+          virtual JSObjectRef attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection);
 
           NX::Classes::Net::HTTP::Connection * connection() { return myConnection; }
 

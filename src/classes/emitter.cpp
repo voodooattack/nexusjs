@@ -23,6 +23,12 @@
 #include "util.h"
 #include "nexus.h"
 
+const JSClassDefinition NX::Classes::Emitter::EventCallbackClass {
+  0, kJSClassAttributeNone, "EventCallback", nullptr, nullptr, nullptr, nullptr, [](JSObjectRef thisObject) {
+    delete reinterpret_cast<EventCallback*>(JSObjectGetPrivate(thisObject));
+  }
+};
+
 JSClassRef NX::Classes::Emitter::createClass (NX::Context * context)
 {
   JSClassDefinition def = NX::Classes::Emitter::Class;
@@ -58,22 +64,20 @@ JSValueRef NX::Classes::Emitter::addManyListener (JSGlobalContextRef ctx, JSObje
 JSValueRef NX::Classes::Emitter::addManyListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string & e, EventCallback callback, int count)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  JSObjectRef thisObjectForBind = JSObjectMake(ctx, context->nexus()->genericClass(), new EventCallback(callback));
+  JSObjectRef thisObjectForBind = JSObjectMake(ctx, context->nexus()->defineOrGetClass(NX::Classes::Emitter::EventCallbackClass), new EventCallback(callback));
   JSObjectRef jsCallback = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       EventCallback * callback = reinterpret_cast<EventCallback*>(JSObjectGetPrivate(thisObject));
       try {
-        JSValueRef ret = (*callback)(ctx, argumentCount, arguments, exception);
-        delete callback;
-        return ret;
+        return callback->operator()(ctx, argumentCount, arguments, exception);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
-        delete callback;
       }
+      return JSValueMakeUndefined(ctx);
     }), thisObjectForBind, 0, nullptr, nullptr);
 
-  addManyListener(ctx, thisObject, e, jsCallback, count);
+  return addManyListener(ctx, thisObject, e, jsCallback, count);
 }
 
 JSObjectRef NX::Classes::Emitter::emit (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
