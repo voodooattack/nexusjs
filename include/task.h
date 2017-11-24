@@ -21,7 +21,7 @@
 #define TASK_H
 
 #include <boost/noncopyable.hpp>
-#include <boost/coroutine/all.hpp>
+#include <boost/coroutine2/all.hpp>
 
 #include "scheduler.h"
 
@@ -96,9 +96,9 @@ namespace NX
   };
 
   class CoroutineTask: public AbstractTask {
-    typedef boost::coroutines::coroutine<void> coro_t;
-    typedef boost::coroutines::coroutine<void>::push_type push_type;
-    typedef boost::coroutines::coroutine<void>::pull_type pull_type;
+    typedef boost::coroutines2::coroutine<void> coro_t;
+    typedef boost::coroutines2::coroutine<void>::push_type push_type;
+    typedef boost::coroutines2::coroutine<void>::pull_type pull_type;
   protected:
     virtual ~CoroutineTask() { myScheduler->release(); }
   public:

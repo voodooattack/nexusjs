@@ -20,9 +20,13 @@
 #ifndef NEXUS_H
 #define NEXUS_H
 
+#include <utility>
 #include <list>
 #include <string>
-#include <JavaScript.h>
+
+#include <JavaScriptCore/heap/Heap.h>
+#include <JavaScriptCore/runtime/Exception.h>
+#include <JavaScriptCore/runtime/VM.h>
 
 #include <boost/unordered_map.hpp>
 #include <boost/program_options.hpp>

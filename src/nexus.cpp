@@ -18,6 +18,7 @@
  */
 
 #include "nexus.h"
+#include "module.h"
 #include "scoped_context.h"
 #include "scheduler.h"
 #include "object.h"
@@ -33,6 +34,9 @@
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 
+#include <JavaScriptCore/JSContextRef.h>
+#include <JavaScriptCore/API/APICast.h>
+
 namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
@@ -40,7 +44,7 @@ NX::Nexus::Nexus(int argc, const char ** argv):
   myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myClasses()
 {
   for (int i = 0; i < argc; i++) {
-    myArguments.push_back(argv[i]);
+    myArguments.emplace_back(std::string(argv[i]));
   }
   myContextGroup = JSContextGroupCreate();
   myMainContext = new NX::Context(nullptr, this, myContextGroup);
@@ -52,6 +56,7 @@ NX::Nexus::~Nexus()
   JSContextGroupRelease(myContextGroup);
   for(auto & c : myClasses)
     JSClassRelease(c.second);
+  this->~noncopyable();
 }
 
 bool NX::Nexus::parseArguments()
@@ -118,7 +123,7 @@ int NX::Nexus::run() {
     }
     initScheduler();
     JSValueRef exception = nullptr;
-    myMainContext->evaluateScript(myScriptSource, nullptr, myScriptPath, 1, &exception);
+    myMainContext->evaluateModule(myScriptSource, nullptr, myScriptPath, 1, &exception);
     if (!exception) {
       myScheduler->start();
       myScheduler->joinPool();

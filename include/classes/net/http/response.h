@@ -23,10 +23,7 @@
 
 #include <JavaScript.h>
 
-#ifndef YAHTTP_HPP
-#include <yahttp/yahttp.hpp>
-#define YAHTTP_HPP
-#endif
+#include <boost/beast.hpp>
 
 #include "classes/net/http/connection.h"
 #include "classes/net/htcommon/response.h"
@@ -38,10 +35,9 @@ namespace NX {
         class Response: public NX::Classes::Net::HTCommon::Response {
         public:
           Response (NX::Classes::Net::HTTP::Connection * connection):
-            HTCommon::Response(connection), myConnection(connection)
+            HTCommon::Response(connection), myConnection(connection), myResponse(), myResParser(myResponse)
           {
-            myResponse.initialize();
-            myResLoader.initialize(&myResponse);
+
           }
 
         public:
@@ -68,14 +64,17 @@ namespace NX {
           virtual bool deviceReady() const { return myConnection->deviceReady(); }
           virtual void deviceWrite ( const char * buffer, std::size_t length ) {
             std::cout << "reponse:" << myResponse;
-            myResLoader.feed(std::string(buffer, buffer + length));
+            boost::system::error_code ec;
+            myResParser.put(boost::asio::const_buffers_1(buffer, length), ec);
+            if (ec)
+              throw std::runtime_error(ec.message());
           }
-          virtual std::size_t maxWriteBufferSize() const { return myResLoader.maxbody; }
+          virtual std::size_t maxWriteBufferSize() const { return 8192; }
 
         protected:
           NX::Classes::Net::HTTP::Connection * myConnection;
-          YaHTTP::Response myResponse;
-          YaHTTP::AsyncResponseLoader myResLoader;
+          boost::beast::http::response<boost::beast::http::dynamic_body> myResponse;
+          boost::beast::http::response_parser<boost::beast::http::dynamic_body> myResParser;
         };
       }
     }

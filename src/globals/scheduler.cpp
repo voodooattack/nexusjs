@@ -1,6 +1,6 @@
+#include "nexus.h"
 #include "globals/scheduler.h"
 #include "scheduler.h"
-#include "nexus.h"
 #include "value.h"
 #include "task.h"
 #include "classes/task.h"

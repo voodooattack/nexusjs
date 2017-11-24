@@ -17,8 +17,8 @@
  *
  */
 
-#include "scheduler.h"
 #include "nexus.h"
+#include "scheduler.h"
 #include "task.h"
 
 #include <functional>
@@ -163,7 +163,7 @@ void NX::Scheduler::yield()
   if (!myCurrentTask.get()) {
     throw std::runtime_error("call to yield outside of a scheduler task");
   }
-  if (!dynamic_cast<NX::CoroutineTask*>(myCurrentTask.get())) {
+  if (!static_cast<NX::CoroutineTask*>(myCurrentTask.get())) {
     throw std::runtime_error("call to yield outside of a coroutine");
   }
   myCurrentTask->yield();

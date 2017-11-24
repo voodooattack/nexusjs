@@ -14,6 +14,4 @@ socket.connect('127.0.0.1', 3000).then(socket => {
     socket.resume();
     setTimeout(() => socket.pause(), 2000);
   }, e => console.error(e));
-
-
 }, e => console.error(e));

@@ -17,6 +17,7 @@
  *
  */
 
+#include "nexus.h"
 #include "context.h"
 #include "globals/net.h"
 #include "classes/net/tcp/acceptor.h"

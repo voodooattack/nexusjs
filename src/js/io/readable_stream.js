@@ -65,7 +65,7 @@
     readSync() {
       if (this.device.type === 'push')
         throw new TypeError('can not perform sync read operation on PushSourceDevice');
-      const data = this.device.readSync.apply(this.device, arguments);
+      let data = this.device.readSync.apply(this.device, arguments);
       this.filters.forEach(f => data = f.processSync(data));
       return data;
     }

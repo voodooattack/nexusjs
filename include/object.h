@@ -24,7 +24,7 @@
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JavaScript.h>
 #include <boost/system/error_code.hpp>
 
 #include "scoped_string.h"

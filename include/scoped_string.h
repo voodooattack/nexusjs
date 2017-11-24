@@ -20,7 +20,7 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSStringRef.h>
 #include <boost/noncopyable.hpp>
 #include <string>
 

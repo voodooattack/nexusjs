@@ -9,7 +9,7 @@
       this[stateKey] = PENDING;
       const broadcastResolve = this[broadcastResolveKey] = function(value) {
         if (value === this)
-          throw new TypeError('a promise cannot be resolved with itself');
+          throw new TypeError('A promise cannot be resolved with itself');
         if (this[stateKey] !== PENDING)
           return;
         if (value instanceof Promise)

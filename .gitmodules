@@ -1,0 +1,7 @@
+[submodule "vendor/webkit"]
+	path = vendor/webkit
+	url = https://github.com/WebKit/webkit.git
+	branch = master
+[submodule "vendor/beast"]
+	path = vendor/beast
+	url = https://github.com/boostorg/beast.git

@@ -33,19 +33,22 @@ JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectR
             NX::Object buffer(ctx, arguments[0]);
             const char * data = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, buffer, exception);
             std::size_t size = JSObjectGetArrayBufferByteLength(ctx, buffer, exception);
-            myReqLoader.feed(std::string(data, data + size));
+            boost::system::error_code ec;
+            myReqParser.put(boost::asio::const_buffers_1(data, size), ec);
             JSValueRef dataArgs[] { buffer };
             emitFastAndSchedule(ctx, thisObject, "data", 1, dataArgs, exception);
-            if (myReqLoader.ready()) {
-              myReqLoader.finalize();
+            if (myReqParser.is_done()) {
               emitFastAndSchedule(ctx, thisObject, "end", 0, nullptr, exception);
               NX::Object req(context->toJSContext(), thisObject);
-              req.set("method", NX::Value(ctx, myRequest.method).value());
-              req.set("version", NX::Value(ctx, myRequest.versionStr(myRequest.version)).value());
-              req.set("url", NX::Value(ctx, myRequest.url.to_string()).value());
+              std::string method = to_string(myRequest.method()).to_string();
+              req.set("method", NX::Value(ctx, method).value());
+              unsigned major = myRequest.version() / 10;
+              unsigned minor = myRequest.version() % 10;
+              req.set("version", NX::Value(ctx, major + "." + minor).value());
+              req.set("url", NX::Value(ctx, myRequest.target().to_string()).value());
               NX::Object headers(ctx);
-              for(const auto & header : myRequest.headers)
-                headers.set(header.first, NX::Value(ctx, header.second).value());
+              for(const auto & field : myRequest.base())
+                headers.set(boost::to_string(field.name()), NX::Value(ctx, field.value().to_string()).value());
               req.set("headers", headers.value());
               resolve(thisObject);
             }

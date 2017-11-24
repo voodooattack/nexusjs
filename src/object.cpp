@@ -17,13 +17,17 @@
  *
  */
 
+#include <stdexcept>
+#include <utility>
+
+#include <wtf/FastMalloc.h>
+
 #include "object.h"
 #include "value.h"
 #include "context.h"
 #include "scoped_string.h"
-#include <nexus.h>
 
-#include <stdexcept>
+#include "nexus.h"
 
 NX::Object::Object (JSContextRef context, JSClassRef cls): myContext(context), myObject(nullptr)
 {

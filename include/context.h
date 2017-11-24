@@ -23,6 +23,7 @@
 #include <JavaScript.h>
 #include <string>
 #include <boost/unordered_map.hpp>
+#include <JavaScriptCore/runtime/JSInternalPromise.h>
 
 #include "object.h"
 #include "value.h"
@@ -37,6 +38,11 @@ namespace NX {
     virtual ~Context();
 
     JSValueRef evaluateScript(const std::string & src,
+                              JSObjectRef thisObject = nullptr,
+                              const std::string & filePath = "",
+                              unsigned int lineNo = 1,
+                              JSValueRef * exception = nullptr);
+    JSC::JSInternalPromise * evaluateModule(const std::string & src,
                               JSObjectRef thisObject = nullptr,
                               const std::string & filePath = "",
                               unsigned int lineNo = 1,

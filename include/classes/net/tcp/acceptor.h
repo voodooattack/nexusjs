@@ -20,7 +20,7 @@
 #ifndef CLASSES_NET_TCP_ACCEPTOR_H
 #define CLASSES_NET_TCP_ACCEPTOR_H
 
-#include <JavaScript.h>
+#include "nexus.h"
 #include <boost/asio.hpp>
 
 #include "classes/emitter.h"

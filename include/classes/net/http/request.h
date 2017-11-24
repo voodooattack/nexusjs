@@ -22,11 +22,7 @@
 #define CLASSES_NET_HTTP_REQUEST_H
 
 #include <JavaScript.h>
-
-#ifndef YAHTTP_HPP
-#include <yahttp/yahttp.hpp>
-#define YAHTTP_HPP
-#endif
+#include <boost/beast.hpp>
 
 #include "classes/net/http/connection.h"
 #include "classes/net/htcommon/request.h"
@@ -38,10 +34,8 @@ namespace NX {
         class Request: public NX::Classes::Net::HTCommon::Request {
         public:
           Request (NX::Classes::Net::HTTP::Connection * connection):
-            HTCommon::Request(connection), myConnection(connection)
+            HTCommon::Request(connection), myConnection(connection), myRequest(), myReqParser(myRequest)
           {
-            myRequest.initialize();
-            myReqLoader.initialize(&myRequest);
           }
 
         public:
@@ -74,8 +68,8 @@ namespace NX {
 
         protected:
           NX::Classes::Net::HTTP::Connection * myConnection;
-          YaHTTP::Request myRequest;
-          YaHTTP::AsyncRequestLoader myReqLoader;
+          boost::beast::http::request<boost::beast::http::dynamic_body> myRequest;
+          boost::beast::http::request_parser<boost::beast::http::dynamic_body> myReqParser;
         };
       }
     }

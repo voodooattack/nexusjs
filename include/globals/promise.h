@@ -23,6 +23,7 @@
 
 #include <JavaScript.h>
 #include <boost/function.hpp>
+#include <vector>
 
 namespace NX {
   class Nexus;
@@ -31,8 +32,8 @@ namespace NX {
   namespace Globals {
     class Promise
     {
-      Promise() {}
-      virtual ~Promise() {}
+      Promise() = default;
+      virtual ~Promise() = default;
     public:
 
       static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);

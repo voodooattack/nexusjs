@@ -28,7 +28,7 @@
 namespace NX {
   class Context;
   namespace Classes {
-    class Context: public virtual NX::Classes::Base
+    class Context: public NX::Classes::Base
     {
     private:
       static const JSClassDefinition Class;
@@ -47,7 +47,7 @@ namespace NX {
       static JSObjectRef getConstructor(NX::Context * context);
 
       static NX::Classes::Context * FromObject(JSObjectRef object) {
-        return dynamic_cast<NX::Classes::Context *>(NX::Classes::Base::FromObject(object));
+        return static_cast<NX::Classes::Context *>(NX::Classes::Base::FromObject(object));
       }
 
     public:
