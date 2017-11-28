@@ -19,8 +19,23 @@
 
 #include "nexus.h"
 
+#include "global_object.h"
+#include <JavaScriptCore/runtime/InitializeThreading.h>
+
+using namespace JSC;
+
 int main (int argc, const char ** argv)
 {
+  WTF::initializeThreading();
+  if (!setlocale(LC_ALL, ""))
+    WTFLogAlways("Locale not supported by C library.\n\tUsing the fallback 'C' locale.");
+  WTF::initializeMainThread();
+  JSC::initializeThreading();
+//#if ENABLE(WEBASSEMBLY)
+//  JSC::Wasm::enableFastMemory();
+//#endif
+//  Gigacage::disableDisablingPrimitiveGigacageIfShouldBeEnabled();
   NX::Nexus nexus(argc, argv);
-  return nexus.run();
+  nexus.run();
+  return 0;
 }

@@ -44,7 +44,7 @@ namespace NX {
       typedef boost::function<void(JSValueRef)> ResolveRejectHandler;
       typedef boost::function<void(NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)> Executor;
 
-      static JSObjectRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
+      static JSValueRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
       static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor);
       static JSObjectRef all( JSContextRef ctx, const std::vector< JSValueRef > & promises );
       static JSObjectRef resolve( JSContextRef ctx, const JSValueRef value );

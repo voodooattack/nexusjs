@@ -13,55 +13,66 @@ if (MSVC)
   endif ()
 elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   # Update if necessary
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-long-long -Wno-expansion-to-defined")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wno-expansion-to-defined")
 endif ()
+
+include(WebKitCommon)
+include(WebKitCompilerFlags)
 
 add_subdirectory(js)
 
 set(INCLUDES
-    ../include/nexus.h
-    ../include/context.h
-    ../include/object.h
-    ../include/scheduler.h
-    ../include/scoped_context.h
-    ../include/scoped_string.h
-    ../include/task.h
-    ../include/util.h
-    ../include/value.h
-    ../include/globals/promise.h
-    ../include/globals/console.h
-    ../include/globals/context.h
-    ../include/globals/filesystem.h
-    ../include/globals/global.h
-    ../include/globals/io.h
-    ../include/globals/loader.h
-    ../include/globals/module.h
-    ../include/globals/net.h
-    ../include/globals/scheduler.h
-    ../include/classes/task.h
-    ../include/classes/context.h
-    ../include/classes/base.h
-    ../include/classes/emitter.h
-    ../include/classes/io/device.h
-    ../include/classes/io/filter.h
-    ../include/classes/io/stream.h
-    ../include/classes/io/devices/file.h
-    ../include/classes/io/devices/socket.h
-    ../include/classes/io/filters/encoding.h
-    ../include/classes/io/filters/utf8stringfilter.h
-    ../include/classes/net/tcp/acceptor.h
-    ../include/classes/net/htcommon/connection.h
-    ../include/classes/net/htcommon/request.h
-    ../include/classes/net/htcommon/response.h
-    ../include/classes/net/http/connection.h
-    ../include/classes/net/http/request.h
-    ../include/classes/net/http/response.h
-    ../include/classes/net/http/server.h
-    ../include/classes/net/http2/server.h
-    ../include/module.h)
+    ${CMAKE_SOURCE_DIR}/include/nexus.h
+    ${CMAKE_SOURCE_DIR}/include/context.h
+    ${CMAKE_SOURCE_DIR}/include/object.h
+    ${CMAKE_SOURCE_DIR}/include/scheduler.h
+    ${CMAKE_SOURCE_DIR}/include/scoped_context.h
+    ${CMAKE_SOURCE_DIR}/include/scoped_string.h
+    ${CMAKE_SOURCE_DIR}/include/task.h
+    ${CMAKE_SOURCE_DIR}/include/util.h
+    ${CMAKE_SOURCE_DIR}/include/value.h
+    ${CMAKE_SOURCE_DIR}/include/globals/promise.h
+    ${CMAKE_SOURCE_DIR}/include/globals/console.h
+    ${CMAKE_SOURCE_DIR}/include/globals/context.h
+    ${CMAKE_SOURCE_DIR}/include/globals/filesystem.h
+    ${CMAKE_SOURCE_DIR}/include/globals/global.h
+    ${CMAKE_SOURCE_DIR}/include/globals/io.h
+    ${CMAKE_SOURCE_DIR}/include/globals/loader.h
+    ${CMAKE_SOURCE_DIR}/include/globals/module.h
+    ${CMAKE_SOURCE_DIR}/include/globals/net.h
+    ${CMAKE_SOURCE_DIR}/include/globals/scheduler.h
+    ${CMAKE_SOURCE_DIR}/include/classes/task.h
+    ${CMAKE_SOURCE_DIR}/include/classes/context.h
+    ${CMAKE_SOURCE_DIR}/include/classes/base.h
+    ${CMAKE_SOURCE_DIR}/include/classes/emitter.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/device.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/filter.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/stream.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/devices/file.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/devices/socket.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/filters/encoding.h
+    ${CMAKE_SOURCE_DIR}/include/classes/io/filters/utf8stringfilter.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/tcp/acceptor.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/htcommon/connection.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/htcommon/request.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/htcommon/response.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/http/connection.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/http/request.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/http/response.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/http/server.h
+    ${CMAKE_SOURCE_DIR}/include/classes/net/http2/server.h
+    ${CMAKE_SOURCE_DIR}/include/global_object.h)
 
 add_executable(nexus ${INCLUDES}
-    main.cpp nexus.cpp scheduler.cpp task.cpp object.cpp value.cpp context.cpp util.cpp
+    main.cpp
+    global_object.cpp
+    nexus.cpp
+    scheduler.cpp
+    task.cpp
+    object.cpp
+    value.cpp
+    context.cpp
+    util.cpp
     globals/global.cpp
     globals/console.cpp
     globals/scheduler.cpp

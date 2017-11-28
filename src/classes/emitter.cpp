@@ -93,7 +93,7 @@ JSObjectRef NX::Classes::Emitter::emit (JSGlobalContextRef ctx, JSObjectRef this
       if (i->count > 0)
         i->count--;
       NX::Object func(i->context, i->handler);
-      promises.push_back(NX::Globals::Promise::createPromise(ctx,
+      promises.emplace_back(NX::Globals::Promise::createPromise(ctx,
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
           NX::Object funcCopy(func);
           JSValueRef exp = nullptr;
@@ -124,8 +124,10 @@ void NX::Classes::Emitter::emitFast (JSContextRef ctx, JSObjectRef thisObject, c
       lock.unlock();
       JSObjectCallAsFunction(i->context, i->handler, nullptr, argumentCount, arguments, exception);
       lock.lock();
-      if (exception && *exception)
+      if (exception && *exception) {
+        NX::Nexus::ReportException(ctx, *exception);
         break;
+      }
     }
     tidy(e);
   }

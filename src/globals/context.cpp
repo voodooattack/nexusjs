@@ -24,8 +24,8 @@
 JSValueRef NX::Globals::Context::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  if (JSObjectRef constructor = context->getGlobal("Nexus.Context"))
-    return constructor;
+  if (auto val = context->getGlobal("Nexus.Context"))
+    return val;
   JSObjectRef constructor = NX::Classes::Context::getConstructor(context);
   return context->setGlobal("Nexus.Context", constructor);
 }

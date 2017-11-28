@@ -28,8 +28,8 @@
 JSValueRef NX::Globals::Console::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef console = context->getGlobal("console")) {
-    return console;
+  if (auto val = context->getGlobal("console")) {
+    return val;
   }
   return context->setGlobal("console", JSObjectMake(context->toJSContext(), context->nexus()->defineOrGetClass(NX::Globals::Console::Class), nullptr));
 }
@@ -82,7 +82,7 @@ const JSStaticValue NX::Globals::Console::Properties[] {
   { "inspect", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       try {
         NX::Context * context = Context::FromJsContext(ctx);
-        if (JSObjectRef inspect = context->getGlobal("console.inspect"))
+        if (auto inspect = context->getGlobal("console.inspect"))
           return inspect;
         JSValueRef inspect = context->evaluateScript(std::string(inspect_js, inspect_js + inspect_js_len),
                                                     nullptr, "console.js", 1, exception);

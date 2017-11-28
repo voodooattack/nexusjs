@@ -27,7 +27,7 @@
 JSValueRef NX::Globals::FileSystem::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef FileSystem = context->getGlobal("Nexus.FileSystem")) {
+  if (auto FileSystem = context->getGlobal("Nexus.FileSystem")) {
     return FileSystem;
   }
   return context->setGlobal("Nexus.FileSystem", JSObjectMake(context->toJSContext(),
@@ -56,8 +56,9 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
 //   },
   { "Permissions", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.Permissions"))
-        return OpenMode;
+      if (JSObjectRef OpenMode = JSValueToObject(ctx, context->getGlobal("Nexus.FileSystem.Permissions"), exception))
+        if (!*exception)
+          return OpenMode;
       NX::Object modes(ctx);
       modes.set("AllAll",                JSValueMakeNumber(ctx, boost::filesystem::perms::all_all));
       modes.set("GroupAll",           JSValueMakeNumber(ctx, boost::filesystem::perms::group_all));
@@ -85,8 +86,9 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
   },
   { "FileType", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef OpenMode = context->getGlobal("Nexus.FileSystem.FileType"))
-        return OpenMode;
+      if (JSObjectRef OpenMode = JSValueToObject(ctx, context->getGlobal("Nexus.FileSystem.FileType"), exception))
+        if (!*exception)
+          return OpenMode;
       NX::Object modes(ctx);
       modes.set("Directory",          JSValueMakeNumber(ctx, boost::filesystem::file_type::directory_file));
       modes.set("Block",              JSValueMakeNumber(ctx, boost::filesystem::file_type::block_file));

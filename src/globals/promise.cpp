@@ -25,8 +25,8 @@
 JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef Promise = context->getGlobal("Promise"))
-    return Promise;
+  if (auto Promise = context->getGlobal("Promise"))
+      return Promise;
   JSValueRef Promise = context->evaluateScript(std::string(promise_js, promise_js + promise_js_len),
                                               nullptr, "promise.js", 1, exception);
   JSObjectRef promiseObject = JSValueToObject(context->toJSContext(), Promise, exception);
@@ -35,20 +35,24 @@ JSValueRef NX::Globals::Promise::Get (JSContextRef ctx, JSObjectRef object, JSSt
   return JSValueMakeUndefined(ctx);
 }
 
-JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)
+JSValueRef NX::Globals::Promise::createPromise (JSContextRef ctx, JSObjectRef executor, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  JSObjectRef Promise = context->getOrInitGlobal("Promise");
-  JSValueRef args[] { executor };
+  JSObjectRef Promise = JSValueToObject(ctx, context->getGlobal("Promise"), exception);
+  JSValueRef args[]{executor};
   return JSObjectCallAsConstructor(ctx, Promise, 1, args, exception);
 }
 
 JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Globals::Promise::Executor & executor)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  JSValueRef exp = nullptr;
+  JSObjectRef Promise = JSValueToObject(ctx, context->getOrInitGlobal("Promise"), &exp);
+  if (exp) {
+    throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+  }
   JSObjectRef thisObject = JSObjectMake(ctx, context->nexus()->genericClass(), new NX::Globals::Promise::Executor(executor));
-  JSObjectRef jsExecutor = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
+    JSObjectRef jsExecutor = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
           size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
       {
@@ -102,7 +106,6 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
         return JSValueMakeUndefined(ctx);
       }), thisObject, 0, nullptr, nullptr);
   JSValueRef args[] { jsExecutor };
-  JSValueRef exp = nullptr;
   JSObjectRef promise = JSObjectCallAsConstructor(context->toJSContext(), Promise, 1, args, &exp);
   if (exp) {
     throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
@@ -115,7 +118,8 @@ JSObjectRef NX::Globals::Promise::all (JSContextRef ctx, const std::vector< JSVa
   if (promises.empty())
     return Promise::resolve(ctx, JSObjectMakeArray(ctx, 0, nullptr, nullptr));
   NX::Context * context = Context::FromJsContext(ctx);
-  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  JSValueRef exp = nullptr;
+  JSObjectRef Promise = JSValueToObject(ctx, context->getGlobal("Promise"), &exp);
   JSObjectRef arr = JSObjectMakeArray(ctx, promises.size(), &promises[0], nullptr);
   return NX::Object(ctx, NX::Object(ctx, Promise)["all"]->toObject()->call(Promise, { arr }, nullptr));
 }
@@ -123,14 +127,16 @@ JSObjectRef NX::Globals::Promise::all (JSContextRef ctx, const std::vector< JSVa
 JSObjectRef NX::Globals::Promise::resolve (JSContextRef ctx, const JSValueRef value)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  JSValueRef exp = nullptr;
+  JSObjectRef Promise = JSValueToObject(ctx, context->getOrInitGlobal("Promise"), &exp);
   return NX::Object(ctx, NX::Object(ctx, Promise)["resolve"]->toObject()->call(Promise, std::vector<JSValueRef> { value }, nullptr));
 }
 
 JSObjectRef NX::Globals::Promise::reject (JSContextRef ctx, const JSValueRef value)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  JSObjectRef Promise = context->getOrInitGlobal("Promise");
+  JSValueRef exp = nullptr;
+  JSObjectRef Promise = JSValueToObject(ctx, context->getOrInitGlobal("Promise"), &exp);
   return NX::Object(ctx, NX::Object(ctx, Promise)["reject"]->toObject()->call(Promise, std::vector<JSValueRef> { value }, nullptr));
 }
 

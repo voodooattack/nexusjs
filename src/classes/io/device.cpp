@@ -141,6 +141,7 @@ JSClassRef NX::Classes::IO::SeekableSinkDevice::createClass (NX::Context * conte
     NX::Classes::IO::SeekableDevice::Methods[1],
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[1],
+    nullptr
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);

@@ -17,6 +17,7 @@
  *
  */
 
+#include <iostream>
 #include "util.h"
 #include "scoped_string.h"
 #include "value.h"
@@ -24,10 +25,14 @@
 JSObjectRef NX::JSBindFunction(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  NX::ScopedString strBind("Function.__proto__.bind");
-  JSValueRef bind = JSEvaluateScript(ctx, strBind, JSContextGetGlobalObject(ctx), nullptr, 0, exception);
+  NX::ScopedString strFunction("Function");
+  NX::ScopedString strBind("bind");
+  JSObjectRef proto = JSValueToObject(ctx, JSObjectGetPrototype(ctx, JSValueToObject(ctx, JSObjectGetProperty(ctx, JSContextGetGlobalObject(ctx), strFunction, exception), exception)), exception);
+  JSValueRef bind = JSObjectGetProperty(ctx, proto, strBind, exception);
+  if (exception && *exception)
+    return nullptr;
   std::vector<JSValueRef> args;
-  args.push_back(thisObject);
+  args.emplace_back(thisObject);
   for(std::size_t i = 0; i < argumentCount; i++)
     args.push_back(arguments[i]);
   return JSValueToObject(ctx,

@@ -37,16 +37,6 @@
 
 #include <boost/thread/pthread/mutex.hpp>
 
-NX::Global::Global()
-{
-
-}
-
-NX::Global::~Global()
-{
-
-}
-
 constexpr JSClassDefinition NX::Global::InitGlobalClass()
 {
   JSClassDefinition globalDef = kJSClassDefinitionEmpty;
@@ -59,7 +49,7 @@ constexpr JSClassDefinition NX::Global::InitGlobalClass()
 boost::mutex timeoutsMutex;
 boost::unordered_map<int, NX::AbstractTask *> globalTimeouts;
 
-JSStaticFunction NX::Global::GlobalFunctions[] {
+const JSStaticFunction NX::Global::GlobalFunctions[] {
   { "setTimeout",
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef
@@ -147,31 +137,31 @@ JSStaticFunction NX::Global::GlobalFunctions[] {
   { nullptr, nullptr, 0 }
 };
 
-JSStaticValue NX::Global::GlobalProperties[] {
+const JSStaticValue NX::Global::GlobalProperties[] {
   { "Nexus", &NX::Global::NexusGet, nullptr, kJSPropertyAttributeNone },
   NX::Globals::Console::GetStaticProperty(),
-  NX::Globals::Promise::GetStaticProperty(),
-  NX::Globals::Loader::GetStaticProperty(),
+//  NX::Globals::Promise::GetStaticProperty(),
+//  NX::Globals::Loader::GetStaticProperty(),
   { nullptr, nullptr, nullptr, 0 }
 };
 
 JSValueRef NX::Global::NexusGet (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef nexus = context->getGlobal("Nexus")) {
-    return nexus;
+  if (auto value = context->getGlobal("Nexus")) {
+    return value;
   }
   return context->setGlobal("Nexus", JSObjectMake(context->toJSContext(),
-                                                  context->nexus()->defineOrGetClass(NX::Global::NexusClass), nullptr));
+                                                  context->nexus()->defineOrGetClass(NX::Global::NexusClass), exception));
 }
 
-JSClassDefinition NX::Global::GlobalClass = NX::Global::InitGlobalClass();
+const JSClassDefinition NX::Global::GlobalClass = NX::Global::InitGlobalClass();
 
-JSStaticFunction NX::Global::NexusFunctions[] {
+const JSStaticFunction NX::Global::NexusFunctions[] {
   { nullptr, nullptr, 0 }
 };
 
-JSStaticValue NX::Global::NexusProperties[] {
+const JSStaticValue NX::Global::NexusProperties[] {
   { "Globals", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
     JSObjectRef globals = JSObjectMake(ctx, context->nexus()->genericClass(), nullptr);
@@ -188,8 +178,8 @@ JSStaticValue NX::Global::NexusProperties[] {
   }, nullptr, kJSPropertyAttributeNone },
   { "EventEmitter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    if (JSObjectRef Emitter = context->getGlobal("EventEmitter"))
-      return Emitter;
+    if (auto val = context->getGlobal("EventEmitter"))
+      return val;
     return context->setGlobal("EventEmitter", NX::Classes::Emitter::getConstructor(context));
   }, nullptr, kJSPropertyAttributeNone },
   NX::Globals::Scheduler::GetStaticProperty(),
@@ -198,8 +188,9 @@ JSStaticValue NX::Global::NexusProperties[] {
   NX::Globals::FileSystem::GetStaticProperty(),
   NX::Globals::Context::GetStaticProperty(),
   NX::Globals::Module::GetStaticProperty(),
+  { nullptr, nullptr, 0 }
 };
 
-JSClassDefinition NX::Global::NexusClass {
+const JSClassDefinition NX::Global::NexusClass {
   0, kJSClassAttributeNone, "Nexus", nullptr, NX::Global::NexusProperties, NX::Global::NexusFunctions
 };

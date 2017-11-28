@@ -17,17 +17,17 @@
  *
  */
 
+#include "nexus.h"
+
 #include <stdexcept>
 #include <utility>
 
 #include <wtf/FastMalloc.h>
-
 #include "object.h"
 #include "value.h"
 #include "context.h"
-#include "scoped_string.h"
 
-#include "nexus.h"
+#include "scoped_string.h"
 
 NX::Object::Object (JSContextRef context, JSClassRef cls): myContext(context), myObject(nullptr)
 {
@@ -161,26 +161,37 @@ NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::P
     PromiseCallback onResolve;
     PromiseCallback onReject;
   };
-  JSObjectRef dataCarrier = JSObjectMake(myContext, NX::Context::FromJsContext(myContext)->nexus()->genericClass(), new PromiseData { onResolve, onReject });
+  auto promiseData = new PromiseData { onResolve, onReject };
+  JSObjectRef dataCarrier = JSObjectMake(myContext, NX::Context::FromJsContext(myContext)->nexus()->genericClass(), promiseData);
+  JSObjectSetPrivate(dataCarrier, promiseData);
+  JSValueRef exp = nullptr;
   JSValueRef resolve = onResolve ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, nullptr, [](JSContextRef ctx, JSObjectRef function,
                                                                                                          JSObjectRef thisObject, size_t argumentCount,
                                                                                                          const JSValueRef arguments[],
                                                                                                          JSValueRef* exception) -> JSValueRef
   {
-    PromiseData * promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
+    auto promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
     JSValueRef val = promiseData->onResolve(ctx, arguments[0], exception);
     delete promiseData;
     return val;
-  }), dataCarrier, 0, nullptr, nullptr) : JSValueMakeUndefined(myContext);
+  }), dataCarrier, 0, nullptr, &exp) : JSValueMakeUndefined(myContext);
+  if (exp)
+  {
+    NX::Nexus::ReportException(myContext, exp);
+  }
   JSValueRef reject = onReject ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, nullptr, [](JSContextRef ctx, JSObjectRef function,
                                                                                                          JSObjectRef thisObject, size_t argumentCount,
                                                                                                          const JSValueRef arguments[],
                                                                                                          JSValueRef* exception) -> JSValueRef
   {
-    PromiseData * promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
+    auto promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
     JSValueRef val = promiseData->onReject(ctx, arguments[0], exception);
     delete promiseData;
     return val;
-  }), dataCarrier, 0, nullptr, nullptr) : JSValueMakeUndefined(myContext);
+  }), dataCarrier, 0, nullptr, &exp) : JSValueMakeUndefined(myContext);
+  if (exp)
+  {
+    NX::Nexus::ReportException(myContext, exp);
+  }
   return NX::Object(myContext, operator[]("then")->toObject()->call(myObject, std::vector<JSValueRef> { resolve, reject }, nullptr));
 }

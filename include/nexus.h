@@ -20,13 +20,13 @@
 #ifndef NEXUS_H
 #define NEXUS_H
 
+#ifdef BUILDING_WITH_CMAKE
+#include <cmakeconfig.h>
+#endif
+
 #include <utility>
 #include <list>
 #include <string>
-
-#include <JavaScriptCore/heap/Heap.h>
-#include <JavaScriptCore/runtime/Exception.h>
-#include <JavaScriptCore/runtime/VM.h>
 
 #include <boost/unordered_map.hpp>
 #include <boost/program_options.hpp>
@@ -37,6 +37,10 @@
 #include "scheduler.h"
 #include "context.h"
 
+namespace JSC {
+  class ParserError;
+}
+
 namespace NX
 {
   class Nexus: public boost::noncopyable
@@ -44,8 +48,9 @@ namespace NX
   public:
     Nexus(int argc, const char ** argv);
     virtual ~Nexus();
+
   public:
-    int run();
+    void run();
 
     JSContextGroupRef group() { return myContextGroup; }
     NX::Scheduler * scheduler() { return myScheduler.get(); }
@@ -64,6 +69,8 @@ namespace NX
     void initScheduler();
   public:
     static void ReportException(JSContextRef ctx, JSValueRef exception);
+    static void ReportException(const std::exception & e);
+    static void ReportSyntaxError(const JSC::SourceCode & code, const JSC::ParserError &error);
   private:
     Nexus ( const Nexus& other );
   protected:

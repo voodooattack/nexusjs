@@ -27,7 +27,7 @@
 JSValueRef NX::Globals::Net::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef Net = context->getGlobal("Nexus.Net")) {
+  if (auto Net = context->getGlobal("Nexus.Net")) {
     return Net;
   }
   return context->setGlobal("Nexus.Net", JSObjectMake(context->toJSContext(),
@@ -42,7 +42,7 @@ const JSClassDefinition NX::Globals::Net::Class {
 const JSStaticValue NX::Globals::Net::Properties[] {
   { "TCP", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    if (JSObjectRef TCP = context->getGlobal("Nexus.Net.TCP"))
+    if (auto TCP = context->getGlobal("Nexus.Net.TCP"))
       return TCP;
     JSObjectRef tcpObject = JSObjectMake(ctx, context->nexus()->defineOrGetClass(NX::Globals::Net::TCPClass), nullptr);
     context->setGlobal("Nexus.Net.TCP", tcpObject);
@@ -51,8 +51,8 @@ const JSStaticValue NX::Globals::Net::Properties[] {
   nullptr, kJSPropertyAttributeNone },
   { "HTTP", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    if (JSObjectRef HTTP = context->getGlobal("Nexus.Net.HTTP"))
-      return HTTP;
+    if (auto HTTP = context->getGlobal("Nexus.Net.HTTP"))
+        return HTTP;
     JSObjectRef tcpObject = JSObjectMake(ctx, context->nexus()->defineOrGetClass(NX::Globals::Net::HTTPClass), nullptr);
     context->setGlobal("Nexus.Net.HTTP", tcpObject);
     return tcpObject;
@@ -72,7 +72,7 @@ const JSClassDefinition NX::Globals::Net::TCPClass {
 const JSStaticValue NX::Globals::Net::TCPProperties[] {
   { "Acceptor", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    if (JSObjectRef Acceptor = context->getGlobal("Nexus.Net.TCP.Acceptor"))
+    if (auto Acceptor = context->getGlobal("Nexus.Net.TCP.Acceptor"))
       return Acceptor;
     JSObjectRef ctor = NX::Classes::Net::TCP::Acceptor::getConstructor(context);
     context->setGlobal("Nexus.Net.TCP.Acceptor", ctor);
@@ -93,7 +93,7 @@ const JSClassDefinition NX::Globals::Net::HTTPClass {
 const JSStaticValue NX::Globals::Net::HTTPProperties[] {
   { "Server", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    if (JSObjectRef Server = context->getGlobal("Nexus.Net.HTTP.Server"))
+    if (auto Server = context->getGlobal("Nexus.Net.HTTP.Server"))
       return Server;
     JSObjectRef ctor = NX::Classes::Net::HTTP::Server::getConstructor(context);
     context->setGlobal("Nexus.Net.HTTP.Server", ctor);
@@ -114,8 +114,8 @@ const JSClassDefinition NX::Globals::Net::HTTP2Class {
 const JSStaticValue NX::Globals::Net::HTTP2Properties[] {
   { "Server", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    if (JSObjectRef Server = context->getGlobal("Nexus.Net.HTTP2.Server"))
-      return Server;
+    if (auto Server = context->getGlobal("Nexus.Net.HTTP2.Server"))
+        return Server;
     JSObjectRef ctor = NX::Classes::Net::HTTP2::Server::getConstructor(context);
     context->setGlobal("Nexus.Net.HTTP2.Server", ctor);
     return ctor;

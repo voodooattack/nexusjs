@@ -17,30 +17,31 @@
  *
  */
 
-#ifndef GLOBAL_H
-#define GLOBAL_H
+#ifndef GLOBALS_GLOBAL_H
+#define GLOBALS_GLOBAL_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSValueRef.h>
+#include <JavaScriptCore/API/JSClassRef.h>
 
 namespace NX {
   class Nexus;
+
   class Global
   {
   private:
-    Global();
-    ~Global();
+    ~Global() = default;
   public:
     static JSValueRef NexusGet (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception);
     static constexpr JSClassDefinition InitGlobalClass();
 
-    static JSStaticFunction GlobalFunctions[];
-    static JSStaticValue GlobalProperties[];
-    static JSClassDefinition GlobalClass;
+    static const JSStaticFunction GlobalFunctions[];
+    static const JSStaticValue GlobalProperties[];
+    static const JSClassDefinition GlobalClass;
 
-    static JSStaticFunction NexusFunctions[];
-    static JSStaticValue NexusProperties[];
-    static JSClassDefinition NexusClass;
+    static const JSStaticFunction NexusFunctions[];
+    static const JSStaticValue NexusProperties[];
+    static const JSClassDefinition NexusClass;
   };
 }
 
-#endif // GLOBAL_H
+#endif // GLOBALS_GLOBAL_H

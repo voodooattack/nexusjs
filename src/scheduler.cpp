@@ -22,6 +22,7 @@
 #include "task.h"
 
 #include <functional>
+#include <JavaScriptCore/runtime/InitializeThreading.h>
 
 NX::Scheduler::Scheduler (NX::Nexus * nexus, unsigned int maxThreads):
   myNexus(nexus), myMaxThreads(maxThreads), myThreadCount(0), myService(), myWork(),
@@ -45,6 +46,8 @@ void NX::Scheduler::addThread()
 
 void NX::Scheduler::dispatcher()
 {
+  WTF::initializeThreading();
+  JSC::initializeThreading();
   myThreadCount++;
   while (myService->poll_one() || remaining())
   {

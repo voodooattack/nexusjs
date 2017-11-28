@@ -20,10 +20,15 @@
 #ifndef MODULE_H
 #define MODULE_H
 
-#include <JavaScript.h>
+#ifdef BUILDING_WITH_CMAKE
+#include <cmakeconfig.h>
+#endif
+
+#include <JavaScriptCore/runtime/JSInternalPromise.h>
+#include <JavaScriptCore/API/JSCallbackObject.h>
+
 #include <string>
 #include <boost/unordered_map.hpp>
-#include <JavaScriptCore/runtime/JSInternalPromise.h>
 
 #include "object.h"
 #include "value.h"
@@ -31,10 +36,11 @@
 
 namespace NX {
   class Nexus;
+  class GlobalObject;
   class Context
   {
   public:
-    Context(NX::Context * parent = nullptr, NX::Nexus * nx = nullptr, JSContextGroupRef group = nullptr, JSClassRef globalClass = nullptr);
+    explicit Context(NX::Context * parent = nullptr, NX::Nexus * nx = nullptr);
     virtual ~Context();
 
     JSValueRef evaluateScript(const std::string & src,
@@ -45,62 +51,31 @@ namespace NX {
     JSC::JSInternalPromise * evaluateModule(const std::string & src,
                               JSObjectRef thisObject = nullptr,
                               const std::string & filePath = "",
-                              unsigned int lineNo = 1,
-                              JSValueRef * exception = nullptr);
+                              unsigned int lineNo = 1);
 
-    bool isDetached() { return myGroup != nullptr; }
-
-    boost::unordered_map<std::string, JSObjectRef> & globals() { return myGlobals; }
-
-    JSGlobalContextRef toJSContext() { return myContext; }
     NX::Nexus * nexus() { return myNexus; }
 
-    JSObjectRef getModuleObject(JSValueRef * exception);
-    JSContextGroupRef group() { return myGroup; }
+    JSGlobalContextRef toJSContext() const;
+    static Context *FromJsContext(JSContextRef pContext);
 
-    JSObjectRef getGlobal(const std::string & name) {
-      return myGlobals[name];
-    }
+    JSValueRef getGlobal(const char * name);
+    JSValueRef getOrInitGlobal(const char * name);
+    JSValueRef setGlobal(const char * name, JSValueRef value);
 
-    JSObjectRef globalObject() { return myGlobalObject; }
+    JSObjectRef globalObjectRef() const;
+    JSC::JSGlobalObject * globalObject() const { return myGlobal; }
 
-    JSObjectRef getOrInitGlobal(const std::string & name) {
-      if (!myGlobals[name]) {
-        NX::ScopedString propName(name);
-        JSValueRef value = JSObjectGetProperty(myContext, JSContextGetGlobalObject(myContext), propName, nullptr);
-        if (!JSValueIsUndefined(myContext, value)) {
-          JSObjectRef object = JSValueToObject(myContext, value, nullptr);
-          if (object)
-            return myGlobals[name] = object;
-        }
-        return nullptr;
-      }
-      return myGlobals[name];
-    }
-
-    JSValueRef exports() {
-      return NX::Object(myContext, myModuleObject)["exports"]->value();
-    }
-
-    JSObjectRef setGlobal(const std::string & name, JSObjectRef object) {
-      JSValueProtect(myContext, object);
-      return myGlobals[name] = object;
-    }
-
-    void initGlobal(JSObjectRef object, JSValueRef * exception);
-
-    static Context * FromJsContext(JSContextRef ctx) {
-      return reinterpret_cast<NX::Context*>(JSObjectGetPrivate(
-        JSContextGetGlobalObject(JSContextGetGlobalContext(ctx))));
-    }
+    JSC::VM * vm() const { return myVM.ptr(); }
 
   protected:
-    NX::Nexus * myNexus;
-    JSContextGroupRef myGroup;
-    JSGlobalContextRef myContext;
-    boost::unordered_map<std::string, JSObjectRef> myGlobals;
-    JSObjectRef myGlobalObject, myModuleObject;
+
+    JSC::JSGlobalObject * createGlobalObject();
+
     NX::Context * myParent;
+    NX::Nexus * myNexus;
+    WTF::Ref<JSC::VM> myVM;
+    JSC::JSGlobalObject * myGlobal;
+    boost::unordered_map<std::string, JSValueRef> myGlobals;
   };
 }
 

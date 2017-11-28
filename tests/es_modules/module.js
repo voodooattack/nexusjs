@@ -1,5 +1,8 @@
-export class Test extends Nexus.EventEmitter {
+export class Test {
   constructor() {
-    super();
   }
 }
+
+console.log(Nexus);
+
+export default 10;

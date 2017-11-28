@@ -15,8 +15,8 @@ const JSClassDefinition NX::Globals::Scheduler::Class {
 JSValueRef NX::Globals::Scheduler::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = Context::FromJsContext(ctx);
-  if (JSObjectRef Scheduler = context->getGlobal("Nexus.Scheduler"))
-    return Scheduler;
+  if (auto Scheduler = context->getGlobal("Nexus.Scheduler"))
+      return Scheduler;
   return context->setGlobal("Nexus.Scheduler", JSObjectMake(context->toJSContext(),
                                                      context->nexus()->defineOrGetClass(NX::Globals::Scheduler::Class),
                                                      context->nexus()->scheduler()));
@@ -37,8 +37,9 @@ const JSStaticValue NX::Globals::Scheduler::Properties[] {
   },
   { "Task", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = NX::Context::FromJsContext(ctx);
-      if (JSObjectRef Task = context->getGlobal("Nexus.Scheduler.Task"))
-        return Task;
+      if (JSObjectRef Task = JSValueToObject(ctx, context->getGlobal("Nexus.Scheduler.Task"), exception))
+        if (!*exception)
+          return Task;
       return context->setGlobal("Nexus.Scheduler.Task", NX::Classes::Task::getConstructor(context));
     }, nullptr, kJSPropertyAttributeReadOnly
   },

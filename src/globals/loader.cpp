@@ -26,8 +26,8 @@
 JSValueRef NX::Globals::Loader::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  if (JSObjectRef Loader = context->getGlobal("Loader"))
-    return Loader;
+  if (auto Loader = context->getGlobal("Loader"))
+      return Loader;
   JSValueRef Loader = context->evaluateScript(std::string(loader_js, loader_js + loader_js_len),
                                               nullptr, "loader.js", 1, exception);
   JSObjectRef loaderObject = JSValueToObject(context->toJSContext(), Loader, exception);

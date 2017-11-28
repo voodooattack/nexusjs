@@ -66,9 +66,9 @@ NX::Classes::Context::Context(NX::Context * parent, JSObjectRef globalOverrides)
   if (globalOverrides)
   {
     JSValueProtect(parent->toJSContext(), globalOverrides);
-    JSObjectRef globalObject = myContext->globalObject();
+    JSObjectRef globalObject = myContext->globalObjectRef();
     JSPropertyNameArrayRef namesArray = JSObjectCopyPropertyNames(parent->toJSContext(), globalOverrides);
-    unsigned int count = JSPropertyNameArrayGetCount(namesArray);
+    size_t count = JSPropertyNameArrayGetCount(namesArray);
     for(int i = 0; i < count; i++) {
       JSStringRef propertyName = JSPropertyNameArrayGetNameAtIndex(namesArray, i);
       JSObjectSetProperty(myContext->toJSContext(),
@@ -96,7 +96,8 @@ NX::Classes::Context::~Context() {
 
 JSValueRef NX::Classes::Context::exports(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
 {
-  return myContext->exports();
+//  return myContext->exports();
+  return JSValueMakeUndefined(ctx);
 }
 
 const JSClassDefinition NX::Classes::Context::Class {

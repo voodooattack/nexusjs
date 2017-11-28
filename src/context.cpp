@@ -18,11 +18,11 @@
  */
 
 #include "nexus.h"
-//#include "module.h"
 #include "context.h"
 #include "object.h"
 #include "value.h"
-#include "globals/global.h"
+#include "global_object.h"
+//#include "globals/global.h"
 #include "scoped_string.h"
 
 #include <JavaScriptCore/API/APICast.h>
@@ -36,78 +36,114 @@
 #include <JavaScriptCore/runtime/JSFunction.h>
 #include <JavaScriptCore/runtime/JSModuleLoader.h>
 
-#include <globals/promise.h>
 #include <JavaScriptCore/API/JSCallbackFunction.h>
-
-NX::Context::Context(NX::Context *parent, NX::Nexus *nx, JSContextGroupRef group, JSClassRef globalClass) :
-    myNexus(parent ? parent->nexus() : nx), myGroup(parent ? parent->group() : group),
-    myContext(nullptr), myGlobals(), myGlobalObject(nullptr), myModuleObject(nullptr), myParent(parent) {
-  JSClassRef gClass = globalClass ? globalClass : JSClassCreate(&Global::GlobalClass);
-  myContext = myGroup ? JSGlobalContextCreateInGroup(myGroup, gClass) : JSGlobalContextCreate(gClass);
-  myContext = JSGlobalContextRetain(myContext);
-  myGlobalObject = JSContextGetGlobalObject(myContext);
-  if (!globalClass)
-    JSClassRelease(gClass);
-  JSValueRef exception = nullptr;
-  initGlobal(myGlobalObject, &exception);
-  if (exception)
-    nx->ReportException(myContext, exception);
-}
+#include <JavaScriptCore/API/JSCallbackObject.h>
+#include <JavaScriptCore/runtime/InitializeThreading.h>
+#include <globals/global.h>
+#include <JavaScriptCore/parser/ParserError.h>
 
 JSValueRef NX::Context::evaluateScript(const std::string &src, JSObjectRef thisObject,
                                        const std::string &filePath, unsigned int lineNo, JSValueRef *exception) {
   NX::ScopedString srcRef(src);
   NX::ScopedString filePathRef(filePath);
-  JSValueRef ret = JSEvaluateScript(myContext, srcRef, thisObject,
+  JSValueRef ret = JSEvaluateScript(toRef(myGlobal->globalExec()), srcRef, thisObject,
                                     filePath.length() ? (JSStringRef) filePathRef : nullptr, lineNo, exception);
   return ret;
 }
 
 JSC::JSInternalPromise * NX::Context::evaluateModule(const std::string &src, JSObjectRef thisObject,
-                                       const std::string &filePath, unsigned int lineNo, JSValueRef *exception) {
+                                       const std::string &filePath, unsigned int lineNo) {
   WTF::String code(src.c_str(), (unsigned) src.length());
   WTF::String path(filePath.c_str(), (unsigned) filePath.length());
   auto pos = WTF::TextPosition(WTF::OrdinalNumber::fromOneBasedInt(lineNo), OrdinalNumber());
   auto source = JSC::makeSource(code,
                                 JSC::SourceOrigin { path },
                                 path,
-                                pos);
-  auto exec = toJS(myContext);
-  auto ret = loadAndEvaluateModule(exec, source, JSC::jsUndefined());
-  return ret;
+                                pos, JSC::SourceProviderSourceType::Module);
+  auto exec = myGlobal->globalExec();
+  JSLockHolder lockHolder(exec);
+  JSC::ParserError e;
+  auto valid = JSC::checkModuleSyntax(exec, source, e);
+  if (valid) {
+//    return JSC::importModule(exec, JSC::Identifier::fromString(exec, path), JSC::jsUndefined(), JSC::jsUndefined());
+    return JSC::loadAndEvaluateModule(exec, source, JSC::jsUndefined());
+  } else {
+    NX::Nexus::ReportSyntaxError(source, e);
+    return nullptr;
+  }
 }
 
 NX::Context::~Context() {
-  JSValueUnprotect(myContext, myModuleObject);
-  for (auto &o : myGlobals)
-    JSValueUnprotect(myContext, o.second);
-  JSGlobalContextRelease(myContext);
+  for(auto & val : myGlobals) {
+    JSValueUnprotect(toRef(myGlobal->globalExec()), val.second);
+  }
 }
 
-JSObjectRef NX::Context::getModuleObject(JSValueRef *exception) {
-  if (myModuleObject)
-    return myModuleObject;
-  JSObjectRef Module = NX::Object(myContext, getOrInitGlobal("Nexus"))["Module"]->toObject()->value();
-  JSObjectRef moduleObject = NX::Object(myContext, Module).construct(std::vector<JSValueRef>(), exception);
-  JSValueProtect(myContext, moduleObject);
-  return myModuleObject = moduleObject;
+NX::Context::Context(NX::Context *parent, NX::Nexus *nx):
+  myParent(parent), myNexus(nx), myVM(std::move(parent ? parent->myVM.copyRef() : JSC::VM::createContextGroup(LargeHeap))),
+  myGlobal(nullptr), myGlobals()
+{
+  if (parent && !myNexus)
+    myNexus = parent->myNexus;
+  myGlobal = createGlobalObject();
 }
 
-void NX::Context::initGlobal(JSObjectRef object, JSValueRef *exception) {
-//   try {
-  JSObjectSetPrivate(object, this);
-  NX::Object global(myContext, object);
-  global.set("module", getModuleObject(exception));
-  if (exception && *exception) return;
-//     JSObjectRef systemObject = global["Loader"]->toObject()->construct(std::vector<JSValueRef>(), exception);
-//     if (exception && *exception) return;
-//     global.set("System", systemObject, kJSPropertyAttributeNone, exception);
-//     if (exception && *exception) return;
-//   } catch(const std::runtime_error & e) {
-//     NX::Value message(myContext, e.what());
-//     JSValueRef args[] { message.value(), nullptr };
-//     *exception = JSObjectMakeError(myContext, 1, args, nullptr);
-//   }
+JSC::JSGlobalObject * NX::Context::createGlobalObject() {
+  auto cls = myNexus->defineOrGetClass(Global::GlobalClass);
+  JSC::JSLockHolder locker(myVM.ptr());
+  auto cbStructure = JSC::JSCallbackObject<NX::GlobalObject>::createStructure(myVM, nullptr, JSC::jsNull());
+  auto cbGlobalObject = JSC::JSCallbackObject<NX::GlobalObject>::create(myVM, cls, cbStructure);
+  auto exec = cbGlobalObject->globalExec();
+  JSValue prototype = cls->prototype(exec);
+  if (!prototype)
+    prototype = jsNull();
+  cbGlobalObject->resetPrototype(myVM.get(), prototype);
+  cbGlobalObject->setNexus(myNexus);
+  cbGlobalObject->setPrivate(this);
+  return cbGlobalObject;
 }
 
+NX::Context *NX::Context::FromJsContext(JSContextRef pContext) {
+  auto exec = toJS(pContext);
+  auto global = exec->lexicalGlobalObject();
+  auto ptr = static_cast<JSCallbackObject<NX::GlobalObject>*>(global)->getPrivate();
+  return reinterpret_cast<NX::Context*>(ptr);
+}
+
+JSGlobalContextRef NX::Context::toJSContext() const { return toGlobalRef(myGlobal->globalExec()); }
+
+JSValueRef NX::Context::getGlobal(const char * name) {
+  auto search = myGlobals.find(name);
+  if (search == myGlobals.end()) {
+    return nullptr;
+  }
+  return search->second;
+}
+
+JSValueRef NX::Context::getOrInitGlobal(const char *name) {
+  auto search = myGlobals.find(name);
+  if (search == myGlobals.end()) {
+    auto exec = myGlobal->globalExec();
+    JSC::JSLockHolder lock(exec);
+    auto ident = Identifier::fromString(exec, name);
+    if (myGlobal->hasOwnProperty(exec, ident)) {
+      auto value = myGlobal->get(exec, JSC::PropertyName(ident));
+      auto ref = toRef(exec, value);
+      if (!value.isUndefinedOrNull())
+        return myGlobals[name] = ref;
+    }
+    return nullptr;
+  }
+  return search->second;
+}
+
+JSValueRef NX::Context::setGlobal(const char * name, JSValueRef value) {
+  JSValueProtect(toJSContext(), value);
+  return myGlobals[name] = value;
+}
+
+JSObjectRef NX::Context::globalObjectRef() const {
+  auto obj = myGlobal->toObject(myGlobal->globalExec(), myGlobal);
+  return toRef(obj);
+}
 

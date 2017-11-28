@@ -26,6 +26,7 @@
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
 #include <boost/asio.hpp>
+#undef B0 // JavaSCriptCore will complain if this is defined.
 #include <boost/asio/handler_type.hpp>
 #include <boost/lockfree/queue.hpp>
 #include <boost/atomic.hpp>
