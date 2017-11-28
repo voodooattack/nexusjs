@@ -17,7 +17,6 @@ Nexus.js is Promise-based and embraces ES6 in full; as a result, it is not compa
 * [CMake](https://cmake.org)
 * [Boost](http://www.boost.org)
 * [ICU](http://site.icu-project.org/)
-* [Beast](https://github.com/boostorg/beast)
 
 #### Obtaining WebKit
 
@@ -52,18 +51,6 @@ $ mkdir build
 $ cd build/
 $ ccmake ..
 ```
-
-The most important thing is to point Nexus.js to JavaScriptCore as shown below.
-
-If you've installed WebKit to `/usr/local/`, use the following:
-
-| VARIABLE                      | Value                                 |
-| :-----------------------------|:--------------------------------------|
-| JAVASCRIPTCORE_INCLUDE_DIR    |  /usr/local/include                   |
-| JAVASCRIPTCORE_LIBRARY        |  /usr/local/lib/libJavaScriptCore.so  |
-
-*Note: You may have to copy JavaScriptCore's headers manually from `WebKit/Source/JavaScriptCore/API/` to `/usr/local/include/JavaScriptCore`.*
-
 ## Documentation
 
 The Nexus.js API is a shifting haze. Because it changes so much from commit to commit, no documentation is currently available; but you can look into the [tests directory](tests/) for an insight into how to use it.
