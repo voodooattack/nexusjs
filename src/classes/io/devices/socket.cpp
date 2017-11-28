@@ -294,7 +294,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
     auto recvHandler = [=](auto next, char * buffer, std::size_t len, const std::shared_ptr<Endpoint> & endpoint,
                            const boost::system::error_code& ec, std::size_t bytes_transferred) -> void {
       if (ec) {
-        if (buffer) std::free(buffer);
+        if (buffer) WTF::fastFree(buffer);
         reject(NX::Object(context->toJSContext(), ec));
         JSValueUnprotect(context->toJSContext(), thisObject);
         myScheduler->release();
@@ -305,7 +305,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
         if (buffer) {
           if (bytes_transferred) {
             JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, bytes_transferred, [](void * ptr, void * ctx) {
-              std::free(ptr);
+              WTF::fastFree(ptr);
             }, nullptr, nullptr);
             NX::Object endpointData(context->toJSContext());
             endpointData.set("address", NX::Value(context->toJSContext(), endpoint->address().to_string()).value());
@@ -320,14 +320,14 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
               return;
             }
           } else {
-            std::free(buffer);
+            WTF::fastFree(buffer);
             buffer = nullptr;
           }
         }
         if (mySocket->is_open() && myState == Resumed) {
           std::size_t bufSize = mySocket->available();
           if (!bufSize) bufSize = 1024;
-          char * buf = (char *)std::malloc(bufSize);
+          char * buf = (char *)WTF::fastMalloc(bufSize);
           std::shared_ptr<Endpoint> newEndpoint(new Endpoint());
           mySocket->async_receive_from(boost::asio::buffer(buf, bufSize), *newEndpoint,
             boost::bind<void>(next, next, buf, bufSize, newEndpoint, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
@@ -354,7 +354,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::resume(JSContextRef ctx, JSObje
   Globals::Promise::createPromise(ctx, [ = ](NX::Context *, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
     auto recvHandler = [ = ](auto next, char * buffer, std::size_t len, const boost::system::error_code & ec, std::size_t bytes_transferred) -> void {
       if (ec) {
-        if (buffer) std::free(buffer);
+        if (buffer) WTF::fastFree(buffer);
         reject(NX::Object(context->toJSContext(), ec));
         JSValueUnprotect(context->toJSContext(), thisObject);
         myScheduler->release();
@@ -365,7 +365,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::resume(JSContextRef ctx, JSObje
         if (buffer) {
           if (bytes_transferred) {
             JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, bytes_transferred, [](void * ptr, void * ctx) {
-              std::free(ptr);
+              WTF::fastFree(ptr);
             }, nullptr, nullptr);
             JSValueRef args[] { arrayBuffer };
             JSValueRef exp = nullptr;
@@ -377,14 +377,14 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::resume(JSContextRef ctx, JSObje
               return;
             }
           } else {
-            std::free(buffer);
+            WTF::fastFree(buffer);
             buffer = nullptr;
           }
         }
         if (mySocket->is_open() && myState == Resumed) {
           std::size_t bufSize = mySocket->available();
           if (!bufSize) bufSize = 1024;
-          char * buf = (char *)std::malloc(bufSize);
+          char * buf = (char *)WTF::fastMalloc(bufSize);
           mySocket->async_receive(boost::asio::buffer(buf, bufSize),
                                   boost::bind<void>(next, next, buf, bufSize, boost::asio::placeholders::error,
                                       boost::asio::placeholders::bytes_transferred));

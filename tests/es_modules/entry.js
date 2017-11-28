@@ -1,5 +1,5 @@
-import { Test } from './module.js';
+import Test, { inc } from './module.js';
 
-console.log('my module:', Test);
-
-// import('./module').then(a => console.log(a));
+console.inspect(Test);
+inc();
+console.inspect(Test);

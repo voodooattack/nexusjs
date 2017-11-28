@@ -23,6 +23,7 @@
 #include "classes/io/devices/file.h"
 #include "globals/promise.h"
 
+#include <wtf/FastMalloc.h>
 #include <boost/filesystem.hpp>
 
 NX::Classes::IO::Devices::FilePullDevice::FilePullDevice (const std::string & path): myStream(path, std::ifstream::binary) {
@@ -120,7 +121,8 @@ JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::getConstructor (NX::Contex
 }
 
 NX::Classes::IO::Devices::FilePushDevice::FilePushDevice (NX::Scheduler * scheduler, const std::string & path) :
-  myScheduler(scheduler), myState(Paused), myTask(nullptr), myStream(path, std::ifstream::binary), myPromise(), myMutex()
+  myScheduler(scheduler), myState(Paused), myTask(nullptr), myStream(path, std::ifstream::binary), myPromise(),
+  /*myMutex(),*/ myAllocator(FILE_PUSH_DEVICE_BUFFER_SIZE)
 {
   if (!boost::filesystem::exists (path))
   {
@@ -134,6 +136,7 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
   {
     myState = Resumed;
     NX::Context * context = NX::Context::FromJsContext (ctx);
+    auto allocator = &myAllocator;
     JSValueProtect(context->toJSContext(), thisObject);
     JSValueRef exp = nullptr;
     myPromise = NX::Object(ctx, this->emit(context->toJSContext(), thisObject, "resumed", 0, nullptr, &exp)).then(
@@ -142,23 +145,22 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
           [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
         {
           auto readHandler = [=](auto readHandler) {
-            boost::recursive_mutex::scoped_lock lock(myMutex);
+//            boost::recursive_mutex::scoped_lock lock(myMutex);
             if(myState == Resumed) {
-              const std::size_t maxSize = std::size_t(1024 * 1024);
-              char * buffer = (char*)std::malloc(maxSize);
-              std::size_t sizeOut = myStream.readsome(buffer, maxSize);
+              auto buffer = (char*)myAllocator.malloc();
+              std::size_t sizeOut = myStream.readsome(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE);
               if (!sizeOut) {
-                myStream.read(buffer, maxSize);
+                myStream.read(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE);
                 sizeOut = myStream.gcount();
               }
               if (sizeOut) {
                 JSValueRef exp = nullptr;
-                lock.unlock();
+//                lock.unlock();
                 JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(
                   context->toJSContext(), buffer, sizeOut,
                   [](void * ptr, void * ctx) {
-                    std::free(ptr);
-                  }, nullptr, &exp);
+                    reinterpret_cast<FilePushDevice*>(ctx)->myAllocator.free((char*)ptr, 1);
+                  }, this, &exp);
                 JSValueRef args[] { arrayBuffer };
                 NX::Object(context->toJSContext(), this->emit(context->toJSContext(), thisObject, "data", 1, args, &exp))
                   .then([=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
@@ -171,15 +173,15 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
                     return arg;
                   });
                 if (exp) {
-                  std::free(buffer);
+                  allocator->free(buffer, 1);
                   reject(exp);
                   myState = Paused;
                   JSValueUnprotect(context->toJSContext(), thisObject);
                 }
               } else {
-                std::free(buffer);
+                allocator->free(buffer, 1);
                 if (myStream.eof()) {
-                  lock.unlock();
+//                  lock.unlock();
                   resolve(NX::Globals::Promise::createPromise (context->toJSContext(),
                     [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
                   {
@@ -193,7 +195,7 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
                   }));
                   myState = Paused;
                 } else {
-                  lock.unlock();
+//                  lock.unlock();
                   myScheduler->scheduleTask(std::bind(readHandler, readHandler));
                 }
               }

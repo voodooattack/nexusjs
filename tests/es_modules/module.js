@@ -1,8 +1,7 @@
-export class Test {
-  constructor() {
-  }
+let x = 10;
+
+export function inc() {
+  x++;
 }
 
-console.log(Nexus);
-
-export default 10;
+export default { get x() { return x; } };
