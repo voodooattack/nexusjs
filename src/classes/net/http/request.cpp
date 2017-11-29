@@ -23,39 +23,90 @@ JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectR
   NX::Context * context = NX::Context::FromJsContext(ctx);
   NX::Object thisObj(context->toJSContext(), thisObject);
   NX::Object connectionObj(context->toJSContext(), connection);
+  auto onChunkHeader = [=](std::uint64_t size, boost::beast::string_view extensions, boost::system::error_code& ec)
+  {
+    JSValueRef err = nullptr;
+    if (ec) {
+      auto msg = JSValueMakeString(context->toJSContext(), JSStringCreateWithUTF8CString(ec.message().c_str()));
+      JSValueRef list[] = {msg};
+      err = JSObjectMakeError(context->toJSContext(), 1, list, nullptr);
+      JSValueRef arguments[] = {err};
+      emitFastAndSchedule(context->toJSContext(), thisObj.value(), "error", 1, arguments, nullptr);
+    }
+    JSValueRef arguments[] = {
+        JSValueMakeNumber(context->toJSContext(), size),
+        JSValueMakeString(context->toJSContext(), JSStringCreateWithUTF8CString(extensions.to_string().c_str())),
+        err
+    };
+    emitFastAndSchedule(context->toJSContext(), thisObj.value(), "header", ec ? 3 : 2, arguments, nullptr);
+  };
+  myReqParser.on_chunk_header(onChunkHeader);
+  auto onChunkBody = [=](std::uint64_t remain, boost::beast::string_view body, boost::system::error_code& ec)
+  {
+    JSValueRef err = nullptr;
+    if (ec)
+    {
+      auto msg = JSValueMakeString(context->toJSContext(), JSStringCreateWithUTF8CString(ec.message().c_str()));
+      JSValueRef list[] = { msg };
+      err = JSObjectMakeError(context->toJSContext(), 1, list, nullptr);
+      JSValueRef arguments[] = { err };
+      emitFastAndSchedule(context->toJSContext(), thisObj.value(), "error", 1, arguments, nullptr);
+    }
+    auto str = new std::string(body.begin(), body.end());
+    JSValueRef arguments[] = {
+        JSValueMakeNumber(context->toJSContext(), remain),
+        JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), (void*)str->c_str(), str->length(), [](void * data, void * pStr) {
+          delete reinterpret_cast<std::string *>(pStr);
+        }, str, nullptr),
+        err
+    };
+    NX::Object promise(context->toJSContext(), emit(context->toJSContext(), thisObj.value(), "body", ec ? 3 : 2, arguments, nullptr));
+    return JSValueToNumber(context->toJSContext(), promise.await(), nullptr);
+  };
+  myReqParser.on_chunk_body(onChunkBody);
   return NX::Globals::Promise::createPromise(context->toJSContext(),
     [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
       myConnection->addListener(context->toJSContext(), connection, "data",
         [=](JSContextRef ctx, std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef {
-          NX::Object thisObjCopy(thisObj);
-          NX::Object connObjCopy(connectionObj);
-          try {
-            NX::Object buffer(ctx, arguments[0]);
-            const char * data = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, buffer, exception);
-            std::size_t size = JSObjectGetArrayBufferByteLength(ctx, buffer, exception);
-            boost::system::error_code ec;
-            myReqParser.put(boost::asio::const_buffers_1(data, size), ec);
-            JSValueRef dataArgs[] { buffer };
-            emitFastAndSchedule(ctx, thisObject, "data", 1, dataArgs, exception);
-            if (myReqParser.is_done()) {
-              emitFastAndSchedule(ctx, thisObject, "end", 0, nullptr, exception);
-              NX::Object req(context->toJSContext(), thisObject);
-              std::string method = to_string(myRequest.method()).to_string();
-              req.set("method", NX::Value(ctx, method).value());
-              unsigned major = myRequest.version() / 10;
-              unsigned minor = myRequest.version() % 10;
-              req.set("version", NX::Value(ctx, major + "." + minor).value());
-              req.set("url", NX::Value(ctx, myRequest.target().to_string()).value());
-              NX::Object headers(ctx);
-              for(const auto & field : myRequest.base())
-                headers.set(boost::to_string(field.name()), NX::Value(ctx, field.value().to_string()).value());
-              req.set("headers", headers.value());
-              resolve(thisObject);
+          context->nexus()->scheduler()->scheduleCoroutine([=]{
+            try {
+              auto exec = context->globalObject()->globalExec();
+              auto gCtx = toRef(exec);
+              JSC::JSLockHolder lock(exec);
+              NX::Object buffer(gCtx, arguments[0]);
+              auto * data = (const char *)JSObjectGetArrayBufferBytesPtr(gCtx, buffer, exception);
+              std::size_t size = JSObjectGetArrayBufferByteLength(gCtx, buffer, exception);
+              boost::system::error_code ec;
+              myReqParser.put(boost::asio::const_buffers_1(data, size), ec);
+              JSValueRef dataArgs[] { buffer };
+              context->nexus()->scheduler()->scheduleTask([=]{
+                emitFastAndSchedule(gCtx, thisObject, "data", 1, dataArgs, exception);
+                if (myReqParser.is_header_done() && myReqParser.is_done()) {
+                  NX::Object req(gCtx, thisObject);
+                  std::string method = boost::to_string(myRequest.method());
+                  req.set("method", NX::Value(gCtx, method).value());
+                  unsigned major = myRequest.version() / 10;
+                  unsigned minor = myRequest.version() % 10;
+                  req.set("version", NX::Value(gCtx, major + "." + minor).value());
+                  req.set("url", NX::Value(gCtx, myRequest.target().to_string()).value());
+                  NX::Object headers(gCtx, JSObjectMakeArray(gCtx, 0, nullptr, exception));
+                  for (const auto &i : myReqParser.get()) {
+                    NX::Object header(gCtx);
+                    header.set("name", NX::Value(gCtx, boost::to_string(i.name())).value());
+                    header.set("value", NX::Value(gCtx, i.value().to_string()).value());
+                    headers.push(header);
+                  }
+                  req.set("headers", headers.value());
+                  emitFastAndSchedule(gCtx, thisObject, "end", 0, nullptr, exception);
+                  resolve(thisObject);
+                }
+              });
+              return JSValueMakeUndefined(gCtx);
+            } catch(const std::exception & e) {
+              return JSWrapException(ctx, e, exception);
             }
-            return JSValueMakeUndefined(ctx);
-          } catch(const std::exception & e) {
-            return JSWrapException(ctx, e, exception);
-          }
+          });
+          return JSValueMakeUndefined(ctx);
         });
       NX::Object resumePromise(ctx, resume(context->toJSContext(), thisObject));
       resumePromise.then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {

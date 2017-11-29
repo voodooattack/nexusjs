@@ -316,7 +316,6 @@ JSStaticFunction NX::Classes::IO::PullSourceDevice::Methods[] {
       return NX::Globals::Promise::createPromise(context->toJSContext(),
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
-        std::cout << "coroutine!\n";
         scheduler->scheduleCoroutine([=]() {
           std::size_t readLength = length;
           try {
@@ -324,7 +323,7 @@ JSStaticFunction NX::Classes::IO::PullSourceDevice::Methods[] {
               if (auto seekable = dynamic_cast<NX::Classes::IO::SeekableSourceDevice*>(dev))
                 readLength = seekable->deviceBytesAvailable();
               if (readLength == 0)
-                throw std::runtime_error("must supply read length for non-seekable device");
+                throw NX::Exception("must supply read length for non-seekable device");
             }
             char * buffer = (char *)std::malloc(readLength);
             std::size_t readSoFar = 0;
@@ -376,17 +375,17 @@ JSStaticFunction NX::Classes::IO::PullSourceDevice::Methods[] {
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::IO::PullSourceDevice * dev = NX::Classes::IO::PullSourceDevice::FromObject(thisObject);
         if (argumentCount == 0) {
-          throw std::runtime_error("must supply length to read");
+          throw NX::Exception("must supply length to read");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber) {
-            throw std::runtime_error("bad value for length argument");
+            throw NX::Exception("bad value for length argument");
           }
         }
         std::size_t length = NX::Value(ctx, arguments[0]).toNumber();
         char * buffer = (char * )std::malloc(length);
         std::size_t readSoFar = 0;
         if(!dev->deviceReady())
-          throw std::runtime_error("device not ready");
+          throw NX::Exception("device not ready");
         readSoFar = dev->deviceRead(buffer, length);
         if (readSoFar != length)
           buffer = (char *)std::realloc(buffer, readSoFar);
@@ -410,10 +409,10 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       NX::Classes::IO::SinkDevice * dev = nullptr;
       try {
         if (argumentCount == 0) {
-          throw std::runtime_error("must supply buffer to write");
+          throw NX::Exception("must supply buffer to write");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-            throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
+            throw NX::Exception("argument must be TypedArray or ArrayBuffer");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
           if (length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except))
@@ -422,14 +421,14 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             except = nullptr;
             arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
             if (except) {
-              throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
+              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
             }
             offset = JSObjectGetTypedArrayByteOffset(ctx, obj, &except);
             length = JSObjectGetTypedArrayByteLength(ctx, obj, &except);
           }
           dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
           if (!dev) {
-            throw std::runtime_error("SinkDevice does not implement write()");
+            throw NX::Exception("SinkDevice does not implement write()");
           }
         }
       } catch(const std::exception & e) {
@@ -439,14 +438,14 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       JSValueProtect(context->toJSContext(), thisObject);
       NX::Scheduler * scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = dev->recommendedWriteBufferSize();
-      const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
+      auto * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
       return NX::Globals::Promise::createPromise(context->toJSContext(),
         [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)
       {
         auto handler = [=](auto handler, std::size_t i, std::size_t length) {
           try {
             if(!dev->deviceReady())
-              throw std::runtime_error("device not ready");
+              throw NX::Exception("device not ready");
             if(i < length)
             {
               dev->deviceWrite(buffer + offset + i, std::min(chunkSize, length - i));
@@ -475,10 +474,10 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       try {
         std::size_t offset = 0, length = 0;
         if (argumentCount == 0) {
-          throw std::runtime_error("must supply buffer to write");
+          throw NX::Exception("must supply buffer to write");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-            throw std::runtime_error("bad value for buffer argument");
+            throw NX::Exception("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
           length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
@@ -488,16 +487,16 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             except = nullptr;
             arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
             if (except) {
-              throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
+              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
             }
             offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
             length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
           }
         }
         NX::Classes::IO::SinkDevice * dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
-        const char * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
+        auto * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         if(!dev->deviceReady())
-          throw std::runtime_error("device not ready");
+          throw NX::Exception("device not ready");
         dev->deviceWrite(buffer + offset, length);
         return JSValueMakeNumber(ctx, length);
       } catch(const std::exception & e) {
@@ -514,16 +513,16 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         if (argumentCount != 2) {
-          throw std::runtime_error("must supply stream offset and position");
+          throw NX::Exception("must supply stream offset and position");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber)
-            throw std::runtime_error("value for offset argument is not a number");
+            throw NX::Exception("value for offset argument is not a number");
           if (JSValueGetType(ctx, arguments[1]) != kJSTypeString)
-            throw std::runtime_error("value for position argument is not a string");
+            throw NX::Exception("value for position argument is not a string");
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of ['begin','current','end']");
+            throw NX::Exception("position argument must be one of ['begin','current','end']");
           }
         }
       } catch(const std::exception & e) {
@@ -544,7 +543,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
           else if (boost::iequals(position, "end"))
             pos = End;
           if(!dev->deviceReady())
-            throw std::runtime_error("device not ready");
+            throw NX::Exception("device not ready");
           std::size_t newOffset = dev->deviceSeek(offset, pos);
           return resolve(NX::Value(context->toJSContext(), newOffset).value());
         } catch (const std::exception & e) {
@@ -558,17 +557,17 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         if (argumentCount != 2) {
-          throw std::runtime_error("must supply stream offset and position");
+          throw NX::Exception("must supply stream offset and position");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber)
-            throw std::runtime_error("value for offset argument is not a number");
+            throw NX::Exception("value for offset argument is not a number");
           if (JSValueGetType(ctx, arguments[1]) != kJSTypeString)
-            throw std::runtime_error("value for position argument is not a string");
+            throw NX::Exception("value for position argument is not a string");
           NX::Value position(ctx, arguments[0]);
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of ['begin','current','end']");
+            throw NX::Exception("position argument must be one of ['begin','current','end']");
           }
           NX::Classes::IO::SeekableDevice * dev = NX::Classes::IO::SeekableDevice::FromObject(thisObject);
           Device::Position pos;
@@ -579,7 +578,7 @@ JSStaticFunction NX::Classes::IO::SeekableDevice::Methods[] {
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
           if (!dev->deviceReady())
-            throw std::runtime_error("device not ready");
+            throw NX::Exception("device not ready");
           std::size_t newOffset = dev->deviceSeek(offset.toNumber(), pos);
           return NX::Value(ctx, newOffset).value();
         }
@@ -597,16 +596,16 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         if (argumentCount != 2) {
-          throw std::runtime_error("must supply stream offset and position");
+          throw NX::Exception("must supply stream offset and position");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber)
-            throw std::runtime_error("value for offset argument is not a number");
+            throw NX::Exception("value for offset argument is not a number");
           if (JSValueGetType(ctx, arguments[1]) != kJSTypeString)
-            throw std::runtime_error("value for position argument is not a string");
+            throw NX::Exception("value for position argument is not a string");
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of ['begin','current','end']");
+            throw NX::Exception("position argument must be one of ['begin','current','end']");
           }
         }
       } catch(const std::exception & e) {
@@ -627,7 +626,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           else if (boost::iequals(position, "end"))
             pos = End;
           if(!dev->deviceReady())
-            throw std::runtime_error("device not ready");
+            throw NX::Exception("device not ready");
           std::size_t newOffset = dev->deviceReadSeek(offset, pos);
           return resolve(NX::Value(context->toJSContext(), newOffset).value());
         } catch (const std::exception & e) {
@@ -641,16 +640,16 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         if (argumentCount != 2) {
-          throw std::runtime_error("must supply stream offset and position");
+          throw NX::Exception("must supply stream offset and position");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber)
-            throw std::runtime_error("value for offset argument is not a number");
+            throw NX::Exception("value for offset argument is not a number");
           if (JSValueGetType(ctx, arguments[1]) != kJSTypeString)
-            throw std::runtime_error("value for position argument is not a string");
+            throw NX::Exception("value for position argument is not a string");
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of ['begin','current','end']");
+            throw NX::Exception("position argument must be one of ['begin','current','end']");
           }
         }
       } catch(const std::exception & e) {
@@ -671,7 +670,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           else if (boost::iequals(position, "end"))
             pos = End;
           if(!dev->deviceReady())
-            throw std::runtime_error("device not ready");
+            throw NX::Exception("device not ready");
           std::size_t newOffset = dev->deviceWriteSeek(offset, pos);
           return resolve(NX::Value(context->toJSContext(), newOffset).value());
         } catch (const std::exception & e) {
@@ -685,17 +684,17 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         if (argumentCount != 2) {
-          throw std::runtime_error("must supply stream offset and position");
+          throw NX::Exception("must supply stream offset and position");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber)
-            throw std::runtime_error("value for offset argument is not a number");
+            throw NX::Exception("value for offset argument is not a number");
           if (JSValueGetType(ctx, arguments[1]) != kJSTypeString)
-            throw std::runtime_error("value for position argument is not a string");
+            throw NX::Exception("value for position argument is not a string");
           NX::Value position(ctx, arguments[0]);
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of ['begin','current','end']");
+            throw NX::Exception("position argument must be one of ['begin','current','end']");
           }
           NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
           Device::Position pos;
@@ -706,7 +705,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
           if(!dev->deviceReady())
-            throw std::runtime_error("device not ready");
+            throw NX::Exception("device not ready");
           std::size_t newOffset = dev->deviceReadSeek(offset.toNumber(), pos);
           return NX::Value(ctx, newOffset).value();
         }
@@ -720,17 +719,17 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         if (argumentCount != 2) {
-          throw std::runtime_error("must supply stream offset and position");
+          throw NX::Exception("must supply stream offset and position");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeNumber)
-            throw std::runtime_error("value for offset argument is not a number");
+            throw NX::Exception("value for offset argument is not a number");
           if (JSValueGetType(ctx, arguments[1]) != kJSTypeString)
-            throw std::runtime_error("value for position argument is not a string");
+            throw NX::Exception("value for position argument is not a string");
           NX::Value position(ctx, arguments[0]);
           NX::Value offset(ctx, arguments[1]);
           std::string offStr(offset.toString());
           if (!boost::iequals("begin", offStr) && !boost::iequals("current", offStr) && !boost::iequals("end", offStr)) {
-            throw std::runtime_error("position argument must be one of ['begin','current','end']");
+            throw NX::Exception("position argument must be one of ['begin','current','end']");
           }
           NX::Classes::IO::DualSeekableDevice * dev = NX::Classes::IO::DualSeekableDevice::FromObject(thisObject);
           Device::Position pos;
@@ -741,7 +740,7 @@ JSStaticFunction NX::Classes::IO::DualSeekableDevice::Methods[] {
           else if (boost::iequals(position.toString(), "end"))
             pos = End;
           if(!dev->deviceReady())
-            throw std::runtime_error("device not ready");
+            throw NX::Exception("device not ready");
           std::size_t newOffset = dev->deviceWriteSeek(offset.toNumber(), pos);
           return NX::Value(ctx, newOffset).value();
         }

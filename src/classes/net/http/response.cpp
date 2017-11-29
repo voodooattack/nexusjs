@@ -17,9 +17,18 @@
  *
  */
 
+#include "classes/net/http/request.h"
 #include "classes/net/http/response.h"
 
 JSObjectRef NX::Classes::Net::HTTP::Response::attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection)
 {
   return NX::Globals::Promise::resolve(ctx, thisObject);
+}
+
+NX::Classes::Net::HTTP::Response::Response(NX::Classes::Net::HTTP::Connection *connection) :
+    HTCommon::Response(connection), myConnection(connection),
+    myResponse(),
+    myResParser(myResponse)
+{
+  myResponse.version(dynamic_cast<HTTP::Request*>(connection->req())->version());
 }

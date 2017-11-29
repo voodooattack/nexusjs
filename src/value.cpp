@@ -1,8 +1,7 @@
 #include "value.h"
 #include "object.h"
+#include "exception.h"
 #include "scoped_string.h"
-
-#include <stdexcept>
 
 NX::Value::Value (JSContextRef context, JSValueRef val) : myContext (context), myVal (val)
 {
@@ -42,7 +41,7 @@ std::shared_ptr<NX::Object> NX::Value::toObject()
   if (exception)
   {
     NX::Value except (myContext, exception);
-    throw std::runtime_error (except.toString());
+    throw NX::Exception (except.toString());
   }
   return std::shared_ptr<NX::Object>(new NX::Object (myContext, val));
 }
@@ -59,7 +58,7 @@ double NX::Value::toNumber()
   if (exception)
   {
     NX::Value except (myContext, exception);
-    throw std::runtime_error (except.toString());
+    throw NX::Exception (except.toString());
   }
   return val;
 }
@@ -71,7 +70,7 @@ std::string NX::Value::toString()
   if (exception)
   {
     NX::Object except (myContext, exception);
-    throw std::runtime_error (except["message"]->toString());
+    throw NX::Exception (except["message"]->toString());
   }
   std::size_t len = JSStringGetMaximumUTF8CStringSize (strRef);
   std::string str (len, ' ');
@@ -88,7 +87,7 @@ std::string NX::Value::toJSON(unsigned int indent)
   if (exception)
   {
     NX::Object except (myContext, exception);
-    throw std::runtime_error (except["message"]->toString());
+    throw NX::Exception (except["message"]->toString());
   }
   std::size_t len = JSStringGetMaximumUTF8CStringSize (strRef);
   std::string str (len, ' ');

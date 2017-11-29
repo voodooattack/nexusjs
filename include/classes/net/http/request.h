@@ -66,6 +66,9 @@ namespace NX {
           virtual JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) { return myConnection->resume(ctx, thisObject); }
           virtual State state() const { return myConnection->state(); }
 
+          unsigned int version() const { return myRequest.version(); }
+          boost::beast::http::verb method() const { return myRequest.method(); }
+
         protected:
           NX::Classes::Net::HTTP::Connection * myConnection;
           boost::beast::http::request<boost::beast::http::dynamic_body> myRequest;

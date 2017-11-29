@@ -37,7 +37,7 @@ namespace NX {
             JSClassRef filterClass = createClass(context);
             try {
               if (argumentCount != 2)
-                throw std::runtime_error("invalid arguments passed to EncodingConversionFilter constructor");
+                throw NX::Exception("invalid arguments passed to EncodingConversionFilter constructor");
               std::string from(NX::Value(ctx, arguments[0]).toString());
               std::string to(NX::Value(ctx, arguments[1]).toString());
               return JSObjectMake(ctx, filterClass, dynamic_cast<NX::Classes::Base*>(new EncodingConversionFilter(from, to)));

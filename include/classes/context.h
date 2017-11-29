@@ -20,7 +20,6 @@
 #ifndef CLASSES_CONTEXT_H
 #define CLASSES_CONTEXT_H
 
-#include <JavaScript.h>
 #include <memory>
 
 #include "classes/base.h"

@@ -26,10 +26,10 @@ NX::Classes::IO::Filters::EncodingConversionFilter::EncodingConversionFilter (co
   UErrorCode err = U_ZERO_ERROR;
   mySource = ucnv_open(fromEncoding.c_str(), &err);
   if (U_FAILURE(err))
-    throw std::runtime_error("invalid source encoding '" + myEncodingFrom + "': " + std::string(u_errorName(err)));
+    throw NX::Exception("invalid source encoding '" + myEncodingFrom + "': " + std::string(u_errorName(err)));
   myTarget = ucnv_open(toEncoding.c_str(), &err);
   if (U_FAILURE(err))
-    throw std::runtime_error("invalid target encoding '" + myEncodingFrom + "': " + std::string(u_errorName(err)));
+    throw NX::Exception("invalid target encoding '" + myEncodingFrom + "': " + std::string(u_errorName(err)));
 }
 
 NX::Classes::IO::Filters::EncodingConversionFilter::~EncodingConversionFilter()
@@ -43,6 +43,6 @@ std::size_t NX::Classes::IO::Filters::EncodingConversionFilter::processBuffer (c
   UErrorCode err = U_ZERO_ERROR;
   std::size_t size = ucnv_convert(myEncodingTo.c_str(), myEncodingFrom.c_str(), dest, outLength, buffer, length, &err);
   if (U_FAILURE(err))
-    throw std::runtime_error("encoding conversion error: " + std::string(u_errorName(err)));
+    throw NX::Exception("encoding conversion error: " + std::string(u_errorName(err)));
   return size;
 }

@@ -21,7 +21,8 @@
 #define GLOBALS_GLOBAL_H
 
 #include <JavaScriptCore/API/JSValueRef.h>
-#include <JavaScriptCore/API/JSClassRef.h>
+#include <JavaScriptCore/API/JSContextRef.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
 
 namespace NX {
   class Nexus;

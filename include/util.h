@@ -20,7 +20,10 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
+#include <JavaScriptCore/API/JSValueRef.h>
+#include <JavaScriptCore/API/JSContextRef.h>
+
 #include <vector>
 
 namespace NX

@@ -101,7 +101,7 @@ void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
     stream << "stack trace:\n" << exp["stack"]->toString() << std::endl;
     std::cerr << stream.str();
     stream << std::endl << std::endl;
-  } catch(const std::runtime_error & e) {
+  } catch(const NX::Exception & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
   }
 //   stream << val["message"]->toString() << " in \"" <<
@@ -152,7 +152,7 @@ void NX::Nexus::ReportSyntaxError(const JSC::SourceCode & code, const JSC::Parse
     stream << "at " << provider->sourceOrigin().string().utf8().data() << ":" << error.line() << std::endl;
     stream << error.message().utf8().data() << std::endl;
     std::cerr << stream.str();
-  } catch(const std::runtime_error & e) {
+  } catch(const NX::Exception & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
   }
 }

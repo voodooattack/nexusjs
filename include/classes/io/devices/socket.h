@@ -181,7 +181,7 @@ namespace NX {
             for(std::size_t i = 0; i < length; i += maxBufferLength) {
               length -= mySocket->send_to(boost::asio::buffer(buffer + i, std::min(maxBufferLength, length)), myEndpoint, 0, ec);
               if (ec) {
-                throw std::runtime_error(ec.message());
+                throw NX::Exception(ec.message());
               }
             }
           }

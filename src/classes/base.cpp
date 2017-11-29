@@ -17,12 +17,15 @@
  *
  */
 
+#include "context.h"
 #include "classes/base.h"
 
 JSClassDefinition NX::Classes::Base::Class {
   0, kJSClassAttributeNone, "NativeObject", nullptr, nullptr, nullptr, nullptr, [](JSObjectRef object) {
-    auto base = reinterpret_cast<NX::Classes::Base*>(JSObjectGetPrivate(object));
-    if (base)
-      delete base;
+    delete reinterpret_cast<NX::Classes::Base*>(JSObjectGetPrivate(object));
   }
 };
+
+JSClassRef NX::Classes::Base::createClass(NX::Context *context) {
+  return context->nexus()->defineOrGetClass(NX::Classes::Base::Class);
+}

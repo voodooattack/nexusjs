@@ -17,28 +17,10 @@
  *
  */
 
-#ifndef GLOBALS_CONSOLE_H
-#define GLOBALS_CONSOLE_H
+#include "exception.h"
 
-#include <JavaScriptCore/API/JSContextRef.h>
-#include <JavaScriptCore/API/JSObjectRef.h>
-#include <JavaScriptCore/API/JSValueRef.h>
-
-namespace NX {
-  class Nexus;
-  namespace Globals {
-    class Console
-    {
-      static const JSClassDefinition Class;
-      static const JSStaticFunction Methods[];
-      static const JSStaticValue Properties[];
-      static JSValueRef Get(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception);
-    public:
-      static constexpr JSStaticValue GetStaticProperty() {
-        return JSStaticValue { "console", &NX::Globals::Console::Get, nullptr, kJSPropertyAttributeNone };
-      }
-    };
-  }
+NX::Exception::Exception(const std::string &message) : std::runtime_error(message) {
+  myTrace = WTF::StackTrace::captureStackTrace(10, 1);
 }
 
-#endif // GLOBALS_CONSOLE_H
+const WTF::StackTrace *NX::Exception::trace() const { return myTrace.get(); }

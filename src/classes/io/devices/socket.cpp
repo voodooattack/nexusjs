@@ -62,7 +62,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::getConstructor (NX::Context * c
 JSObjectRef NX::Classes::IO::Devices::TCPSocket::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                               size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  JSWrapException(ctx, std::runtime_error("TCPSocket is not constructible"), exception);
+  JSWrapException(ctx, NX::Exception("TCPSocket is not constructible"), exception);
   return JSObjectMake(ctx, nullptr, nullptr);
 }
 
@@ -151,7 +151,7 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
       }
       try {
         if (argumentCount < 2)
-          throw std::runtime_error("invalid arguments");
+          throw NX::Exception("invalid arguments");
         std::string addr = NX::Value(ctx, arguments[0]).toString();
         std::string port = NX::Value(ctx, arguments[1]).toString();
         JSValueRef ret = socket->connect(ctx, thisObject, addr, port, exception);
@@ -200,7 +200,7 @@ const JSStaticFunction NX::Classes::IO::Devices::UDPSocket::Methods[] {
       }
       try {
         if (argumentCount < 2)
-          throw std::runtime_error("invalid arguments");
+          throw NX::Exception("invalid arguments");
         std::string addr = NX::Value(ctx, arguments[0]).toString();
         unsigned int port = NX::Value(ctx, arguments[1]).toNumber();
         JSValueRef ret = socket->bind(ctx, thisObject, addr, port, exception);

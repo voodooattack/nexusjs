@@ -31,7 +31,7 @@ namespace NX {
       namespace HTTP {
         class Connection: public NX::Classes::Net::HTCommon::Connection {
           Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
-            NX::Classes::Net::HTCommon::Connection(scheduler, socket)
+            NX::Classes::Net::HTCommon::Connection(scheduler, socket), myRes(nullptr), myReq(nullptr)
           {
           }
 
@@ -52,11 +52,19 @@ namespace NX {
             return JSObjectMake(context->toJSContext(), createClass(context), new Connection(context->nexus()->scheduler(), socket));
           }
 
-          JSObjectRef start(NX::Context * context, JSObjectRef thisObject);
+          virtual JSObjectRef start(NX::Context * context, JSObjectRef thisObject);
+          virtual NX::Classes::Net::HTCommon::Response * res() const { return myRes; };
+          virtual NX::Classes::Net::HTCommon::Request * req() const { return myReq; };
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
+
+        protected:
+
+          NX::Classes::Net::HTCommon::Response * myRes;
+          NX::Classes::Net::HTCommon::Request * myReq;
+
         };
       }
     }

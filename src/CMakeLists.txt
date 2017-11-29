@@ -63,6 +63,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/include/classes/net/http/response.h
     ${CMAKE_SOURCE_DIR}/include/classes/net/http/server.h
     ${CMAKE_SOURCE_DIR}/include/classes/net/http2/server.h
+    ${CMAKE_SOURCE_DIR}/include/exception.h
     ${CMAKE_SOURCE_DIR}/include/global_object.h)
 
 add_executable(nexus ${INCLUDES}
@@ -75,6 +76,7 @@ add_executable(nexus ${INCLUDES}
     value.cpp
     context.cpp
     util.cpp
+    exception.cpp
     globals/global.cpp
     globals/console.cpp
     globals/scheduler.cpp

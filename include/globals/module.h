@@ -20,7 +20,9 @@
 #ifndef GLOBALS_MODULE_H
 #define GLOBALS_MODULE_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSContextRef.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
+#include <JavaScriptCore/API/JSValueRef.h>
 
 namespace NX
 {

@@ -19,6 +19,7 @@
 
 #include "task.h"
 #include "scheduler.h"
+#include "exception.h"
 
 #include <iostream>
 
@@ -47,7 +48,7 @@ void NX::CoroutineTask::enter()
 void NX::CoroutineTask::yield()
 {
   if (myStatus == ABORTED)
-    throw std::runtime_error("task aborted, could not yield");
+    throw NX::Exception("task aborted, could not yield");
   myStatus.store(PENDING);
   myPullCa->operator()();
   myScheduler->makeCurrent(this);

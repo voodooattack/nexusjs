@@ -21,8 +21,6 @@
 #ifndef CLASSES_NET_HTTP_SERVER_H
 #define CLASSES_NET_HTTP_SERVER_H
 
-#include <JavaScript.h>
-
 #include "classes/net/tcp/acceptor.h"
 
 namespace NX {
@@ -41,9 +39,8 @@ namespace NX {
             NX::Context * context = NX::Context::FromJsContext(ctx);
             try {
               return JSObjectMake(ctx, createClass(context), dynamic_cast<NX::Classes::Base*>(
-                new Server(context->nexus()->scheduler(), std::shared_ptr<boost::asio::ip::tcp::acceptor>(
-                  new boost::asio::ip::tcp::acceptor(*context->nexus()->scheduler()->service())))
-              ));
+                new Server(context->nexus()->scheduler(), std::make_shared<boost::asio::ip::tcp::acceptor>(
+                  *context->nexus()->scheduler()->service()))));
             } catch(const std::exception & e) {
               JSWrapException(ctx, e, exception);
               return JSObjectMake(ctx, nullptr, nullptr);

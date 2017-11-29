@@ -24,6 +24,7 @@
 #include <boost/coroutine2/all.hpp>
 
 #include "scheduler.h"
+#include "exception.h"
 
 namespace NX
 {
@@ -80,7 +81,7 @@ namespace NX
       myHandler();
       myStatus.store(FINISHED);
     }
-    virtual void yield() { throw std::runtime_error("can't yield on a regular task"); }
+    virtual void yield() { throw NX::Exception("can't yield on a regular task"); }
     virtual void exit() { for(auto & i : myCompletionHandlers) i(); }
     virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
       myCancellationHandlers.push_back(handler);

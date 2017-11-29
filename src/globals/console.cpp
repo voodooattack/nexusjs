@@ -87,7 +87,7 @@ const JSStaticValue NX::Globals::Console::Properties[] {
         JSValueRef inspect = context->evaluateScript(std::string(inspect_js, inspect_js + inspect_js_len),
                                                     nullptr, "console.js", 1, exception);
         if (exception && *exception)
-          throw std::runtime_error(NX::Value(ctx, *exception).toString());
+          throw NX::Exception(NX::Value(ctx, *exception).toString());
         context->setGlobal("console.inspect", NX::Object(context->toJSContext(), inspect).value());
         return inspect;
       } catch(const std::exception & e) {

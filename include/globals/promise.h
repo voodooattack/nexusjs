@@ -21,7 +21,10 @@
 #ifndef GLOBALS_PROMISE_H
 #define GLOBALS_PROMISE_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSContextRef.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
+#include <JavaScriptCore/API/JSValueRef.h>
+
 #include <boost/function.hpp>
 #include <vector>
 
@@ -47,8 +50,8 @@ namespace NX {
       static JSValueRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
       static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor);
       static JSObjectRef all( JSContextRef ctx, const std::vector< JSValueRef > & promises );
-      static JSObjectRef resolve( JSContextRef ctx, const JSValueRef value );
-      static JSObjectRef reject( JSContextRef ctx, const JSValueRef value );
+      static JSObjectRef resolve( JSContextRef ctx, JSValueRef value );
+      static JSObjectRef reject( JSContextRef ctx, JSValueRef value );
     };
   }
   using ResolveRejectHandler = Globals::Promise::ResolveRejectHandler;

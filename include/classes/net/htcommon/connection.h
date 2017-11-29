@@ -29,6 +29,8 @@ namespace NX {
   namespace Classes {
     namespace Net {
       namespace HTCommon {
+        class Request;
+        class Response;
         class Connection: public NX::Classes::IO::Devices::TCPSocket {
         public:
           Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
@@ -51,9 +53,13 @@ namespace NX {
 
           virtual JSObjectRef start(NX::Context * context, JSObjectRef thisObject) = 0;
 
+          virtual NX::Classes::Net::HTCommon::Response * res() const = 0;
+          virtual NX::Classes::Net::HTCommon::Request * req() const = 0;
+
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
+
         };
       }
     }

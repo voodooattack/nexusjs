@@ -80,7 +80,7 @@ You can read more on Nexus.js and the progress of development in the following a
 
 * Will you implement `require()`?
 
-> Not likely. Nexus.js will use the Promise-based `System.import` API for dynamic loading, and otherwise use the `import` and `export` keywords for normal module loading.
+> Not likely. Nexus.js will use the Promise-based `import(...)` API for dynamic loading, and otherwise use the `import` and `export` keywords for normal module loading.
 > `require()` can still be implemented by a third-party in pure JavaScript of course, it just won't come built-in.
 
 * Why are you avoiding `require()`? Are you planning on breaking all backward-compatibility with Node.js?

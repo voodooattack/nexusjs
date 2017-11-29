@@ -17,6 +17,7 @@
  *
  */
 
+#include "classes/net/htcommon/connection.h"
 #include "classes/net/http/connection.h"
 #include "classes/net/http/request.h"
 #include "classes/net/http/response.h"
@@ -37,8 +38,8 @@ const JSStaticFunction NX::Classes::Net::HTTP::Connection::Methods[] {
 JSObjectRef NX::Classes::Net::HTTP::Connection::start(NX::Context * context, JSObjectRef thisObject)
 {
   NX::Object thisObj(context->toJSContext(), thisObject);
-  NX::Classes::Net::HTTP::Request * req = new NX::Classes::Net::HTTP::Request(this);
-  NX::Classes::Net::HTTP::Response * res = new NX::Classes::Net::HTTP::Response(this);
+  auto req = myReq = new NX::Classes::Net::HTTP::Request(this);
+  auto res = myRes = new NX::Classes::Net::HTTP::Response(this);
   JSObjectRef reqObj = JSObjectMake(context->toJSContext(), NX::Classes::Net::HTTP::Request::createClass(context), req);
   JSObjectRef resObj = JSObjectMake(context->toJSContext(), NX::Classes::Net::HTTP::Response::createClass(context), res);
   thisObj.set("request", reqObj);
@@ -48,11 +49,15 @@ JSObjectRef NX::Classes::Net::HTTP::Connection::start(NX::Context * context, JSO
   JSObjectSetProperty(context->toJSContext(), resObj, ScopedString("connection"), thisObj,
                       kJSPropertyAttributeDontDelete | kJSPropertyAttributeDontEnum | kJSPropertyAttributeReadOnly, nullptr);
   JSValueProtect(context->toJSContext(), thisObject);
+  JSValueProtect(context->toJSContext(), reqObj);
+  JSValueProtect(context->toJSContext(), resObj);
   return NX::Object(context->toJSContext(), NX::Globals::Promise::all(context->toJSContext(), std::vector<JSValueRef> {
     req->attach(context->toJSContext(), reqObj, thisObject),
     res->attach(context->toJSContext(), resObj, thisObject)
   })).then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception){
     JSValueUnprotect(context->toJSContext(), thisObject);
+    JSValueUnprotect(context->toJSContext(), reqObj);
+    JSValueUnprotect(context->toJSContext(), resObj);
     return thisObject;
   });
 }

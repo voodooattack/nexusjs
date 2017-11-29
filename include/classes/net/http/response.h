@@ -21,8 +21,6 @@
 #ifndef CLASSES_NET_HTTP_RESPONSE_H
 #define CLASSES_NET_HTTP_RESPONSE_H
 
-#include <JavaScript.h>
-
 #include <boost/beast.hpp>
 
 #include "classes/net/http/connection.h"
@@ -32,13 +30,10 @@ namespace NX {
   namespace Classes {
     namespace Net {
       namespace HTTP {
+        class Request;
         class Response: public NX::Classes::Net::HTCommon::Response {
         public:
-          Response (NX::Classes::Net::HTTP::Connection * connection):
-            HTCommon::Response(connection), myConnection(connection), myResponse(), myResParser(myResponse)
-          {
-
-          }
+          Response (NX::Classes::Net::HTTP::Connection * connection);
 
         public:
           virtual ~Response() {}
@@ -57,18 +52,23 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
-          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection);
+          JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) override;
 
           NX::Classes::Net::HTTP::Connection * connection() { return myConnection; }
 
-          virtual bool deviceReady() const { return myConnection->deviceReady(); }
+          bool deviceReady() const override { return myConnection->deviceReady(); }
+
           virtual void deviceWrite ( const char * buffer, std::size_t length ) {
-            std::cout << "reponse:" << myResponse;
             boost::system::error_code ec;
-            myResParser.put(boost::asio::const_buffers_1(buffer, length), ec);
-            if (ec)
-              throw std::runtime_error(ec.message());
+            if (buffer)
+              myResParser.put(boost::asio::const_buffers_1(buffer, length), ec);
+            else
+              myResParser.put_eof(ec);
+            if (ec) {
+              throw NX::Exception(ec.message());
+            }
           }
+
           virtual std::size_t maxWriteBufferSize() const { return 8192; }
 
         protected:

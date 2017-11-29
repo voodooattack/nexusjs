@@ -52,10 +52,10 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
       std::size_t length = 0, offset = 0;
       try {
         if (argumentCount == 0) {
-          throw std::runtime_error("must supply buffer to write");
+          throw NX::Exception("must supply buffer to write");
         } else {
           if (JSValueGetType(ctx, originalArguments[0]) != kJSTypeObject)
-            throw std::runtime_error("bad value for buffer argument");
+            throw NX::Exception("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, originalArguments[0]);
           length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
@@ -65,7 +65,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             except = nullptr;
             arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
             if (except) {
-              throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
+              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
             }
             offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
             length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
@@ -83,7 +83,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
           NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
           if (!filter) {
             JSValueUnprotect(context->toJSContext(), arrayBuffer);
-            NX::Object exp(context->toJSContext(), std::runtime_error("filter object does not implement process()"));
+            NX::Object exp(context->toJSContext(), NX::Exception("filter object does not implement process()"));
             return reject(exp);
           }
           const std::size_t chunkSize = 1024 * 1024; // TODO: MAKE THIS ADJUSTABLE
@@ -126,14 +126,14 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
       try {
         NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
         if (!filter) {
-          throw std::runtime_error("filter object does not implement processSync()");
+          throw NX::Exception("filter object does not implement processSync()");
         }
         JSObjectRef arrayBuffer = nullptr;
         if (argumentCount == 0) {
-          throw std::runtime_error("must supply buffer to write");
+          throw NX::Exception("must supply buffer to write");
         } else {
           if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-            throw std::runtime_error("bad value for buffer argument");
+            throw NX::Exception("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
           std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
@@ -143,7 +143,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             except = nullptr;
             arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
             if (except) {
-              throw std::runtime_error("argument must be TypedArray or ArrayBuffer");
+              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
             }
           }
         }
@@ -154,7 +154,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         std::size_t outLength = filter->processBuffer(buffer, length, newBuffer, estimatedOutLength);
         if (outLength == 0)
         {
-          throw std::runtime_error("insufficient memory for filter processing");
+          throw NX::Exception("insufficient memory for filter processing");
         }
         if (outLength != estimatedOutLength)
           newBuffer = (char *)std::realloc(newBuffer, outLength);

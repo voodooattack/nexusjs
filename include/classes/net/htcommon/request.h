@@ -33,7 +33,7 @@ namespace NX {
         class Request: public NX::Classes::IO::PushSourceDevice {
         protected:
           Request (NX::Classes::Net::HTCommon::Connection * connection):
-            PushSourceDevice(), myConnection(connection)
+              NX::Classes::IO::PushSourceDevice(), myConnection(connection)
           {
           }
 

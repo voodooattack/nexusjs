@@ -58,7 +58,7 @@ const JSStaticFunction NX::Global::GlobalFunctions[] {
       NX::Nexus * nx = context->nexus();
       try {
         if (argumentCount < 2) {
-          throw std::runtime_error("invalid arguments passed to setTimeout");
+          throw NX::Exception("invalid arguments passed to setTimeout");
         }
         NX::Value timeout(ctx, arguments[1]);
         std::vector<JSValueRef> saved { arguments[0], arguments[1] };
@@ -98,7 +98,7 @@ const JSStaticFunction NX::Global::GlobalFunctions[] {
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 1) {
-          throw std::runtime_error("invalid arguments passed to clearTimeout");
+          throw NX::Exception("invalid arguments passed to clearTimeout");
         }
         NX::Value timeoutId(ctx, arguments[0]);
         int taskId = (int)timeoutId.toNumber();

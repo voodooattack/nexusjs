@@ -49,10 +49,10 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
   JSValueRef exp = nullptr;
   JSObjectRef Promise = JSValueToObject(ctx, context->getOrInitGlobal("Promise"), &exp);
   if (exp) {
-    throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+    throw NX::Exception(NX::Value(context->toJSContext(), exp).toString());
   }
   JSObjectRef thisObject = JSObjectMake(ctx, context->nexus()->genericClass(), new NX::Globals::Promise::Executor(executor));
-    JSObjectRef jsExecutor = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
+    JSObjectRef jsExecutor = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, ScopedString("CreatePromiseExecutor"),
         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
           size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
       {
@@ -108,7 +108,7 @@ JSObjectRef NX::Globals::Promise::createPromise (JSContextRef ctx, const NX::Glo
   JSValueRef args[] { jsExecutor };
   JSObjectRef promise = JSObjectCallAsConstructor(context->toJSContext(), Promise, 1, args, &exp);
   if (exp) {
-    throw std::runtime_error(NX::Value(context->toJSContext(), exp).toString());
+    throw NX::Exception(NX::Value(context->toJSContext(), exp).toString());
   }
   return promise;
 }

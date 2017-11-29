@@ -52,11 +52,11 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
       NX::Context * context = Context::FromJsContext(ctx);
       NX::Scheduler * scheduler = reinterpret_cast<NX::Scheduler*>(JSObjectGetPrivate(thisObject));
       if (argumentCount != 1) {
-        *exception = NX::Object(ctx, std::runtime_error("Scheduler.schedule called without an argument"));
+        *exception = NX::Object(ctx, NX::Exception("Scheduler.schedule called without an argument"));
         return JSValueMakeUndefined(ctx);
       }
       if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject) {
-        *exception = NX::Object(ctx, std::runtime_error("invalid argument passed to Scheduler.schedule"));
+        *exception = NX::Object(ctx, NX::Exception("invalid argument passed to Scheduler.schedule"));
         return JSValueMakeUndefined(ctx);
       }
       NX::Object fun(context->toJSContext(), arguments[0]);
@@ -80,11 +80,11 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
           if (taskObj) {
             scheduler->scheduleAbstractTask(taskObj->task());
           } else {
-            *exception =  NX::Object(ctx, std::runtime_error("argument must be a function or Task instance"));
+            *exception =  NX::Object(ctx, NX::Exception("argument must be a function or Task instance"));
           }
         }
       } else {
-        *exception =  NX::Object(ctx, std::runtime_error("argument must be a function or Task instance"));
+        *exception =  NX::Object(ctx, NX::Exception("argument must be a function or Task instance"));
       }
       return JSValueMakeUndefined(ctx);
     }, 0

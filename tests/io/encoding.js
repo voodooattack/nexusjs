@@ -6,7 +6,7 @@ async function start() {
 
   stream.pushFilter(new Nexus.IO.EncodingConversionFilter("UTF-8", "UTF-16LE"));
 
-  const wstreams = [0,1,2,3].map (i => new Nexus.IO.WritableStream(new Nexus.IO.FileSinkDevice('enwik16-' + i)));
+  const wstreams = [0,1,2,3].map(i => new Nexus.IO.WritableStream(new Nexus.IO.FileSinkDevice('enwik16-' + i)));
 
   await stream.pipe(...wstreams);
 

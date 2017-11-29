@@ -21,11 +21,10 @@
 #ifndef CLASSES_BASE_H
 #define CLASSES_BASE_H
 
-#include <JavaScript.h>
-#include <context.h>
-#include <nexus.h>
+#include "nexus.h"
 
 namespace NX {
+  class Context;
   namespace Classes {
     class Base
     {
@@ -40,9 +39,7 @@ namespace NX {
         return reinterpret_cast<NX::Classes::Base *>(JSObjectGetPrivate(object));
       }
 
-      static JSClassRef createClass(NX::Context * context) {
-        return context->nexus()->defineOrGetClass(NX::Classes::Base::Class);
-      }
+      static JSClassRef createClass(NX::Context * context);
     };
   }
 }

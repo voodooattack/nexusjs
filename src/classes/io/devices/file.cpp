@@ -28,7 +28,7 @@
 
 NX::Classes::IO::Devices::FilePullDevice::FilePullDevice (const std::string & path): myStream(path, std::ifstream::binary) {
   if (!boost::filesystem::exists(path))
-    throw std::runtime_error("file '" + path + "' not found");
+    throw NX::Exception("file '" + path + "' not found");
 }
 
 JSObjectRef NX::Classes::IO::Devices::FilePullDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
@@ -38,7 +38,7 @@ JSObjectRef NX::Classes::IO::Devices::FilePullDevice::Constructor (JSContextRef 
   JSClassRef fileSourceClass = createClass(context);
   try {
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-      throw std::runtime_error("argument must be a string path");
+      throw NX::Exception("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
     return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::IO::Devices::FilePullDevice(path.toString())));
   } catch (const std::exception & e) {
@@ -94,7 +94,7 @@ JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::Constructor (JSContextRef 
   JSClassRef fileSourceClass = createClass(context);
   try {
     if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-      throw std::runtime_error("argument must be a string path");
+      throw NX::Exception("argument must be a string path");
     NX::Value path(ctx, arguments[0]);
     return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::IO::Devices::FileSinkDevice(path.toString())));
   } catch (const std::exception & e) {
@@ -126,7 +126,7 @@ NX::Classes::IO::Devices::FilePushDevice::FilePushDevice (NX::Scheduler * schedu
 {
   if (!boost::filesystem::exists (path))
   {
-    throw std::runtime_error ("file '" + path + "' not found");
+    throw NX::Exception ("file '" + path + "' not found");
   }
 }
 

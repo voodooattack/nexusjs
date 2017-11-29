@@ -23,8 +23,10 @@
 #include <utility>
 
 #include <wtf/FastMalloc.h>
+#include <WTF/wtf/StackTrace.h>
 #include "object.h"
 #include "value.h"
+#include "exception.h"
 #include "context.h"
 
 #include "scoped_string.h"
@@ -35,7 +37,7 @@ NX::Object::Object (JSContextRef context, JSClassRef cls): myContext(context), m
   myObject = JSObjectMake(context, cls, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   JSValueProtect(context, myObject);
 }
@@ -51,7 +53,7 @@ NX::Object::Object (JSContextRef context, JSValueRef val): myContext(context), m
   myObject = JSValueToObject(myContext, val, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   JSValueProtect(myContext, myObject);
 }
@@ -71,14 +73,22 @@ NX::Object::Object (JSContextRef context, time_t val): myContext(context), myObj
   myObject = JSObjectMakeDate(myContext, 1, args, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   JSValueProtect(myContext, myObject);
 }
 
 NX::Object::Object (JSContextRef context, const std::exception & e): myContext(context), myObject(nullptr)
 {
-  NX::Value message(myContext, e.what());
+  WTF::StringPrintStream ss;
+  ss.printf("%s\n", e.what());
+  if (const NX::Exception * nxp = dynamic_cast<const NX::Exception*>(&e)) {
+    nxp->trace()->dump(ss, "\t");
+  } else {
+    auto trace = WTF::StackTrace::captureStackTrace(10, 1);
+    trace->dump(ss, "\t");
+  }
+  NX::Value message(myContext, ss.toString().utf8().data());
   JSValueRef args[] { message.value() };
   myObject = JSObjectMakeError(myContext, 1, args, nullptr);
   JSValueProtect(myContext, myObject);
@@ -107,7 +117,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
   JSValueRef val = JSObjectGetProperty(myContext, myObject, nameRef, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
@@ -119,7 +129,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index)
   JSValueRef val = JSObjectGetPropertyAtIndex(myContext, myObject, index, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
@@ -132,7 +142,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name) const
   JSValueRef val = JSObjectGetProperty(myContext, myObject, nameRef, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
@@ -144,7 +154,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index) const
   JSValueRef val = JSObjectGetPropertyAtIndex(myContext, myObject, index, &exception);
   if (exception) {
     NX::Value except(myContext, exception);
-    throw std::runtime_error(except.toString());
+    throw NX::Exception(except.toString());
   }
   return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
 }
@@ -165,10 +175,11 @@ NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::P
   JSObjectRef dataCarrier = JSObjectMake(myContext, NX::Context::FromJsContext(myContext)->nexus()->genericClass(), promiseData);
   JSObjectSetPrivate(dataCarrier, promiseData);
   JSValueRef exp = nullptr;
-  JSValueRef resolve = onResolve ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, nullptr, [](JSContextRef ctx, JSObjectRef function,
-                                                                                                         JSObjectRef thisObject, size_t argumentCount,
-                                                                                                         const JSValueRef arguments[],
-                                                                                                         JSValueRef* exception) -> JSValueRef
+  JSValueRef resolve = onResolve ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, ScopedString("onResolve"),
+                                                                                              [](JSContextRef ctx, JSObjectRef function,
+                                                                                                 JSObjectRef thisObject, size_t argumentCount,
+                                                                                                 const JSValueRef arguments[],
+                                                                                                 JSValueRef* exception) -> JSValueRef
   {
     auto promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
     JSValueRef val = promiseData->onResolve(ctx, arguments[0], exception);
@@ -179,10 +190,11 @@ NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::P
   {
     NX::Nexus::ReportException(myContext, exp);
   }
-  JSValueRef reject = onReject ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, nullptr, [](JSContextRef ctx, JSObjectRef function,
-                                                                                                         JSObjectRef thisObject, size_t argumentCount,
-                                                                                                         const JSValueRef arguments[],
-                                                                                                         JSValueRef* exception) -> JSValueRef
+  JSValueRef reject = onReject ? JSBindFunction(myContext, JSObjectMakeFunctionWithCallback(myContext, ScopedString("onReject"),
+                                                                                            [](JSContextRef ctx, JSObjectRef function,
+                                                                                               JSObjectRef thisObject, size_t argumentCount,
+                                                                                               const JSValueRef arguments[],
+                                                                                               JSValueRef* exception) -> JSValueRef
   {
     auto promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
     JSValueRef val = promiseData->onReject(ctx, arguments[0], exception);
@@ -194,4 +206,32 @@ NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::P
     NX::Nexus::ReportException(myContext, exp);
   }
   return NX::Object(myContext, operator[]("then")->toObject()->call(myObject, std::vector<JSValueRef> { resolve, reject }, nullptr));
+}
+
+void NX::Object::push(JSValueRef value, JSValueRef *exception) {
+  this->operator[]("push")->toObject()->call(this->value(), { value }, exception);
+}
+
+JSValueRef NX::Object::await() {
+  auto context = NX::Context::FromJsContext(myContext);
+  auto scheduler = context->nexus()->scheduler();
+  JSValueRef result = nullptr, exception = nullptr;
+  this->then([&](JSContextRef ctx, JSValueRef res, JSValueRef*) {
+    result = res;
+    JSValueProtect(context->toJSContext(), result);
+    return JSValueMakeUndefined(ctx);
+  }, [&](JSContextRef ctx, JSValueRef exp, JSValueRef*) {
+    exception = exp;
+    JSValueProtect(context->toJSContext(), exp);
+    return JSValueMakeUndefined(ctx);
+  });
+  while(!result && !exception)
+    scheduler->yield();
+  if (exception) {
+    JSValueUnprotect(context->toJSContext(), exception);
+  }
+  if (result) {
+    JSValueUnprotect(context->toJSContext(), result);
+  }
+  return result;
 }

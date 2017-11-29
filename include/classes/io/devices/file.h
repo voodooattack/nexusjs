@@ -27,7 +27,7 @@
 #include "task.h"
 #include "globals/promise.h"
 
-#define FILE_PUSH_DEVICE_BUFFER_SIZE (size_t)(1 * 1024 * 1024) // 1MB buffer size. TODO: Make adjustable!
+#define FILE_PUSH_DEVICE_BUFFER_SIZE (size_t)(8 * 1024 * 1024) // 8MB buffer size. TODO: Make adjustable!
 
 namespace NX {
   struct wtf_allocator_fast_malloc_free {
@@ -120,7 +120,7 @@ namespace NX {
             JSClassRef fileSourceClass = createClass(context);
             try {
               if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-                throw std::runtime_error("argument must be a string path");
+                throw NX::Exception("argument must be a string path");
               NX::Value path(ctx, arguments[0]);
               return JSObjectMake(ctx, fileSourceClass,
                                   dynamic_cast<NX::Classes::Base *>(

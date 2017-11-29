@@ -59,6 +59,8 @@ namespace NX {
       JSObjectSetProperty(myContext, myObject, propertyName, value, attr, exception);
     }
 
+    void push(JSValueRef value, JSValueRef * exception = nullptr);
+
     NX::Object & operator= (const NX::Object & other) {
       myContext = other.myContext;
       myObject = other.myObject;
@@ -96,6 +98,12 @@ namespace NX {
     typedef std::function<JSValueRef(JSContextRef, JSValueRef, JSValueRef *)> PromiseCallback;
 
     NX::Object then(PromiseCallback onResolve, PromiseCallback onReject = PromiseCallback());
+
+    /**
+     * Important: NEVER CALL THIS OUTSIDE A COROUTINE TAS
+     * @return
+     */
+    JSValueRef await();
 
   private:
     JSContextRef myContext;

@@ -65,7 +65,7 @@ JSValueRef NX::Classes::Emitter::addManyListener(JSGlobalContextRef ctx, JSObjec
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSObjectRef thisObjectForBind = JSObjectMake(ctx, context->nexus()->defineOrGetClass(NX::Classes::Emitter::EventCallbackClass), new EventCallback(callback));
-  JSObjectRef jsCallback = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, nullptr,
+  JSObjectRef jsCallback = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, ScopedString("addManyListenersCallback"),
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       EventCallback * callback = reinterpret_cast<EventCallback*>(JSObjectGetPrivate(thisObject));
@@ -192,10 +192,10 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         NX::Context * context = NX::Context::FromJsContext(ctx);
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments passed to EventEmitter.on");
+          throw NX::Exception("invalid arguments passed to EventEmitter.on");
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid Emitter instance");
+          throw NX::Exception("invalid Emitter instance");
         return emitter->addListener(context->toJSContext(), thisObject,
                                     NX::Value(context->toJSContext(), arguments[0]).toString(),
                                     NX::Object(context->toJSContext(), arguments[1]));
@@ -208,11 +208,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments passed to EventEmitter.once");
+          throw NX::Exception("invalid arguments passed to EventEmitter.once");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid Emitter instance");
+          throw NX::Exception("invalid Emitter instance");
         return emitter->addOnceListener(context->toJSContext(), thisObject, NX::Value(context->toJSContext(), arguments[0]).toString(), NX::Object(context->toJSContext(), arguments[1]));
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
@@ -224,11 +224,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
       try {
         if (argumentCount != 3 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject ||
           JSValueGetType(ctx, arguments[2]) != kJSTypeNumber)
-            throw std::runtime_error("invalid arguments passed to EventEmitter.many");
+            throw NX::Exception("invalid arguments passed to EventEmitter.many");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid EventEmitter instance");
+          throw NX::Exception("invalid EventEmitter instance");
         return emitter->addManyListener(context->toJSContext(), thisObject,
                                         NX::Value(context->toJSContext(), arguments[0]).toString(),
                                         NX::Object(context->toJSContext(), arguments[1]),
@@ -242,11 +242,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 2 || JSValueGetType(ctx, arguments[0]) != kJSTypeString || JSValueGetType(ctx, arguments[1]) != kJSTypeObject)
-          throw std::runtime_error("invalid arguments passed to EventEmitter.off");
+          throw NX::Exception("invalid arguments passed to EventEmitter.off");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid Emitter instance");
+          throw NX::Exception("invalid Emitter instance");
         return emitter->removeListener(context->toJSContext(), thisObject,
                                        NX::Value(context->toJSContext(), arguments[0]).toString(),
                                        NX::Object(context->toJSContext(), arguments[1]));
@@ -259,11 +259,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount != 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-          throw std::runtime_error("invalid arguments passed to EventEmitter.allOff");
+          throw NX::Exception("invalid arguments passed to EventEmitter.allOff");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid Emitter instance");
+          throw NX::Exception("invalid Emitter instance");
         return emitter->removeAllListeners(context->toJSContext(), thisObject, NX::Value(context->toJSContext(), arguments[0]).toString());
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
@@ -274,11 +274,11 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
         if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-          throw std::runtime_error("invalid arguments passed to EventEmitter.emit");
+          throw NX::Exception("invalid arguments passed to EventEmitter.emit");
         NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Emitter * emitter = NX::Classes::Emitter::FromObject(thisObject);
         if (!emitter)
-          throw std::runtime_error("invalid Emitter instance");
+          throw NX::Exception("invalid Emitter instance");
         return emitter->emit(context->toJSContext(), thisObject,
                              NX::Value(context->toJSContext(), arguments[0]).toString(), argumentCount - 1, arguments + 1, exception);
       } catch(const std::exception & e) {

@@ -36,6 +36,7 @@
 #include "task.h"
 #include "scheduler.h"
 #include "context.h"
+#include "exception.h"
 
 namespace JSC {
   class ParserError;

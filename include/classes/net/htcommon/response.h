@@ -33,7 +33,7 @@ namespace NX {
         class Response: public NX::Classes::IO::SinkDevice {
         protected:
           Response (NX::Classes::Net::HTCommon::Connection * connection):
-            SinkDevice(), myConnection(connection)
+              NX::Classes::IO::SinkDevice(), myConnection(connection)
           {
           }
 

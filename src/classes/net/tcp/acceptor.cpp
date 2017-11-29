@@ -41,7 +41,7 @@ const JSStaticFunction NX::Classes::Net::TCP::Acceptor::Methods[] {
       }
       try {
         if (argumentCount < 1)
-          throw std::runtime_error("invalid arguments passed to Acceptor.bind");
+          throw NX::Exception("invalid arguments passed to Acceptor.bind");
         std::string addr = NX::Value(ctx, arguments[0]).toString();
         unsigned short port = NX::Value(ctx, arguments[1]).toNumber();
         JSValueRef ret = acceptor->bind(ctx, thisObject, addr, port, exception);

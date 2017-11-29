@@ -107,7 +107,7 @@ const JSClassDefinition NX::Classes::Context::Class {
 
 const JSStaticValue NX::Classes::Context::Properties[] {
   { "exports", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::Context * thisContext = FromObject(object);
       if (!thisContext) {
         NX::Value message(ctx, "invalid `this` value");
@@ -125,7 +125,7 @@ const JSStaticFunction NX::Classes::Context::Methods[] {
   { "eval", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       try {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
+//        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Context * thisContext = NX::Classes::Context::FromObject(thisObject);
         std::string source, fileName;
         unsigned int lineNo = 0;
@@ -134,7 +134,7 @@ const JSStaticFunction NX::Classes::Context::Methods[] {
           fileName = NX::Value(ctx, arguments[1]).toString();
         }
         if (argumentCount >= 3) {
-          lineNo = NX::Value(ctx, arguments[2]).toNumber();
+          lineNo = (unsigned int)NX::Value(ctx, arguments[2]).toNumber();
         }
         return thisContext->eval(ctx, nullptr, source, fileName, lineNo, exception);
       } catch(const std::exception & e) {

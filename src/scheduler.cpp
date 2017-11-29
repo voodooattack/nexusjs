@@ -164,10 +164,10 @@ NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::durat
 void NX::Scheduler::yield()
 {
   if (!myCurrentTask.get()) {
-    throw std::runtime_error("call to yield outside of a scheduler task");
+    throw NX::Exception("call to yield outside of a scheduler task");
   }
   if (!static_cast<NX::CoroutineTask*>(myCurrentTask.get())) {
-    throw std::runtime_error("call to yield outside of a coroutine");
+    throw NX::Exception("call to yield outside of a coroutine");
   }
   myCurrentTask->yield();
 }

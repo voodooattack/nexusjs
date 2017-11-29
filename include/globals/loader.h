@@ -20,7 +20,9 @@
 #ifndef GLOBALS_LOADER_H
 #define GLOBALS_LOADER_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSContextRef.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
+#include <JavaScriptCore/API/JSValueRef.h>
 
 namespace NX {
   namespace Globals {
