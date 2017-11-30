@@ -21,7 +21,7 @@
 #ifndef CLASSES_NET_HTTP_REQUEST_H
 #define CLASSES_NET_HTTP_REQUEST_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
 #include <boost/beast.hpp>
 
 #include "classes/net/http/connection.h"
@@ -33,13 +33,13 @@ namespace NX {
       namespace HTTP {
         class Request: public NX::Classes::Net::HTCommon::Request {
         public:
-          Request (NX::Classes::Net::HTTP::Connection * connection):
-            HTCommon::Request(connection), myConnection(connection), myRequest(), myReqParser(myRequest)
+          explicit Request (NX::Classes::Net::HTTP::Connection * connection):
+            HTCommon::Request(connection), myConnection(connection), myParser()
           {
           }
 
         public:
-          virtual ~Request() {}
+          ~Request() override = default;
 
           static NX::Classes::Net::HTCommon::Request * FromObject(JSObjectRef obj) {
             return dynamic_cast<NX::Classes::Net::HTCommon::Request*>(NX::Classes::Base::FromObject(obj));
@@ -55,24 +55,24 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
-          virtual JSObjectRef attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection);
+          JSObjectRef attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) override;
 
           NX::Classes::Net::HTTP::Connection * connection() { return myConnection; }
 
-          virtual bool deviceReady() const { return myConnection->deviceReady(); }
-          virtual bool eof() const { return myConnection->eof(); }
-          virtual JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) { return myConnection->pause(ctx, thisObject); }
-          virtual JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) { return myConnection->reset(ctx, thisObject); }
-          virtual JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) { return myConnection->resume(ctx, thisObject); }
-          virtual State state() const { return myConnection->state(); }
+          bool deviceReady() const override { return myConnection->deviceReady(); }
+          bool eof() const override { return myConnection->eof(); }
+          JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) override { return myConnection->pause(ctx, thisObject); }
+          JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) override { return myConnection->reset(ctx, thisObject); }
+          JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) override { return myConnection->resume(ctx, thisObject); }
+          State state() const override { return myConnection->state(); }
 
-          unsigned int version() const { return myRequest.version(); }
-          boost::beast::http::verb method() const { return myRequest.method(); }
+          unsigned int version() const { return myParser.get().version(); }
+          bool keep_alive() const { return myParser.get().keep_alive(); }
+          boost::beast::http::verb method() const { return myParser.get().method(); }
 
         protected:
           NX::Classes::Net::HTTP::Connection * myConnection;
-          boost::beast::http::request<boost::beast::http::dynamic_body> myRequest;
-          boost::beast::http::request_parser<boost::beast::http::dynamic_body> myReqParser;
+          boost::beast::http::request_parser<boost::beast::http::dynamic_body> myParser;
         };
       }
     }

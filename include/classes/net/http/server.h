@@ -50,7 +50,7 @@ namespace NX {
           static void Finalize(JSObjectRef object) { }
 
         public:
-          virtual ~Server() {}
+          virtual ~Server() = default;
 
           static NX::Classes::Net::HTTP::Server * FromObject(JSObjectRef obj) {
             return dynamic_cast<NX::Classes::Net::HTTP::Server*>(NX::Classes::Base::FromObject(obj));
@@ -66,7 +66,7 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          virtual void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
+          void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket) override;
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];

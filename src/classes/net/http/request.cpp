@@ -17,6 +17,7 @@
  *
  */
 
+#include <classes/net/http/response.h>
 #include "classes/net/http/request.h"
 
 JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) {
@@ -40,7 +41,7 @@ JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectR
     };
     emitFastAndSchedule(context->toJSContext(), thisObj.value(), "header", ec ? 3 : 2, arguments, nullptr);
   };
-  myReqParser.on_chunk_header(onChunkHeader);
+  myParser.on_chunk_header(onChunkHeader);
   auto onChunkBody = [=](std::uint64_t remain, boost::beast::string_view body, boost::system::error_code& ec)
   {
     JSValueRef err = nullptr;
@@ -63,47 +64,68 @@ JSObjectRef NX::Classes::Net::HTTP::Request::attach (JSContextRef ctx, JSObjectR
     NX::Object promise(context->toJSContext(), emit(context->toJSContext(), thisObj.value(), "body", ec ? 3 : 2, arguments, nullptr));
     return JSValueToNumber(context->toJSContext(), promise.await(), nullptr);
   };
-  myReqParser.on_chunk_body(onChunkBody);
+  myParser.on_chunk_body(onChunkBody);
   return NX::Globals::Promise::createPromise(context->toJSContext(),
     [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
       myConnection->addListener(context->toJSContext(), connection, "data",
         [=](JSContextRef ctx, std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception) -> JSValueRef {
+          auto exec = context->globalObject()->globalExec();
+          auto gCtx = toRef(exec);
+          JSObjectRef buffer = NX::Object(gCtx, arguments[0]);
+          JSValueProtect(gCtx, buffer);
+          auto * data = (const char *)JSObjectGetArrayBufferBytesPtr(gCtx, buffer, exception);
+          std::size_t size = JSObjectGetArrayBufferByteLength(gCtx, buffer, exception);
           context->nexus()->scheduler()->scheduleCoroutine([=]{
             try {
-              auto exec = context->globalObject()->globalExec();
-              auto gCtx = toRef(exec);
-              JSC::JSLockHolder lock(exec);
-              NX::Object buffer(gCtx, arguments[0]);
-              auto * data = (const char *)JSObjectGetArrayBufferBytesPtr(gCtx, buffer, exception);
-              std::size_t size = JSObjectGetArrayBufferByteLength(gCtx, buffer, exception);
               boost::system::error_code ec;
-              myReqParser.put(boost::asio::const_buffers_1(data, size), ec);
-              JSValueRef dataArgs[] { buffer };
-              context->nexus()->scheduler()->scheduleTask([=]{
-                emitFastAndSchedule(gCtx, thisObject, "data", 1, dataArgs, exception);
-                if (myReqParser.is_header_done() && myReqParser.is_done()) {
-                  NX::Object req(gCtx, thisObject);
-                  std::string method = boost::to_string(myRequest.method());
-                  req.set("method", NX::Value(gCtx, method).value());
-                  unsigned major = myRequest.version() / 10;
-                  unsigned minor = myRequest.version() % 10;
-                  req.set("version", NX::Value(gCtx, major + "." + minor).value());
-                  req.set("url", NX::Value(gCtx, myRequest.target().to_string()).value());
-                  NX::Object headers(gCtx, JSObjectMakeArray(gCtx, 0, nullptr, exception));
-                  for (const auto &i : myReqParser.get()) {
-                    NX::Object header(gCtx);
-                    header.set("name", NX::Value(gCtx, boost::to_string(i.name())).value());
-                    header.set("value", NX::Value(gCtx, i.value().to_string()).value());
-                    headers.push(header);
+              myParser.put(boost::asio::const_buffers_1(data, size), ec);
+              context->nexus()->scheduler()->scheduleTask([this, thisObject, buffer, resolve, reject, gCtx]{
+                JSValueRef dataArgs[]{buffer};
+                JSValueRef pException = nullptr;
+                emitFastAndSchedule(gCtx, thisObject, "data", 1, dataArgs, &pException);
+                JSValueUnprotect(gCtx, buffer);
+                if (pException) {
+                  return reject(pException);
+                }
+                if (myParser.is_header_done() && myParser.is_done()) {
+                  try {
+                    NX::Object req(gCtx, thisObject);
+                    std::string method(boost::to_string(myParser.get().method()));
+                    auto response = dynamic_cast<HTTP::Response*>(myConnection->res());
+                    if (myParser.is_keep_alive()) {
+                      myConnection->socket()->set_option(boost::asio::socket_base::keep_alive());
+                      response->res().keep_alive(true);
+                    }
+                    response->res().version(version());
+                    req.set("method", NX::Value(gCtx, method).value());
+                    int major = myParser.get().version() / 10;
+                    int minor = myParser.get().version() % 10;
+                    std::string version(boost::to_string(major) + "." + boost::to_string(minor));
+                    req.set("version", NX::Value(gCtx, version).value());
+                    req.set("url", NX::Value(gCtx, myParser.get().target().to_string()).value());
+                    NX::Object headers(gCtx, JSObjectMakeArray(gCtx, 0, nullptr, nullptr));
+                    for (const auto &i : myParser.get()) {
+                      NX::Object header(gCtx);
+                      header.set("name", NX::Value(gCtx, boost::to_string(i.name())).value());
+                      header.set("value", NX::Value(gCtx, i.value().to_string()).value());
+                      headers.push(header);
+                    }
+                    req.set("headers", headers.value());
+                    emitFastAndSchedule(gCtx, thisObject, "end", 0, nullptr, &pException);
+                    if (pException)
+                      return reject(pException);
+                    resolve(thisObject);
+                  } catch( const std::exception & e) {
+                    JSValueUnprotect(gCtx, buffer);
+                    reject(NX::Object(gCtx, e));
                   }
-                  req.set("headers", headers.value());
-                  emitFastAndSchedule(gCtx, thisObject, "end", 0, nullptr, exception);
-                  resolve(thisObject);
                 }
               });
-              return JSValueMakeUndefined(gCtx);
             } catch(const std::exception & e) {
-              return JSWrapException(ctx, e, exception);
+              context->nexus()->scheduler()->scheduleTask([this, e, thisObject, buffer, resolve, reject, gCtx]{
+                JSValueUnprotect(gCtx, buffer);
+                reject(NX::Object(gCtx, e));
+              });
             }
           });
           return JSValueMakeUndefined(ctx);

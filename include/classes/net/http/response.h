@@ -22,6 +22,7 @@
 #define CLASSES_NET_HTTP_RESPONSE_H
 
 #include <boost/beast.hpp>
+#include <boost/asio/buffer.hpp>
 
 #include "classes/net/http/connection.h"
 #include "classes/net/htcommon/response.h"
@@ -33,7 +34,7 @@ namespace NX {
         class Request;
         class Response: public NX::Classes::Net::HTCommon::Response {
         public:
-          Response (NX::Classes::Net::HTTP::Connection * connection);
+          explicit Response (NX::Classes::Net::HTTP::Connection * connection);
 
         public:
           virtual ~Response() {}
@@ -56,25 +57,78 @@ namespace NX {
 
           NX::Classes::Net::HTTP::Connection * connection() { return myConnection; }
 
-          bool deviceReady() const override { return myConnection->deviceReady(); }
+          unsigned status() const override { return myStatus; }
 
-          virtual void deviceWrite ( const char * buffer, std::size_t length ) {
-            boost::system::error_code ec;
-            if (buffer)
-              myResParser.put(boost::asio::const_buffers_1(buffer, length), ec);
-            else
-              myResParser.put_eof(ec);
-            if (ec) {
-              throw NX::Exception(ec.message());
-            }
+          void status(unsigned status) override {
+            if (myHeadersSentFlag)
+              throw NX::Exception("headers already sent");
+            myStatus = status;
           }
 
-          virtual std::size_t maxWriteBufferSize() const { return 8192; }
+          void set(const std::string & name, const std::string & value) override {
+            if (!myRes)
+              throw NX::Exception("bad response");
+            myRes->set(boost::beast::string_view(name), boost::beast::string_param(value));
+          }
+
+          bool deviceReady() const override { return myConnection->deviceReady(); }
+
+          void deviceWrite ( const char * buffer, std::size_t length ) override;
+
+          std::size_t maxWriteBufferSize() const override { return UINT16_MAX; }
+
+        public:
+
+          struct Writer {
+
+            explicit Writer(Net::HTTP::Connection * connection): myConnection(connection) { }
+
+            boost::asio::io_service & get_io_service() {
+              return *myConnection->scheduler()->service();
+            }
+
+            template<class ConstBufferSequence>
+            std::size_t write_some(ConstBufferSequence const & sequence, boost::system::error_code & ec) {
+              try {
+                return this->write_some(sequence);
+              } catch (const std::exception & e) {
+                ec.assign(boost::system::errc::io_error, ec.category());
+                return 0;
+              }
+            }
+
+            template<class ConstBufferSequence>
+            std::size_t write_some(ConstBufferSequence const & sequence) {
+              std::size_t written = 0;
+              for (auto const & buffer : sequence) {
+                std::size_t bufSize = boost::asio::buffer_size(buffer);
+                if (bufSize)
+                  myConnection->deviceWrite((const char *)boost::asio::detail::buffer_cast_helper(buffer), bufSize);
+                written += bufSize;
+              }
+              if (written == 0)
+                myConnection->deviceWrite(nullptr, 0);
+              return written;
+            }
+
+          protected:
+            Net::HTTP::Connection * myConnection;
+          };
 
         protected:
+          typedef boost::beast::http::dynamic_body Body;
+          typedef boost::beast::http::response_serializer<Body> Serializer;
+          typedef boost::beast::http::response<Body> BeastResponse;
+
+          friend class HTTP::Request;
+
+          BeastResponse & res() { return *myRes; }
+
           NX::Classes::Net::HTTP::Connection * myConnection;
-          boost::beast::http::response<boost::beast::http::dynamic_body> myResponse;
-          boost::beast::http::response_parser<boost::beast::http::dynamic_body> myResParser;
+          std::unique_ptr<BeastResponse> myRes;
+          std::unique_ptr<Writer> myWriter;
+          std::atomic_bool myHeadersSentFlag;
+          unsigned int myStatus;
         };
       }
     }

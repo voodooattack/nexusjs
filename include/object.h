@@ -35,9 +35,10 @@ namespace NX {
   class Object {
   public:
     Object(): myContext(nullptr), myObject(nullptr) {}
-    Object(JSContextRef, JSClassRef cls = nullptr);
+    Object(JSContextRef, JSClassRef cls = nullptr, void * data = nullptr);
     Object(JSContextRef context, JSObjectRef obj);
     Object(JSContextRef context, JSValueRef val);
+    Object(JSContextRef context, const std::vector<JSValueRef> & values);
     Object(JSContextRef context, time_t val);
     Object(JSContextRef context, const std::exception & e);
     Object(JSContextRef context, const boost::system::error_code & e);

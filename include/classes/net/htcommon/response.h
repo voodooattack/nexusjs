@@ -21,7 +21,7 @@
 #ifndef CLASSES_NET_HTCOMMON_RESPONSE_H
 #define CLASSES_NET_HTCOMMON_RESPONSE_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
 
 #include "classes/net/htcommon/connection.h"
 #include "classes/io/device.h"
@@ -40,8 +40,8 @@ namespace NX {
         public:
           virtual ~Response() {}
 
-          static NX::Classes::Net::HTCommon::Connection * FromObject(JSObjectRef obj) {
-            return dynamic_cast<NX::Classes::Net::HTCommon::Connection*>(NX::Classes::Base::FromObject(obj));
+          static NX::Classes::Net::HTCommon::Response * FromObject(JSObjectRef obj) {
+            return dynamic_cast<NX::Classes::Net::HTCommon::Response*>(NX::Classes::Base::FromObject(obj));
           }
 
           static JSClassRef createClass(NX::Context * context) {
@@ -56,6 +56,10 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
+          virtual unsigned status() const = 0;
+          virtual void status(unsigned) = 0;
+
+          virtual void set(const std::string & name, const std::string & value) = 0;
 
           NX::Classes::Net::HTCommon::Connection * connection() { return myConnection; }
         private:

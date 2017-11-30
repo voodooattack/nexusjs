@@ -20,7 +20,7 @@
 #include "exception.h"
 
 NX::Exception::Exception(const std::string &message) : std::runtime_error(message) {
-  myTrace = WTF::StackTrace::captureStackTrace(10, 1);
+  myTrace = WTF::StackTrace::captureStackTrace(10);
 }
 
 const WTF::StackTrace *NX::Exception::trace() const { return myTrace.get(); }

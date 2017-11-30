@@ -31,14 +31,9 @@
 
 #include "scoped_string.h"
 
-NX::Object::Object (JSContextRef context, JSClassRef cls): myContext(context), myObject(nullptr)
+NX::Object::Object (JSContextRef context, JSClassRef cls, void * data): myContext(context), myObject(nullptr)
 {
-  JSValueRef exception = nullptr;
-  myObject = JSObjectMake(context, cls, &exception);
-  if (exception) {
-    NX::Value except(myContext, exception);
-    throw NX::Exception(except.toString());
-  }
+  myObject = JSObjectMake(context, cls, data);
   JSValueProtect(context, myObject);
 }
 
@@ -82,10 +77,10 @@ NX::Object::Object (JSContextRef context, const std::exception & e): myContext(c
 {
   WTF::StringPrintStream ss;
   ss.printf("%s\n", e.what());
-  if (const NX::Exception * nxp = dynamic_cast<const NX::Exception*>(&e)) {
+  if (auto * nxp = dynamic_cast<const NX::Exception*>(&e)) {
     nxp->trace()->dump(ss, "\t");
   } else {
-    auto trace = WTF::StackTrace::captureStackTrace(10, 1);
+    auto trace = WTF::StackTrace::captureStackTrace(10);
     trace->dump(ss, "\t");
   }
   NX::Value message(myContext, ss.toString().utf8().data());
@@ -234,4 +229,18 @@ JSValueRef NX::Object::await() {
     JSValueUnprotect(context->toJSContext(), result);
   }
   return result;
+}
+
+NX::Object::Object(JSContextRef context, const std::vector<JSValueRef> &values): myContext(context), myObject(nullptr)
+{
+  JSValueRef exp = nullptr;
+  if (!values.empty())
+    myObject = JSObjectMakeArray(context, values.size(), values.begin().operator->(), &exp);
+  else
+    myObject = JSObjectMakeArray(context, 0, nullptr, &exp);
+  if (exp) {
+    NX::Value except(myContext, exp);
+    throw NX::Exception(except.toString());
+  }
+  JSValueProtect(myContext, myObject);
 }

@@ -201,9 +201,9 @@ const JSStaticFunction NX::Classes::IO::Devices::UDPSocket::Methods[] {
       try {
         if (argumentCount < 2)
           throw NX::Exception("invalid arguments");
-        std::string addr = NX::Value(ctx, arguments[0]).toString();
-        unsigned int port = NX::Value(ctx, arguments[1]).toNumber();
-        JSValueRef ret = socket->bind(ctx, thisObject, addr, port, exception);
+        std::string address = NX::Value(ctx, arguments[0]).toString();
+        unsigned int port = static_cast<unsigned int>(NX::Value(ctx, arguments[1]).toNumber());
+        JSValueRef ret = socket->bind(ctx, thisObject, address, port, exception);
         return ret;
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
@@ -445,4 +445,36 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
       JSValueUnprotect(context->toJSContext(), thisObject);
     });
   });
+}
+
+void NX::Classes::IO::Devices::TCPSocket::deviceWrite(const char *buffer, std::size_t length) {
+  const std::size_t maxBufferLength = maxWriteBufferSize();
+  std::size_t remaining = length;
+  for(std::size_t i = 0; i < length; i += maxBufferLength) {
+    remaining -= mySocket->send(boost::asio::buffer(buffer + i, std::min(maxBufferLength, remaining)));
+  }
+}
+
+JSObjectRef NX::Classes::IO::Devices::TCPSocket::pause(JSContextRef ctx, JSObjectRef thisObject) {
+  if (myPromise) {
+    myState.store(Paused);
+    return myPromise;
+  } else {
+    NX::Context * context = NX::Context::FromJsContext(ctx);
+    return myPromise = NX::Object(context->toJSContext(),
+                                  NX::Globals::Promise::createPromise(ctx, [=](NX::Context *,
+                                                                               ResolveRejectHandler resolve,
+                                                                               ResolveRejectHandler reject) {
+                                    myState.store(Paused);
+                                    resolve(thisObject);
+                                  }));
+  }
+}
+
+JSObjectRef NX::Classes::IO::Devices::TCPSocket::reset(JSContextRef ctx, JSObjectRef thisObject) {
+  if (myState != Paused)
+    return pause(ctx, thisObject);
+  else {
+    return NX::Globals::Promise::resolve(ctx, thisObject);
+  }
 }

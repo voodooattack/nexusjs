@@ -151,7 +151,7 @@ namespace NX {
           virtual bool deviceReady() const { return myState == State::Paused; }
 
           virtual bool eof() const {
-//            boost::recursive_mutex::scoped_lock lock(myMutex);
+            boost::recursive_mutex::scoped_lock lock(myMutex);
             return myStream.eof();
           }
 
@@ -168,7 +168,7 @@ namespace NX {
           virtual JSObjectRef reset(JSContextRef ctx, JSObjectRef thisObject) {
             return NX::Object(ctx, pause(ctx, thisObject)).then(
                 [=](JSContextRef ctx, JSValueRef arg, JSValueRef *exception) {
-//                  boost::recursive_mutex::scoped_lock lock(myMutex);
+                  boost::recursive_mutex::scoped_lock lock(myMutex);
                   myStream.seekg(0, std::ios::beg);
                   return arg;
                 });
@@ -184,7 +184,7 @@ namespace NX {
           std::atomic<NX::AbstractTask *> myTask;
           std::ifstream myStream;
           NX::Object myPromise;
-//          mutable boost::recursive_mutex myMutex;
+          mutable boost::recursive_mutex myMutex;
           boost::pool<wtf_allocator_fast_malloc_free> myAllocator;
         };
 

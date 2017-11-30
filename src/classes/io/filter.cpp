@@ -86,7 +86,7 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
             NX::Object exp(context->toJSContext(), NX::Exception("filter object does not implement process()"));
             return reject(exp);
           }
-          const std::size_t chunkSize = 1024 * 1024; // TODO: MAKE THIS ADJUSTABLE
+          const std::size_t chunkSize = UINT16_MAX; // TODO: MAKE THIS ADJUSTABLE
           auto handler = [=](auto handler, std::size_t i, char * newBuffer, std::size_t outPos, std::size_t outLengthEstimatedTotal) {
             if (i < length) {
               try {

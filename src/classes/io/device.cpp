@@ -87,6 +87,7 @@ JSClassRef NX::Classes::IO::BidirectionalPullDevice::createClass (Context * cont
   {
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[1],
+    nullptr
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -101,6 +102,7 @@ JSClassRef NX::Classes::IO::BidirectionalPushDevice::createClass (Context * cont
   {
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[1],
+    nullptr
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -125,6 +127,7 @@ JSClassRef NX::Classes::IO::SeekableSourceDevice::createClass (NX::Context * con
   {
     NX::Classes::IO::SeekableDevice::Methods[0],
     NX::Classes::IO::SeekableDevice::Methods[1],
+    nullptr
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -158,6 +161,7 @@ JSClassRef NX::Classes::IO::BidirectionalSeekableDevice::createClass (NX::Contex
     NX::Classes::IO::PullSourceDevice::Methods[1],
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[1],
+    nullptr
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -183,6 +187,7 @@ JSClassRef NX::Classes::IO::BidirectionalDualSeekableDevice::createClass (NX::Co
     NX::Classes::IO::PullSourceDevice::Methods[1],
     NX::Classes::IO::SinkDevice::Methods[0],
     NX::Classes::IO::SinkDevice::Methods[1],
+    nullptr
   };
   def.staticFunctions = methods;
   return context->nexus()->defineOrGetClass (def);
@@ -408,34 +413,50 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
       std::size_t offset = 0, length = 0;
       NX::Classes::IO::SinkDevice * dev = nullptr;
       try {
+        dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
+        if (!dev) {
+          throw NX::Exception("SinkDevice does not implement write()");
+        }
         if (argumentCount == 0) {
           throw NX::Exception("must supply buffer to write");
         } else {
-          if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-            throw NX::Exception("argument must be TypedArray or ArrayBuffer");
-          JSValueRef except = nullptr;
-          NX::Object obj(ctx, arguments[0]);
-          if (length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except))
-            arrayBuffer = obj.value();
-          else {
-            except = nullptr;
-            arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
-            if (except) {
-              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
+          auto type = JSValueGetType(ctx, arguments[0]);
+          if (type != kJSTypeNull) {
+            if (type != kJSTypeObject)
+              throw NX::Exception("argument must be TypedArray, ArrayBuffer, or null");
+            JSValueRef except = nullptr;
+            NX::Object obj(ctx, arguments[0]);
+            length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+            if (length)
+              arrayBuffer = obj.value();
+            else {
+              except = nullptr;
+              arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
+              if (except) {
+                throw NX::Exception("argument must be TypedArray or ArrayBuffer");
+              }
+              offset = JSObjectGetTypedArrayByteOffset(ctx, obj, &except);
+              length = JSObjectGetTypedArrayByteLength(ctx, obj, &except);
             }
-            offset = JSObjectGetTypedArrayByteOffset(ctx, obj, &except);
-            length = JSObjectGetTypedArrayByteLength(ctx, obj, &except);
-          }
-          dev = NX::Classes::IO::SinkDevice::FromObject(thisObject);
-          if (!dev) {
-            throw NX::Exception("SinkDevice does not implement write()");
+          } else {
+            arrayBuffer = nullptr;
+            offset = 0;
+            length = 0;
           }
         }
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      JSValueProtect(context->toJSContext(), arrayBuffer);
+      if (!arrayBuffer) {
+        try {
+          dev->deviceWrite(nullptr, 0);
+        } catch (const std::exception & e) {
+          return NX::Globals::Promise::reject(ctx, NX::Object(ctx, e));
+        }
+        return NX::Globals::Promise::resolve(ctx, thisObject);
+      }
       JSValueProtect(context->toJSContext(), thisObject);
+      JSValueProtect(context->toJSContext(), arrayBuffer);
       NX::Scheduler * scheduler = context->nexus()->scheduler();
       std::size_t chunkSize = dev->recommendedWriteBufferSize();
       auto * buffer = (const char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);

@@ -119,9 +119,9 @@ JSObjectRef NX::Globals::Promise::all (JSContextRef ctx, const std::vector< JSVa
     return Promise::resolve(ctx, JSObjectMakeArray(ctx, 0, nullptr, nullptr));
   NX::Context * context = Context::FromJsContext(ctx);
   JSValueRef exp = nullptr;
-  JSObjectRef Promise = JSValueToObject(ctx, context->getGlobal("Promise"), &exp);
-  JSObjectRef arr = JSObjectMakeArray(ctx, promises.size(), &promises[0], nullptr);
-  return NX::Object(ctx, NX::Object(ctx, Promise)["all"]->toObject()->call(Promise, { arr }, nullptr));
+  JSObjectRef Promise = JSValueToObject(ctx, context->getOrInitGlobal("Promise"), &exp);
+  JSObjectRef arr = NX::Object(ctx, promises);
+  return NX::Object(ctx, NX::Object(ctx, Promise)["all"]->toObject()->call(Promise, {arr}, nullptr));
 }
 
 JSObjectRef NX::Globals::Promise::resolve (JSContextRef ctx, const JSValueRef value)

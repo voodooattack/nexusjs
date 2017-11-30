@@ -45,6 +45,8 @@
         device.on('data', buffer =>
           this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(buffer))
             .then(buffer => this.emit('data', buffer)));
+        device.on('end', () => this.emit('end'));
+        device.on('error', e => this.emit('error', e));
       }
     }
     get filters() { return this[filtersKey]; }
@@ -78,6 +80,11 @@
           this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(data))
                       .then(data => Promise.all(targets.map(target => target.write(data))));
         this.device.on('data', chain);
+        this.device.on('end', async () => {
+          await Promise.all(targets.map(t => t.write(null)));
+          await this.emit('end');
+        });
+        this.device.on('error', () => this.emit('error'));
         return this.device.resume().then(v => { this.device.off('data', chain); return v; });
       }
     }

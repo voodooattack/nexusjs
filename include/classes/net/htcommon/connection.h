@@ -34,7 +34,7 @@ namespace NX {
         class Connection: public NX::Classes::IO::Devices::TCPSocket {
         public:
           Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
-            TCPSocket(scheduler, socket)
+            TCPSocket(scheduler, socket), mySocket(socket)
           {
           }
 
@@ -60,6 +60,10 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
+          std::shared_ptr< boost::asio::ip::tcp::socket> socket() const { return mySocket; }
+
+        private:
+          std::shared_ptr< boost::asio::ip::tcp::socket> mySocket;
         };
       }
     }

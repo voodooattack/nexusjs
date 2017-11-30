@@ -28,6 +28,7 @@
 #include <memory>
 #include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
+#include <utility>
 
 namespace NX {
   namespace Classes {
@@ -63,14 +64,16 @@ namespace NX {
           virtual void close() = 0;
           virtual void cancel() = 0;
 
+          virtual NX::Scheduler * scheduler() const = 0;
+
           virtual JSObjectRef connect(JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception) = 0;
 
         };
 
         class TCPSocket: public virtual Socket {
         public:
-          TCPSocket ( NX::Scheduler * scheduler, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket):
-            myScheduler(scheduler), mySocket(socket)
+          TCPSocket ( NX::Scheduler * scheduler, std::shared_ptr<boost::asio::ip::tcp::socket> socket):
+            myScheduler(scheduler), mySocket(std::move(socket))
           {
           }
           virtual ~TCPSocket()  {}
@@ -94,45 +97,23 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::TCPSocket*>(NX::Classes::Base::FromObject(obj));
           }
 
+          std::size_t available() const override { return mySocket->available(); }
+          void cancel() override { mySocket->cancel(); }
+          void close() override { mySocket->close(); }
+          JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address,
+                                       const std::string & port, JSValueRef * exception) override;
+          bool deviceReady() const override { return mySocket->is_open(); }
+          std::size_t maxWriteBufferSize() const override { return UINT64_MAX; }
+          std::size_t recommendedWriteBufferSize() const override { return maxWriteBufferSize(); }
+          bool eof() const override { return !mySocket->is_open(); }
+          void deviceWrite ( const char * buffer, std::size_t length ) override;
+          JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) override;
+          JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) override;
+          JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) override;
 
-          virtual std::size_t available() const { return mySocket->available(); }
-          virtual void cancel() { mySocket->cancel(); }
-          virtual void close() { mySocket->close(); }
-          virtual JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception);
-          virtual bool deviceReady() const { return mySocket->is_open(); }
-          virtual std::size_t maxWriteBufferSize() const { return 65507; }
-          virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize() * 0.5; }
-          virtual void deviceWrite ( const char * buffer, std::size_t length ) {
-            const std::size_t maxBufferLength = maxWriteBufferSize();
-            for(std::size_t i = 0; i < length; i += maxBufferLength) {
-              length -= mySocket->send(boost::asio::buffer(buffer + i, std::min(maxBufferLength, length)));
-            }
-          }
-          virtual bool eof() const { return !mySocket->is_open(); }
-          virtual JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) {
-            if (myPromise) {
-              myState.store(Paused);
-              return myPromise;
-            } else {
-              NX::Context * context = NX::Context::FromJsContext(ctx);
-              return myPromise = NX::Object(context->toJSContext(),
-                                            NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-                                              myState.store(Paused);
-                                              resolve(thisObject);
-                                            }));
-            }
-          }
-          virtual JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) {
-            if (myState != Paused)
-              return pause(ctx, thisObject);
-            else {
-              return NX::Globals::Promise::resolve(ctx, thisObject);
-            }
-          }
-          virtual JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject );
-          virtual State state() const { return myState; }
+          State state() const override { return myState; }
 
-
+          NX::Scheduler * scheduler() const override { return myScheduler; }
 
         private:
           NX::Scheduler * myScheduler;
@@ -144,8 +125,8 @@ namespace NX {
 
         class UDPSocket: public virtual Socket {
         public:
-          UDPSocket ( NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::udp::socket> & socket):
-            myScheduler(scheduler), mySocket(socket)
+          UDPSocket ( NX::Scheduler * scheduler, std::shared_ptr<boost::asio::ip::udp::socket> socket):
+            myScheduler(scheduler), mySocket(std::move(socket))
           {
           }
           virtual ~UDPSocket()  {}
@@ -167,26 +148,32 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::UDPSocket*>(NX::Classes::Base::FromObject(obj));
           }
 
-          virtual std::size_t available() const { return mySocket->available(); }
-          virtual void cancel() { mySocket->cancel(); }
-          virtual void close() { mySocket->close(); }
-          virtual JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address, const std::string & port, JSValueRef * exception);
-          virtual JSObjectRef bind( JSContextRef ctx, JSObjectRef thisObject, const std::string & protocol, unsigned int port, JSValueRef * exception );
-          virtual bool deviceReady() const { return mySocket->is_open(); }
-          virtual std::size_t maxWriteBufferSize() const { return 65507; }
-          virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize() * 0.5; }
-          virtual void deviceWrite ( const char * buffer, std::size_t length ) {
+          std::size_t available() const override { return mySocket->available(); }
+          void cancel() override { mySocket->cancel(); }
+          void close() override { mySocket->close(); }
+          JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address,
+                               const std::string & port, JSValueRef * exception) override;
+          virtual JSObjectRef bind( JSContextRef ctx, JSObjectRef thisObject,
+                                    const std::string & protocol, unsigned int port, JSValueRef * exception );
+          bool deviceReady() const override { return mySocket->is_open(); }
+          std::size_t maxWriteBufferSize() const override { return 65507; }
+          std::size_t recommendedWriteBufferSize() const override { return maxWriteBufferSize(); }
+
+          void deviceWrite ( const char * buffer, std::size_t length ) override {
             boost::system::error_code ec;
             const std::size_t maxBufferLength = maxWriteBufferSize();
+            std::size_t remaining = length;
             for(std::size_t i = 0; i < length; i += maxBufferLength) {
-              length -= mySocket->send_to(boost::asio::buffer(buffer + i, std::min(maxBufferLength, length)), myEndpoint, 0, ec);
+              remaining -= mySocket->send_to(boost::asio::buffer(buffer + i, std::min(maxBufferLength, remaining)), myEndpoint, 0, ec);
               if (ec) {
                 throw NX::Exception(ec.message());
               }
             }
           }
-          virtual bool eof() const { return !mySocket->is_open(); }
-          virtual JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) {
+
+          bool eof() const override { return !mySocket->is_open(); }
+
+          JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) override {
             if (myPromise) {
               myState.store(Paused);
               return myPromise;
@@ -199,15 +186,19 @@ namespace NX {
                 }));
             }
           }
-          virtual JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) {
+
+          JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) override {
             if (myState != Paused)
               return pause(ctx, thisObject);
             else {
               return NX::Globals::Promise::resolve(ctx, thisObject);
             }
           }
-          virtual JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject );
-          virtual State state() const { return myState; }
+
+          JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) override;
+          State state() const override { return myState; }
+          NX::Scheduler * scheduler() const override { return myScheduler; }
+
         private:
           NX::Scheduler * myScheduler;
           std::shared_ptr< boost::asio::ip::udp::socket> mySocket;

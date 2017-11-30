@@ -49,7 +49,7 @@ void NX::Scheduler::dispatcher()
   WTF::initializeThreading();
   JSC::initializeThreading();
   myThreadCount++;
-  while (myService->poll_one() || remaining())
+  while (myService->poll() || remaining())
   {
     if (!processTasks())
       std::this_thread::sleep_for(std::chrono::microseconds(200));
@@ -129,14 +129,14 @@ NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task)
 
 NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::CompletionHandler & handler)
 {
-  NX::Task * task = new NX::Task(handler, this);
+  auto * task = new NX::Task(handler, this);
   scheduleAbstractTask(task);
   return task;
 }
 
 NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, const NX::Scheduler::CompletionHandler & handler)
 {
-  NX::Task * taskObject = new NX::Task(handler, this);
+  auto * taskObject = new NX::Task(handler, this);
   std::shared_ptr<timer_type> timer(new timer_type(*myService));
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
@@ -146,14 +146,14 @@ NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, co
 
 NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::CompletionHandler & handler)
 {
-  NX::CoroutineTask * task = new NX::CoroutineTask(handler, this);
+  auto * task = new NX::CoroutineTask(handler, this);
   scheduleAbstractTask(task);
   return task;
 }
 
 NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::duration & time, const NX::Scheduler::CompletionHandler & handler)
 {
-  NX::CoroutineTask * taskObject = new NX::CoroutineTask(handler, this);
+  auto * taskObject = new NX::CoroutineTask(handler, this);
   std::shared_ptr<timer_type> timer(new timer_type(*myService));
   timer->expires_from_now(time);
   timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
@@ -166,7 +166,7 @@ void NX::Scheduler::yield()
   if (!myCurrentTask.get()) {
     throw NX::Exception("call to yield outside of a scheduler task");
   }
-  if (!static_cast<NX::CoroutineTask*>(myCurrentTask.get())) {
+  if (!dynamic_cast<NX::CoroutineTask*>(myCurrentTask.get())) {
     throw NX::Exception("call to yield outside of a coroutine");
   }
   myCurrentTask->yield();

@@ -29,6 +29,7 @@
 NX::Classes::IO::Devices::FilePullDevice::FilePullDevice (const std::string & path): myStream(path, std::ifstream::binary) {
   if (!boost::filesystem::exists(path))
     throw NX::Exception("file '" + path + "' not found");
+  myStream.unsetf(std::ios_base::skipws);
 }
 
 JSObjectRef NX::Classes::IO::Devices::FilePullDevice::Constructor (JSContextRef ctx, JSObjectRef constructor,
@@ -145,17 +146,17 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
           [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
         {
           auto readHandler = [=](auto readHandler) {
-//            boost::recursive_mutex::scoped_lock lock(myMutex);
+            boost::recursive_mutex::scoped_lock lock(myMutex);
             if(myState == Resumed) {
               auto buffer = (char*)myAllocator.malloc();
-              std::size_t sizeOut = myStream.readsome(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE);
+              auto sizeOut = static_cast<size_t>(myStream.readsome(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE));
               if (!sizeOut) {
                 myStream.read(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE);
-                sizeOut = myStream.gcount();
+                sizeOut = static_cast<size_t>(myStream.gcount());
               }
               if (sizeOut) {
                 JSValueRef exp = nullptr;
-//                lock.unlock();
+                lock.unlock();
                 JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(
                   context->toJSContext(), buffer, sizeOut,
                   [](void * ptr, void * ctx) {
@@ -181,7 +182,7 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
               } else {
                 allocator->free(buffer, 1);
                 if (myStream.eof()) {
-//                  lock.unlock();
+                  lock.unlock();
                   resolve(NX::Globals::Promise::createPromise (context->toJSContext(),
                     [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
                   {
@@ -195,7 +196,7 @@ JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, 
                   }));
                   myState = Paused;
                 } else {
-//                  lock.unlock();
+                  lock.unlock();
                   myScheduler->scheduleTask(std::bind(readHandler, readHandler));
                 }
               }

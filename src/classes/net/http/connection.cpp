@@ -61,3 +61,9 @@ JSObjectRef NX::Classes::Net::HTTP::Connection::start(NX::Context * context, JSO
     return thisObject;
   });
 }
+
+NX::Classes::Net::HTTP::Connection::Connection(NX::Scheduler *scheduler,
+                                               const std::shared_ptr<boost::asio::ip::tcp::socket> &socket) :
+  NX::Classes::Net::HTCommon::Connection(scheduler, socket), myRes(nullptr), myReq(nullptr)
+{
+}

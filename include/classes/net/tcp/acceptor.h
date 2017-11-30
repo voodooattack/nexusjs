@@ -49,8 +49,8 @@ namespace NX
             NX::Context * context = NX::Context::FromJsContext(ctx);
             try {
               return JSObjectMake(ctx, createClass(context), dynamic_cast<NX::Classes::Base*>(
-                new Acceptor(context->nexus()->scheduler(), std::shared_ptr<boost::asio::ip::tcp::acceptor>(
-                  new boost::asio::ip::tcp::acceptor(*context->nexus()->scheduler()->service())))
+                new Acceptor(context->nexus()->scheduler(), std::make_shared<boost::asio::ip::tcp::acceptor>(
+                  *context->nexus()->scheduler()->service()))
               ));
             } catch(const std::exception & e) {
               JSWrapException(ctx, e, exception);
@@ -61,7 +61,7 @@ namespace NX
           static void Finalize(JSObjectRef object) { }
 
         public:
-          virtual ~Acceptor() {}
+          virtual ~Acceptor() = default;
 
           static NX::Classes::Net::TCP::Acceptor * FromObject(JSObjectRef obj) {
             return dynamic_cast<NX::Classes::Net::TCP::Acceptor*>(NX::Classes::Base::FromObject(obj));

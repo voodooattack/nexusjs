@@ -30,13 +30,11 @@ namespace NX {
     namespace Net {
       namespace HTTP {
         class Connection: public NX::Classes::Net::HTCommon::Connection {
-          Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
-            NX::Classes::Net::HTCommon::Connection(scheduler, socket), myRes(nullptr), myReq(nullptr)
-          {
-          }
+        protected:
+          Connection(NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket);
 
         public:
-          virtual ~Connection() {}
+          virtual ~Connection() = default;
 
           static NX::Classes::Net::HTTP::Connection * FromObject(JSObjectRef obj) {
             return dynamic_cast<NX::Classes::Net::HTTP::Connection*>(NX::Classes::Base::FromObject(obj));
@@ -52,9 +50,9 @@ namespace NX {
             return JSObjectMake(context->toJSContext(), createClass(context), new Connection(context->nexus()->scheduler(), socket));
           }
 
-          virtual JSObjectRef start(NX::Context * context, JSObjectRef thisObject);
-          virtual NX::Classes::Net::HTCommon::Response * res() const { return myRes; };
-          virtual NX::Classes::Net::HTCommon::Request * req() const { return myReq; };
+          JSObjectRef start(NX::Context * context, JSObjectRef thisObject) override;
+          NX::Classes::Net::HTCommon::Response * res() const override { return myRes; };
+          NX::Classes::Net::HTCommon::Request * req() const override { return myReq; };
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];

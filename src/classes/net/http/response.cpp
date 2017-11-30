@@ -26,9 +26,37 @@ JSObjectRef NX::Classes::Net::HTTP::Response::attach(JSContextRef ctx, JSObjectR
 }
 
 NX::Classes::Net::HTTP::Response::Response(NX::Classes::Net::HTTP::Connection *connection) :
-    HTCommon::Response(connection), myConnection(connection),
-    myResponse(),
-    myResParser(myResponse)
+    HTCommon::Response(connection), myConnection(connection), myRes(), myWriter(), myStatus(200)
 {
-  myResponse.version(dynamic_cast<HTTP::Request*>(connection->req())->version());
+  myRes = std::make_unique<NX::Classes::Net::HTTP::Response::BeastResponse>(
+    (boost::beast::http::status)myStatus, 11);
+  myWriter = std::make_unique<Writer>(connection);
+}
+
+void NX::Classes::Net::HTTP::Response::deviceWrite(const char *buffer, std::size_t length) {
+  boost::system::error_code ec;
+  if (buffer) {
+    auto & body = myRes->body()/* = boost::beast::multi_buffer()*/;
+    body.commit(boost::asio::buffer_copy(
+      body.prepare(length), boost::asio::const_buffers_1(buffer, length)));
+  }
+  if (!myHeadersSentFlag) {
+    myHeadersSentFlag.store(true);
+    myRes->chunked(true);
+    Serializer serializer(*myRes);
+    serializer.split(true);
+    boost::beast::http::write_header(*myWriter, serializer, ec);
+  }
+  if (ec) {
+    throw NX::Exception(ec.message());
+  }
+  if (buffer) {
+    auto && constBuffers = boost::asio::const_buffers_1(buffer, length);
+    boost::asio::write(*myConnection->socket(), boost::beast::http::make_chunk(constBuffers), ec);
+  } else {
+    boost::asio::write(*myConnection->socket(), boost::beast::http::make_chunk_last(), ec);
+  }
+  if (ec) {
+    throw NX::Exception(ec.message());
+  }
 }
