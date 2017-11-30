@@ -5,9 +5,9 @@ Nexus.js — Multi-threaded I/O for JavaScript.
 
 Nexus.js is a multi-threaded JavaScript run-time built on top of JavaScriptCore (Webkit) with a focus on high performance and dynamic scaling above all else.
 
-Nexus.js uses an asynchronous non-blocking I/O model, and a thread-pool scheduler to make the most of modern hardware concurrency.
+Nexus.js uses an asynchronous, non-blocking I/O model, and a thread-pool scheduler to make the most of modern hardware concurrency.
 
-Nexus.js is Promise-based and embraces ES6 in full; as a result, it is not compatible with Node.js APIs.
+Nexus.js is Promise-based and embraces ES6 in full; and as a result, it is not compatible with Node.js APIs.
 
 ## Building
 
@@ -18,28 +18,18 @@ Nexus.js is Promise-based and embraces ES6 in full; as a result, it is not compa
 * [Boost](http://www.boost.org)
 * [ICU](http://site.icu-project.org/)
 
-#### Obtaining WebKit
-
-To build Nexus.js, you'll need to build WebKit from the sources,
-
-To checkout WebKit using git:
-```
-git clone git://git.webkit.org/WebKit.git WebKit
-```
-Or you might wish to do a shallow clone to avoid a longer download:
-```
-git clone --depth 1 git://git.webkit.org/WebKit.git WebKit
-```
-Please see the [build guide](https://webkit.org/building-webkit/) for how to build WebKit from sources.
-
-Alternatively, you can obtain a copy of the [nightly build](https://webkit.org/nightly/).
-
 #### Obtaining Nexus.js
 
 Simply clone Nexus using git to your chosen directory.
 
 ```
 git clone https://github.com/voodooattack/nexusjs.git nexusjs
+cd nexusjs 
+git submodules update --init --recursive
+```
+Or you might wish to do a shallow clone to avoid a longer download:
+```
+git submodules update --init --recursive --depth 1
 ```
 
 #### Building Nexus.js
@@ -51,6 +41,7 @@ $ mkdir build
 $ cd build/
 $ ccmake ..
 ```
+
 ## Documentation
 
 The Nexus.js API is a shifting haze. Because it changes so much from commit to commit, no documentation is currently available; but you can look into the [tests directory](tests/) for an insight into how to use it.
@@ -75,6 +66,7 @@ You can read more on Nexus.js and the progress of development in the following a
 * [Madness (Performance Comparison)](https://medium.com/@voodooattack/concurrent-javascript-part-iv-madness-edc1b8c7cc40)
 * [The Mantra (Questions and Answers)](https://medium.com/@voodooattack/concurrent-javascript-part-v-the-mantra-bbdafcac2349)
 * [Server (TCP API and Stress/Stability Testing)](https://medium.com/@voodooattack/concurrent-javascript-vi-server-9bb626f7cae1)
+* [A year's Absence (My apology for disappearing for an entire year)](https://medium.com/p/concurrent-javascript-a-years-absence-ea5ae93d3b91) 
 
 ## FAQ
 
@@ -94,7 +86,7 @@ You can read more on Nexus.js and the progress of development in the following a
 
 > No, please see [Locking in WebKit](https://webkit.org/blog/6161/locking-in-webkit/), it explains it better than I ever could.
 
-* Can Nexus libraries override globals?
+* Can Nexus.js libraries override globals?
 
 > The globals are created on-demand in every context that accesses them, and this makes it impossible to replace them.
 > For example, `Nexus.EventEmitter` exists in every context, but if you replace it in a library it will not affect the `Nexus.EventEmitter` available in a different library, or in the main context.
