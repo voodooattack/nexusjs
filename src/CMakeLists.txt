@@ -133,3 +133,4 @@ target_include_directories(nexus
 link_directories(${Boost_LIBRARY_DIRS})
 
 install(TARGETS nexus RUNTIME DESTINATION bin)
+

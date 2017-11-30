@@ -12,18 +12,19 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
   ### set each submodules's commit or tag that is to be checked out
   ### (leave empty if you want master)
   set(GIT_SUBMODULE_VERSION_beast   v124)
+  set(GIT_SUBMODULE_VERSION_webit   "origin/master")
 
   ### First, get all submodules in
   if(${GIT_SUBMODULES_CHECKOUT_QUIET})
     execute_process(
-        COMMAND             git submodule update --init --recursive
+        COMMAND             git submodule update --init --recursive --depth 1
         WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}
         OUTPUT_QUIET
         ERROR_QUIET
     )
   else()
     execute_process(
-        COMMAND             git submodule update --init --recursive
+        COMMAND             git submodule update --init --recursive --depth 1
         WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}
     )
   endif()
@@ -40,7 +41,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
 
     if(${GIT_SUBMODULES_CHECKOUT_QUIET})
       execute_process(
-          COMMAND             git checkout --depth 1 ${GIT_SUBMODULE_VERSION_${GIT_SUBMODULE}}
+          COMMAND             git checkout --allow-unrelated-histories --depth 1 ${GIT_SUBMODULE_VERSION_${GIT_SUBMODULE}}
           WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/${GIT_SUBMODULES_DIRECTORY}/${GIT_SUBMODULE}
           OUTPUT_QUIET
           ERROR_QUIET
@@ -62,6 +63,8 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
       execute_process(
           COMMAND             git apply ${PATCH}
           WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}/${GIT_SUBMODULES_DIRECTORY}/${GIT_SUBMODULE}
+          OUTPUT_QUIET
+          ERROR_QUIET
       )
     ENDFOREACH()
 
