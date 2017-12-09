@@ -1,6 +1,9 @@
 
 project(nexus)
 
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+
 find_package(Boost 1.62 COMPONENTS program_options system thread regex filesystem coroutine context iostreams REQUIRED)
 find_package(ICU REQUIRED)
 find_package(CURL REQUIRED)
