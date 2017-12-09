@@ -73,10 +73,13 @@ namespace NX {
         class TCPSocket: public virtual Socket {
         public:
           TCPSocket ( NX::Scheduler * scheduler, std::shared_ptr<boost::asio::ip::tcp::socket> socket):
-            myScheduler(scheduler), mySocket(std::move(socket))
+            myScheduler(scheduler), mySocket(std::move(socket)), myState(State::Paused),
+            myPromise(), myEndpoint(), myLastError()
           {
           }
-          virtual ~TCPSocket()  {}
+
+          ~TCPSocket() override {}
+
         private:
           static const JSClassDefinition Class;
           static const JSStaticValue Properties[];
@@ -97,19 +100,31 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::TCPSocket*>(NX::Classes::Base::FromObject(obj));
           }
 
-          std::size_t available() const override { return mySocket->available(); }
-          void cancel() override { mySocket->cancel(); }
-          void close() override { mySocket->close(); }
+          std::size_t available() const override { return mySocket && mySocket->is_open() ? mySocket->available() : 0; }
+          void cancel() override { if (mySocket) mySocket->cancel(error()); }
+          void close() override {
+            if (mySocket)
+              mySocket->close(error());
+          }
+
+          void deviceClose() override {
+            close();
+          }
+
           JSObjectRef connect (JSContextRef ctx, JSObjectRef thisObject, const std::string & address,
                                        const std::string & port, JSValueRef * exception) override;
           bool deviceReady() const override { return mySocket->is_open(); }
+          bool deviceOpen() const override { return mySocket->is_open(); }
+          const boost::system::error_code & deviceError() const override { return myLastError; }
           std::size_t maxWriteBufferSize() const override { return UINT64_MAX; }
           std::size_t recommendedWriteBufferSize() const override { return maxWriteBufferSize(); }
           bool eof() const override { return !mySocket->is_open(); }
-          void deviceWrite ( const char * buffer, std::size_t length ) override;
+          std::size_t deviceWrite ( const char * buffer, std::size_t length ) override;
           JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) override;
           JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) override;
           JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) override;
+
+          boost::system::error_code & error() { return myLastError; }
 
           State state() const override { return myState; }
 
@@ -121,6 +136,7 @@ namespace NX {
           std::atomic<State> myState;
           NX::Object myPromise;
           boost::asio::ip::tcp::endpoint myEndpoint;
+          boost::system::error_code myLastError;
         };
 
         class UDPSocket: public virtual Socket {
@@ -155,20 +171,32 @@ namespace NX {
                                const std::string & port, JSValueRef * exception) override;
           virtual JSObjectRef bind( JSContextRef ctx, JSObjectRef thisObject,
                                     const std::string & protocol, unsigned int port, JSValueRef * exception );
+
           bool deviceReady() const override { return mySocket->is_open(); }
+          bool deviceOpen() const override { return mySocket->is_open(); }
+          void deviceClose() override { mySocket->close(); }
+
+          const boost::system::error_code & deviceError() const override { return myError; }
+
           std::size_t maxWriteBufferSize() const override { return 65507; }
           std::size_t recommendedWriteBufferSize() const override { return maxWriteBufferSize(); }
 
-          void deviceWrite ( const char * buffer, std::size_t length ) override {
-            boost::system::error_code ec;
-            const std::size_t maxBufferLength = maxWriteBufferSize();
-            std::size_t remaining = length;
+          std::size_t deviceWrite ( const char * buffer, std::size_t length ) override {
+            boost::system::error_code & ec = myError;
+            const std::size_t maxBufferLength = recommendedWriteBufferSize();
+            std::size_t remaining = length, written = 0;
             for(std::size_t i = 0; i < length; i += maxBufferLength) {
-              remaining -= mySocket->send_to(boost::asio::buffer(buffer + i, std::min(maxBufferLength, remaining)), myEndpoint, 0, ec);
+              auto ret = mySocket->send_to(boost::asio::buffer(buffer + i, std::min(maxBufferLength, remaining)), myEndpoint, 0, ec);
+              remaining -= ret;
+              written += ret;
               if (ec) {
-                throw NX::Exception(ec.message());
+                if (ec != boost::system::errc::operation_canceled)
+                  throw NX::Exception(ec.message());
+                else
+                  break;
               }
             }
+            return written;
           }
 
           bool eof() const override { return !mySocket->is_open(); }
@@ -180,9 +208,9 @@ namespace NX {
             } else {
               NX::Context * context = NX::Context::FromJsContext(ctx);
               return myPromise = NX::Object(context->toJSContext(),
-                NX::Globals::Promise::createPromise(ctx, [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+                NX::Globals::Promise::createPromise(ctx, [=](JSContextRef ctx, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
                   myState.store(Paused);
-                  resolve(thisObject);
+                  resolve(ctx, thisObject);
                 }));
             }
           }
@@ -205,6 +233,7 @@ namespace NX {
           std::atomic<State> myState;
           boost::asio::ip::udp::endpoint myEndpoint;
           NX::Object myPromise;
+          boost::system::error_code myError;
         };
 
       }

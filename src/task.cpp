@@ -17,16 +17,16 @@
  *
  */
 
+#include "nexus.h"
 #include "task.h"
 #include "scheduler.h"
 #include "exception.h"
 
 #include <iostream>
 
-NX::CoroutineTask::CoroutineTask (const NX::Scheduler::CompletionHandler & handler, NX::Scheduler * scheduler):
-  myHandler(handler), myScheduler(scheduler), myCoroutine(), myPullCa(nullptr), myStatus(INACTIVE)
+NX::CoroutineTask::CoroutineTask (NX::Scheduler::CompletionHandler && handler, NX::Scheduler * scheduler, bool hold):
+  AbstractTask(scheduler, hold), myHandler(std::move(handler)), myScheduler(scheduler), myCoroutine(), myPullCa(nullptr), myStatus(INACTIVE)
 {
-  scheduler->hold();
 }
 
 void NX::CoroutineTask::create()
@@ -66,4 +66,10 @@ void NX::CoroutineTask::coroutine (NX::CoroutineTask::pull_type & ca)
 }
 
 
-
+void NX::Task::enter() {
+  if (myStatus == ABORTED) return;
+  myStatus.store(ACTIVE);
+  myScheduler->makeCurrent(this);
+  myHandler();
+  myStatus.store(FINISHED);
+}

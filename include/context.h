@@ -59,13 +59,17 @@ namespace NX {
     static Context *FromJsContext(JSContextRef pContext);
 
     JSValueRef getGlobal(const char * name);
-    JSValueRef getOrInitGlobal(const char * name);
+    JSValueRef getOrInitGlobal(JSContextRef ctx, const char * name);
     JSValueRef setGlobal(const char * name, JSValueRef value);
 
-    JSObjectRef globalObjectRef() const;
+    JSObjectRef globalThisValue() const;
     JSC::JSGlobalObject * globalObject() const { return myGlobal; }
 
     JSC::VM * vm() const { return myVM.ptr(); }
+
+    void registerThread();
+
+    std::size_t garbageCollect();
 
   protected:
 

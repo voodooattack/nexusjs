@@ -25,38 +25,58 @@ JSObjectRef NX::Classes::Net::HTTP::Response::attach(JSContextRef ctx, JSObjectR
   return NX::Globals::Promise::resolve(ctx, thisObject);
 }
 
-NX::Classes::Net::HTTP::Response::Response(NX::Classes::Net::HTTP::Connection *connection) :
-    HTCommon::Response(connection), myConnection(connection), myRes(), myWriter(), myStatus(200)
+NX::Classes::Net::HTTP::Response::Response(NX::Classes::Net::HTTP::Connection *connection, bool continuation) :
+    HTCommon::Response(connection), myConnection(connection), myRes(), myWriter(), myHeadersSentFlag(false),
+    myStatus(200), myContinuationFlag(continuation)
 {
   myRes = std::make_unique<NX::Classes::Net::HTTP::Response::BeastResponse>(
     (boost::beast::http::status)myStatus, 11);
+  myRes->keep_alive(myContinuationFlag);
   myWriter = std::make_unique<Writer>(connection);
 }
 
-void NX::Classes::Net::HTTP::Response::deviceWrite(const char *buffer, std::size_t length) {
-  boost::system::error_code ec;
-  if (buffer) {
-    auto & body = myRes->body()/* = boost::beast::multi_buffer()*/;
-    body.commit(boost::asio::buffer_copy(
-      body.prepare(length), boost::asio::const_buffers_1(buffer, length)));
-  }
+std::size_t NX::Classes::Net::HTTP::Response::deviceWrite(const char *buffer, std::size_t length) {
+  boost::system::error_code & ec = error();
   if (!myHeadersSentFlag) {
     myHeadersSentFlag.store(true);
     myRes->chunked(true);
     Serializer serializer(*myRes);
     serializer.split(true);
     boost::beast::http::write_header(*myWriter, serializer, ec);
-  }
-  if (ec) {
-    throw NX::Exception(ec.message());
+    if (ec) {
+      throw NX::Exception(ec);
+    }
   }
   if (buffer) {
     auto && constBuffers = boost::asio::const_buffers_1(buffer, length);
     boost::asio::write(*myConnection->socket(), boost::beast::http::make_chunk(constBuffers), ec);
+    if (ec) {
+      throw NX::Exception(ec);
+    }
   } else {
     boost::asio::write(*myConnection->socket(), boost::beast::http::make_chunk_last(), ec);
+    myConnection->notifyCompleted();
+    if (ec) {
+      throw NX::Exception(ec);
+    }
   }
+  return length;
+}
+
+void NX::Classes::Net::HTTP::Response::send(JSContextRef context, JSValueRef body) {
+  boost::system::error_code & ec = error();
+  if (!myHeadersSentFlag) {
+    myHeadersSentFlag.store(true);
+  }
+  NX::Value val(context, body);
+  std::string buffer(val.toString());
+  Serializer serializer(*myRes);
+  auto &resBody = myRes->body();
+  resBody.commit(boost::asio::buffer_copy(
+    resBody.prepare(buffer.size()), boost::asio::const_buffers_1(buffer.c_str(), buffer.size())));
+  boost::beast::http::write(*myWriter, serializer, ec);
+  myConnection->notifyCompleted();
   if (ec) {
-    throw NX::Exception(ec.message());
+    throw NX::Exception(ec);
   }
 }

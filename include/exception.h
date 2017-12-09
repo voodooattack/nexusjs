@@ -24,6 +24,10 @@
 #include <stdexcept>
 #include <wtf/FastMalloc.h>
 #include <wtf/StackTrace.h>
+#include <JavaScriptCore/API/JSValueRef.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
+
+#include "scoped_string.h"
 
 namespace WTF {
   class StackTrace;
@@ -33,11 +37,24 @@ namespace NX
 {
   class Exception: public std::runtime_error {
   public:
+    explicit Exception(const char * message);
     explicit Exception(const std::string & message);
+    explicit Exception(std::string && message);
+    explicit Exception(const boost::system::error_code & ec);
+    explicit Exception(JSContextRef ctx, JSValueRef exception);
 
     const WTF::StackTrace * trace() const;
 
+    JSObjectRef toError(JSContextRef ctx) {
+      JSValueRef args[] {
+        JSValueMakeString(ctx, NX::ScopedString(what()))
+      };;
+      return JSObjectMakeError(ctx, 1, args, nullptr);
+    }
+
   protected:
+    static std::string JSExceptionToString(JSContextRef ctx, JSValueRef exception);
+
     std::unique_ptr<WTF::StackTrace> myTrace;
   };
 

@@ -54,7 +54,10 @@ namespace NX
         virtual ~Filter() {}
 
         virtual std::size_t estimateOutputLength(const char * buffer, std::size_t length) = 0;
-        virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest, std::size_t outLength) = 0;
+        virtual std::size_t processBuffer(const char ** buffer,
+                                   std::size_t * length,
+                                   char **  dest,
+                                   std::size_t * outLength) = 0;
 
         static NX::Classes::IO::Filter * FromObject(JSObjectRef obj) {
           return dynamic_cast<NX::Classes::IO::Filter*>(NX::Classes::Base::FromObject(obj));

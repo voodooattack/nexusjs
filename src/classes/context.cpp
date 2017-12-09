@@ -66,7 +66,7 @@ NX::Classes::Context::Context(NX::Context * parent, JSObjectRef globalOverrides)
   if (globalOverrides)
   {
     JSValueProtect(parent->toJSContext(), globalOverrides);
-    JSObjectRef globalObject = myContext->globalObjectRef();
+    JSObjectRef globalObject = myContext->globalThisValue();
     JSPropertyNameArrayRef namesArray = JSObjectCopyPropertyNames(parent->toJSContext(), globalOverrides);
     size_t count = JSPropertyNameArrayGetCount(namesArray);
     for(size_t i = 0; i < count; i++) {

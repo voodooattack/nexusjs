@@ -62,7 +62,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::getConstructor (NX::Context * c
 JSObjectRef NX::Classes::IO::Devices::TCPSocket::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                               size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  JSWrapException(ctx, NX::Exception("TCPSocket is not constructible"), exception);
+  JSWrapException(ctx, NX::Exception("TCPSocket is not constructable"), exception);
   return JSObjectMake(ctx, nullptr, nullptr);
 }
 
@@ -105,7 +105,7 @@ const JSStaticValue NX::Classes::IO::Devices::Socket::Properties[] {
 const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
   { "close", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(thisObject);
       if (!socket) {
         NX::Value message(ctx, "close() not implemented on Socket instance");
@@ -123,7 +123,7 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
   },
   { "cancel", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(thisObject);
       if (!socket) {
         NX::Value message(ctx, "cancel() not implemented on Socket instance");
@@ -141,7 +141,7 @@ const JSStaticFunction NX::Classes::IO::Devices::Socket::Methods[] {
   },
   { "connect", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::Socket * socket = NX::Classes::IO::Devices::Socket::FromObject(thisObject);
       if (!socket) {
         NX::Value message(ctx, "connect() not implemented on Socket instance");
@@ -190,7 +190,7 @@ const JSStaticValue NX::Classes::IO::Devices::UDPSocket::Properties[] {
 const JSStaticFunction NX::Classes::IO::Devices::UDPSocket::Methods[] {
   { "bind", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::IO::Devices::UDPSocket * socket = NX::Classes::IO::Devices::UDPSocket::FromObject(thisObject);
       if (!socket) {
         NX::Value message(ctx, "bind() not implemented on Socket instance");
@@ -219,15 +219,16 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSValueProtect(context->toJSContext(), thisObject);
-  return Globals::Promise::createPromise(ctx, [=](NX::Context * context, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
+  return Globals::Promise::createPromise(ctx, [=](JSContextRef ctx, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
     typedef boost::asio::ip::udp::resolver resolver;
+    NX::Context * context = NX::Context::FromJsContext(ctx);
     std::shared_ptr<resolver> res(new resolver(*myScheduler->service()));
     res->async_resolve(boost::asio::ip::udp::resolver::query(address, port), [=](const auto & error, const auto & it)
     {
       /* We keep a reference to the resolver here */
       auto res2 = res;
       if (error) {
-        reject(NX::Object(context->toJSContext(), error));
+        reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
       }
       else {
         boost::asio::async_connect(*mySocket, it, boost::asio::ip::udp::resolver::iterator(),
@@ -242,7 +243,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
           return next;
         }, [=](const auto & error, const auto & it) {
           if (error) {
-            reject(NX::Object(context->toJSContext(), error));
+            reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
           }
           else {
             JSValueRef args[] {
@@ -251,7 +252,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
             };
             myEndpoint = *it;
             this->emitFast(context->toJSContext(), thisObject, "connected", 2, args, nullptr);
-            resolve(thisObject);
+            resolve(context->toJSContext(), thisObject);
           }
         });
       }
@@ -265,17 +266,15 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::bind(JSContextRef ctx, JSObject
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSValueProtect(context->toJSContext(), thisObject);
-  return Globals::Promise::createPromise(ctx, [=](NX::Context * context, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
+  return Globals::Promise::createPromise(ctx, [=](JSContextRef ctx, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
     boost::system::error_code ec;
     mySocket->bind(boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(address), port), ec);
     if (ec) {
-      reject(NX::Object(context->toJSContext(), ec));
+      reject(ctx, NX::Object(context->toJSContext(), ec));
       JSValueUnprotect(context->toJSContext(), thisObject);
-      return;
     } else {
-      resolve(thisObject);
+      resolve(ctx, thisObject);
       JSValueUnprotect(context->toJSContext(), thisObject);
-      return;
     }
   });
 }
@@ -284,18 +283,19 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::bind(JSContextRef ctx, JSObject
 JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObjectRef thisObject)
 {
   typedef boost::asio::ip::udp::endpoint Endpoint;
-  if (myState == Resumed)
+  if (myState == Resumed && myPromise.toBoolean())
     return myPromise;
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSValueProtect(context->toJSContext(), thisObject);
   myScheduler->hold();
   return myPromise = NX::Object(context->toJSContext(),
-                                Globals::Promise::createPromise(ctx, [=](NX::Context *, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
+                                Globals::Promise::createPromise(ctx, [=](JSContextRef ctx, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
+    NX::Context * context = NX::Context::FromJsContext(ctx);
     auto recvHandler = [=](auto next, char * buffer, std::size_t len, const std::shared_ptr<Endpoint> & endpoint,
                            const boost::system::error_code& ec, std::size_t bytes_transferred) -> void {
       if (ec) {
         if (buffer) WTF::fastFree(buffer);
-        reject(NX::Object(context->toJSContext(), ec));
+        reject(context->toJSContext(), NX::Object(context->toJSContext(), ec));
         JSValueUnprotect(context->toJSContext(), thisObject);
         myScheduler->release();
         return;
@@ -314,7 +314,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
             JSValueRef exp = nullptr;
             this->emitFast(context->toJSContext(), thisObject, "data", 2, args, &exp);
             if (exp) {
-              reject(exp);
+              reject(context->toJSContext(), exp);
               JSValueUnprotect(context->toJSContext(), thisObject);
               myScheduler->release();
               return;
@@ -332,7 +332,7 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
           mySocket->async_receive_from(boost::asio::buffer(buf, bufSize), *newEndpoint,
             boost::bind<void>(next, next, buf, bufSize, newEndpoint, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
         } else {
-          resolve(JSValueMakeUndefined(context->toJSContext()));
+          resolve(context->toJSContext(), JSValueMakeUndefined(context->toJSContext()));
           JSValueUnprotect(context->toJSContext(), thisObject);
           myScheduler->release();
           return;
@@ -345,35 +345,51 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::resume (JSContextRef ctx, JSObj
 }
 
 JSObjectRef NX::Classes::IO::Devices::TCPSocket::resume(JSContextRef ctx, JSObjectRef thisObject) {
-  if (myState == Resumed)
+  if (myState == Resumed && myPromise.toBoolean())
     return myPromise;
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  JSValueProtect(context->toJSContext(), thisObject);
-  myScheduler->hold();
+  NX::Object thisObj(context->toJSContext(), thisObject);
+  NX::Scheduler::Holder holder(context->nexus()->scheduler());
   return myPromise = NX::Object(context->toJSContext(),
-  Globals::Promise::createPromise(ctx, [ = ](NX::Context *, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
-    auto recvHandler = [ = ](auto next, char * buffer, std::size_t len, const boost::system::error_code & ec, std::size_t bytes_transferred) -> void {
+                                Globals::Promise::createPromise(context->toJSContext(),
+                                                                [=](JSContextRef, NX::ResolveRejectHandler resolve,
+                                                                    NX::ResolveRejectHandler reject)
+  {
+    auto recvHandler = [=](auto next, char * buffer, std::size_t len, const boost::system::error_code & ec, std::size_t bytes_transferred) -> void {
+      NX::Scheduler::Holder holderCopy(holder);
       if (ec) {
+        myState = Paused;
         if (buffer) WTF::fastFree(buffer);
-        reject(NX::Object(context->toJSContext(), ec));
-        JSValueUnprotect(context->toJSContext(), thisObject);
-        myScheduler->release();
+        if (ec != boost::system::errc::operation_canceled) {
+          JSValueRef args[] { NX::Object(context->toJSContext(), ec) };
+          emitFastAndSchedule(context->toJSContext(), thisObj, "error", 1, args, nullptr);
+          if (!mySocket->is_open()) {
+            emitFastAndSchedule(context->toJSContext(), thisObj, "close", 0, nullptr, nullptr);
+          }
+          reject(context->toJSContext(), args[0]);
+        } else
+          resolve(context->toJSContext(), thisObj);
         return;
       }
       else
       {
         if (buffer) {
           if (bytes_transferred) {
-            JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), buffer, bytes_transferred, [](void * ptr, void * ctx) {
+            JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(),
+                                                                             buffer, bytes_transferred,
+                                                                             [](void * ptr, void * ctx) {
               WTF::fastFree(ptr);
             }, nullptr, nullptr);
             JSValueRef args[] { arrayBuffer };
             JSValueRef exp = nullptr;
-            this->emitFast(context->toJSContext(), thisObject, "data", 1, args, &exp);
+            this->emitFastAndSchedule(context->toJSContext(), thisObj, "data", 1, args, &exp);
             if (exp) {
-              reject(exp);
-              JSValueUnprotect(context->toJSContext(), thisObject);
-              myScheduler->release();
+              JSValueRef args[] { exp };
+              emitFastAndSchedule(context->toJSContext(), thisObj, "error", 1, args, nullptr);
+              if (!mySocket->is_open())
+                emitFastAndSchedule(context->toJSContext(), thisObj, "close", 0, nullptr, nullptr);
+              myState = Paused;
+              reject(context->toJSContext(), exp);
               return;
             }
           } else {
@@ -388,16 +404,19 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::resume(JSContextRef ctx, JSObje
           mySocket->async_receive(boost::asio::buffer(buf, bufSize),
                                   boost::bind<void>(next, next, buf, bufSize, boost::asio::placeholders::error,
                                       boost::asio::placeholders::bytes_transferred));
+        } else if (mySocket->is_open()){
+          myScheduler->scheduleTask(boost::bind<void>(next, next, buffer, len, ec, bytes_transferred));
+          return;
         } else {
-          resolve(JSValueMakeUndefined(context->toJSContext()));
-          JSValueUnprotect(context->toJSContext(), thisObject);
-          myScheduler->release();
+          resolve(context->toJSContext(), thisObj);
+          emitFast(context->toJSContext(), thisObj, "close", 0, nullptr, nullptr);
+          mySocket->close();
           return;
         }
       }
     };
     myState = Resumed;
-    recvHandler(recvHandler, nullptr, 0, boost::system::error_code(), 0);
+    recvHandler(recvHandler, nullptr, 0, error(), 0);
   }));
 }
 
@@ -406,7 +425,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSValueProtect(context->toJSContext(), thisObject);
-  return Globals::Promise::createPromise(ctx, [=](NX::Context * context, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
+  return Globals::Promise::createPromise(ctx, [=](JSContextRef ctx, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) {
     typedef boost::asio::ip::tcp::resolver resolver;
     std::shared_ptr<resolver> res(new resolver(*myScheduler->service()));
     res->async_resolve(boost::asio::ip::tcp::resolver::query(address, port), [=](const auto & error, const auto & it)
@@ -414,7 +433,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
       /* We keep a reference to the resolver here */
       auto res2 = res;
       if (error) {
-        reject(NX::Object(context->toJSContext(), error));
+        reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
       }
       else {
         boost::asio::async_connect(*mySocket, it, boost::asio::ip::tcp::resolver::iterator(),
@@ -429,7 +448,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
                                      return next;
                                    }, [=](const auto & error, const auto & it) {
                                      if (error) {
-                                       reject(NX::Object(context->toJSContext(), error));
+                                       reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
                                      }
                                      else {
                                        JSValueRef args[] {
@@ -438,7 +457,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
                                        };
                                        myEndpoint = *it;
                                        this->emitFast(context->toJSContext(), thisObject, "connected", 2, args, nullptr);
-                                       resolve(thisObject);
+                                       resolve(context->toJSContext(),thisObject);
                                      }
                                    });
       }
@@ -447,12 +466,15 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
   });
 }
 
-void NX::Classes::IO::Devices::TCPSocket::deviceWrite(const char *buffer, std::size_t length) {
+std::size_t NX::Classes::IO::Devices::TCPSocket::deviceWrite(const char *buffer, std::size_t length) {
   const std::size_t maxBufferLength = maxWriteBufferSize();
-  std::size_t remaining = length;
+  std::size_t written = 0, remaining = length;
   for(std::size_t i = 0; i < length; i += maxBufferLength) {
-    remaining -= mySocket->send(boost::asio::buffer(buffer + i, std::min(maxBufferLength, remaining)));
+    auto ret = mySocket->send(boost::asio::buffer(buffer + i, std::min(maxBufferLength, remaining)));
+    remaining -= ret;
+    written += ret;
   }
+  return written;
 }
 
 JSObjectRef NX::Classes::IO::Devices::TCPSocket::pause(JSContextRef ctx, JSObjectRef thisObject) {
@@ -462,11 +484,11 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::pause(JSContextRef ctx, JSObjec
   } else {
     NX::Context * context = NX::Context::FromJsContext(ctx);
     return myPromise = NX::Object(context->toJSContext(),
-                                  NX::Globals::Promise::createPromise(ctx, [=](NX::Context *,
+                                  NX::Globals::Promise::createPromise(ctx, [=](JSContextRef ctx,
                                                                                ResolveRejectHandler resolve,
                                                                                ResolveRejectHandler reject) {
                                     myState.store(Paused);
-                                    resolve(thisObject);
+                                    resolve(ctx, thisObject);
                                   }));
   }
 }

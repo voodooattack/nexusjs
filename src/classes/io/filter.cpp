@@ -46,7 +46,8 @@ JSStaticValue NX::Classes::IO::Filter::Properties[] {
 
 JSStaticFunction NX::Classes::IO::Filter::Methods[] {
   { "process", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef originalArguments[], JSValueRef* exception) -> JSValueRef {
+    size_t argumentCount, const JSValueRef originalArguments[], JSValueRef* exception) -> JSValueRef
+    {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
       std::size_t length = 0, offset = 0;
@@ -54,118 +55,84 @@ JSStaticFunction NX::Classes::IO::Filter::Methods[] {
         if (argumentCount == 0) {
           throw NX::Exception("must supply buffer to write");
         } else {
-          if (JSValueGetType(ctx, originalArguments[0]) != kJSTypeObject)
+          auto type = JSValueGetType(ctx, originalArguments[0]);
+          if (type != kJSTypeObject && type != kJSTypeNull)
             throw NX::Exception("bad value for buffer argument");
-          JSValueRef except = nullptr;
-          NX::Object obj(ctx, originalArguments[0]);
-          length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
-          if (!except)
-            arrayBuffer = obj.value();
-          else {
-            except = nullptr;
-            arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
-            if (except) {
-              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
+          else if (type != kJSTypeNull) {
+            JSValueRef except = nullptr;
+            NX::Object obj(ctx, originalArguments[0]);
+            length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+            if (!except)
+              arrayBuffer = obj.value();
+            else {
+              except = nullptr;
+              arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
+              if (except) {
+                throw NX::Exception("argument must be TypedArray or ArrayBuffer");
+              }
+              offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
+              length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
             }
-            offset = JSObjectGetTypedArrayByteOffset(ctx, obj.value(), &except);
-            length = JSObjectGetTypedArrayByteLength(ctx, obj.value(), &except);
           }
         }
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      char * buffer = (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr);
+      const char * buffer = arrayBuffer ? (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, nullptr) + offset : nullptr;
       JSValueProtect(context->toJSContext(), thisObject);
-      JSValueProtect(context->toJSContext(), arrayBuffer);
-      return NX::Globals::Promise::createPromise(ctx,
-        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
-          NX::Scheduler* scheduler = context->nexus()->scheduler();
-          NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
-          if (!filter) {
-            JSValueUnprotect(context->toJSContext(), arrayBuffer);
-            NX::Object exp(context->toJSContext(), NX::Exception("filter object does not implement process()"));
-            return reject(exp);
-          }
-          const std::size_t chunkSize = UINT16_MAX; // TODO: MAKE THIS ADJUSTABLE
-          auto handler = [=](auto handler, std::size_t i, char * newBuffer, std::size_t outPos, std::size_t outLengthEstimatedTotal) {
-            if (i < length) {
-              try {
-                if (std::size_t out = filter->processBuffer(buffer + offset + i, std::min(chunkSize, length - i),
-                  newBuffer + outPos, outLengthEstimatedTotal))
-                {
-                  outLengthEstimatedTotal -= out;
-                  outPos += out;
-                } else {
-                  std::size_t newEstimate = filter->estimateOutputLength(buffer + offset + i, length - i);
-                  newBuffer = (char *)std::realloc(newBuffer, outPos + newEstimate);
-                  outLengthEstimatedTotal += newEstimate;
-                  i -= chunkSize;
-                }
-                scheduler->scheduleTask(std::bind(handler, handler, i + chunkSize, newBuffer, outPos, outLengthEstimatedTotal));
-              } catch(const std::exception & e) {
-                reject(NX::Object(context->toJSContext(), e));
-                return;
-              }
-            } else {
-              JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(), newBuffer, outPos,
-                [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);
-              JSValueUnprotect(context->toJSContext(), thisObject);
-              JSValueUnprotect(context->toJSContext(), arrayBuffer);
-              return resolve(outputArrayBuffer);
-            }
-          };
-          std::size_t outLengthEstimatedTotal = filter->estimateOutputLength(buffer, length);
-          scheduler->scheduleTask(std::bind(handler, handler, 0, (char*)std::malloc(outLengthEstimatedTotal), 0, outLengthEstimatedTotal));
-      });
-    }, 0
-  },
-  { "processSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
-      char * newBuffer = nullptr;
-      try {
-        NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
+      if (arrayBuffer)
+        JSValueProtect(context->toJSContext(), arrayBuffer);
+      auto executor = [=](JSContextRef ctx, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+        NX::Context *context = NX::Context::FromJsContext(ctx);
+        NX::Scheduler *scheduler = context->nexus()->scheduler();
+        NX::Classes::IO::Filter *filter = NX::Classes::IO::Filter::FromObject(thisObject);
         if (!filter) {
-          throw NX::Exception("filter object does not implement processSync()");
+          if (arrayBuffer)
+            JSValueUnprotect(context->toJSContext(), arrayBuffer);
+          JSValueUnprotect(context->toJSContext(), thisObject);
+          return reject(ctx, NX::Exception("filter object does not implement process()").toError(ctx));
         }
-        JSObjectRef arrayBuffer = nullptr;
-        if (argumentCount == 0) {
-          throw NX::Exception("must supply buffer to write");
-        } else {
-          if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
-            throw NX::Exception("bad value for buffer argument");
-          JSValueRef except = nullptr;
-          NX::Object obj(ctx, arguments[0]);
-          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
-          if (!except)
-            arrayBuffer = obj.value();
-          else {
-            except = nullptr;
-            arrayBuffer = JSObjectGetTypedArrayBuffer(ctx, obj.value(), &except);
-            if (except) {
-              throw NX::Exception("argument must be TypedArray or ArrayBuffer");
-            }
-          }
-        }
-        char * buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
-        std::size_t length = JSObjectGetArrayBufferByteLength(ctx, arrayBuffer, exception);
-        std::size_t estimatedOutLength = filter->estimateOutputLength(buffer, length);
-        newBuffer = (char *)std::malloc(estimatedOutLength);
-        std::size_t outLength = filter->processBuffer(buffer, length, newBuffer, estimatedOutLength);
-        if (outLength == 0)
+        auto handler = [=](auto handler, const char *inBuffer, std::size_t inLength,
+                           char *outBuffer, std::size_t outLength,
+                           char *outPtr, std::size_t outRemaining)
         {
-          throw NX::Exception("insufficient memory for filter processing");
-        }
-        if (outLength != estimatedOutLength)
-          newBuffer = (char *)std::realloc(newBuffer, outLength);
-        JSObjectRef output = JSObjectMakeArrayBufferWithBytesNoCopy(ctx, newBuffer, outLength,
-          [](void* bytes, void* deallocatorContext) { std::free(bytes); }, nullptr, exception);
-        return output;
-      } catch( const std::exception & e) {
-        if (newBuffer)
-          std::free(newBuffer);
-        return JSWrapException(ctx, e, exception);
-      }
+          try {
+            if (auto sizeNeeded = filter->processBuffer(&inBuffer, &inLength, &outPtr, &outRemaining)) {
+              outLength += sizeNeeded;
+              auto remappedOutOffset = outPtr - outBuffer;
+              outBuffer = static_cast<char *>(WTF::fastRealloc(outBuffer, outLength));
+              outPtr = outBuffer + remappedOutOffset;
+              context->nexus()->scheduler()->scheduleTask(
+                std::bind<void>(handler, handler, inBuffer, inLength, outBuffer, outLength, outPtr, outRemaining)
+              );
+              return;
+            }
+            if (outRemaining > 0)
+              outBuffer = static_cast<char *>(WTF::fastRealloc(outBuffer, outLength - outRemaining));
+            JSValueRef exp = nullptr;
+            JSObjectRef outputArrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(context->toJSContext(),
+                                                                                   outBuffer, outLength,
+                                                                                   [](void *bytes,
+                                                                                      void *deallocatorContext) {
+                                                                                     WTF::fastFree(bytes);
+                                                                                   }, nullptr, &exp);
+            if (!exp)
+              resolve(context->toJSContext(), outputArrayBuffer);
+            else
+              reject(context->toJSContext(), exp);
+          } catch(const std::exception & e) {
+            reject(context->toJSContext(), NX::Object(context->toJSContext(), e));
+          }
+          JSValueUnprotect(context->toJSContext(), thisObject);
+          if (arrayBuffer)
+            JSValueUnprotect(context->toJSContext(), arrayBuffer);
+        };
+        std::size_t originalEstimate = filter->estimateOutputLength(buffer, length);
+        auto outBuffer = static_cast<char *>(WTF::fastMalloc(originalEstimate));
+        scheduler->scheduleTask(std::bind(handler, handler, buffer, length,
+                                                    outBuffer, originalEstimate, outBuffer, originalEstimate));
+      };
+      return NX::Globals::Promise::createPromise(ctx, executor);
     }, 0
   },
   { nullptr, nullptr, 0 }

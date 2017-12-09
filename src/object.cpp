@@ -34,12 +34,12 @@
 NX::Object::Object (JSContextRef context, JSClassRef cls, void * data): myContext(context), myObject(nullptr)
 {
   myObject = JSObjectMake(context, cls, data);
-  JSValueProtect(context, myObject);
+  attach();
 }
 
 NX::Object::Object (JSContextRef context, JSObjectRef obj): myContext(context), myObject(obj)
 {
-  JSValueProtect(myContext, obj);
+  attach();
 }
 
 NX::Object::Object (JSContextRef context, JSValueRef val): myContext(context), myObject(nullptr)
@@ -47,17 +47,15 @@ NX::Object::Object (JSContextRef context, JSValueRef val): myContext(context), m
   JSValueRef exception = nullptr;
   myObject = JSValueToObject(myContext, val, &exception);
   if (exception) {
-    NX::Value except(myContext, exception);
-    throw NX::Exception(except.toString());
+    throw NX::Exception(myContext, exception);
   }
-  JSValueProtect(myContext, myObject);
+  attach();
 }
 
 NX::Object::Object (const NX::Object & other): myContext(other.myContext), myObject(other.myObject)
 {
-  JSValueProtect(myContext, myObject);
+  attach();
 }
-
 
 NX::Object::Object (JSContextRef context, time_t val): myContext(context), myObject(nullptr)
 {
@@ -67,10 +65,9 @@ NX::Object::Object (JSContextRef context, time_t val): myContext(context), myObj
   JSValueRef exception = nullptr;
   myObject = JSObjectMakeDate(myContext, 1, args, &exception);
   if (exception) {
-    NX::Value except(myContext, exception);
-    throw NX::Exception(except.toString());
+    throw NX::Exception(myContext, exception);
   }
-  JSValueProtect(myContext, myObject);
+  attach();
 }
 
 NX::Object::Object (JSContextRef context, const std::exception & e): myContext(context), myObject(nullptr)
@@ -83,10 +80,11 @@ NX::Object::Object (JSContextRef context, const std::exception & e): myContext(c
     auto trace = WTF::StackTrace::captureStackTrace(10);
     trace->dump(ss, "\t");
   }
+  ss.printf("\n");
   NX::Value message(myContext, ss.toString().utf8().data());
   JSValueRef args[] { message.value() };
   myObject = JSObjectMakeError(myContext, 1, args, nullptr);
-  JSValueProtect(myContext, myObject);
+  attach();
 }
 
 NX::Object::Object (JSContextRef context, const boost::system::error_code & e): myContext(context), myObject(nullptr)
@@ -94,14 +92,13 @@ NX::Object::Object (JSContextRef context, const boost::system::error_code & e): 
   NX::Value message(myContext, e.message());
   JSValueRef args[] { message.value() };
   myObject = JSObjectMakeError(myContext, 1, args, nullptr);
-  JSValueProtect(myContext, myObject);
+  attach();
 }
 
 
 NX::Object::~Object()
 {
-  if (myContext && myObject)
-    JSValueUnprotect(myContext, myObject);
+  clear();
 }
 
 std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
@@ -114,7 +111,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name)
     NX::Value except(myContext, exception);
     throw NX::Exception(except.toString());
   }
-  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+  return std::make_shared<NX::Value>(myContext, val);
 }
 
 std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index)
@@ -126,7 +123,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index)
     NX::Value except(myContext, exception);
     throw NX::Exception(except.toString());
   }
-  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+  return std::make_shared<NX::Value>(myContext, val);
 }
 
 std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name) const
@@ -139,7 +136,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (const char * name) const
     NX::Value except(myContext, exception);
     throw NX::Exception(except.toString());
   }
-  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+  return std::make_shared<NX::Value>(myContext, val);
 }
 
 std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index) const
@@ -151,7 +148,7 @@ std::shared_ptr<NX::Value> NX::Object::operator[] (unsigned int index) const
     NX::Value except(myContext, exception);
     throw NX::Exception(except.toString());
   }
-  return std::shared_ptr<NX::Value>(new NX::Value(myContext, val));
+  return std::make_shared<NX::Value>(myContext, val);
 }
 
 std::string NX::Object::toString()
@@ -162,6 +159,8 @@ std::string NX::Object::toString()
 
 NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::PromiseCallback onReject)
 {
+  if (!myObject)
+    throw NX::Exception("not a promise");
   struct PromiseData {
     PromiseCallback onResolve;
     PromiseCallback onReject;
@@ -177,9 +176,12 @@ NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::P
                                                                                                  JSValueRef* exception) -> JSValueRef
   {
     auto promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
-    JSValueRef val = promiseData->onResolve(ctx, arguments[0], exception);
-    delete promiseData;
-    return val;
+    if (promiseData) {
+      JSValueRef val = promiseData->onResolve(ctx, arguments[0], exception);
+      delete promiseData;
+      return val;
+    } else
+      return *exception =  NX::Exception("empty promise data").toError(ctx);
   }), dataCarrier, 0, nullptr, &exp) : JSValueMakeUndefined(myContext);
   if (exp)
   {
@@ -192,9 +194,12 @@ NX::Object NX::Object::then(NX::Object::PromiseCallback onResolve, NX::Object::P
                                                                                                JSValueRef* exception) -> JSValueRef
   {
     auto promiseData = reinterpret_cast<PromiseData*>(JSObjectGetPrivate(thisObject));
-    JSValueRef val = promiseData->onReject(ctx, arguments[0], exception);
-    delete promiseData;
-    return val;
+    if (promiseData) {
+      JSValueRef val = promiseData->onReject(ctx, arguments[0], exception);
+      delete promiseData;
+      return val;
+    } else
+      return *exception =  NX::Exception("empty promise data").toError(ctx);
   }), dataCarrier, 0, nullptr, &exp) : JSValueMakeUndefined(myContext);
   if (exp)
   {
@@ -228,6 +233,8 @@ JSValueRef NX::Object::await() {
   if (result) {
     JSValueUnprotect(context->toJSContext(), result);
   }
+  if (exception)
+    throw NX::Exception(context->toJSContext(), exception);
   return result;
 }
 
@@ -242,5 +249,33 @@ NX::Object::Object(JSContextRef context, const std::vector<JSValueRef> &values):
     NX::Value except(myContext, exp);
     throw NX::Exception(except.toString());
   }
-  JSValueProtect(myContext, myObject);
+  attach();
+}
+
+bool NX::Object::toBoolean() {
+  if (myObject)
+    return JSValueToBoolean(myContext, myObject);
+  else
+    return false;
+}
+
+NX::Object::Object(NX::Object &&other) noexcept:
+  myContext(other.myContext), myObject(other.myObject)
+{
+  other.myContext = nullptr;
+  other.myObject = nullptr;
+  attach();
+}
+
+void NX::Object::clear() {
+  if (myContext && myObject) {
+    JSValueUnprotect(myContext, myObject);
+  }
+  myContext = nullptr;
+  myObject = nullptr;
+}
+
+void NX::Object::attach() {
+  if (myContext && myObject)
+    JSValueProtect(myContext, myObject);
 }

@@ -23,7 +23,8 @@
             .map(e => e.functor)
             .map(functor => Promise.resolve(functor(...args)))
         );
-      }
+      } else
+        return Promise.resolve([]);
     }
     off(event, target) {
       if (this[eventsKey][event])
@@ -39,23 +40,53 @@
       super();
       this[deviceKey] = device;
       this[filtersKey] = [];
-      if (device.type !== 'pull' && device.type !== 'push')
+      if (device.type !== 'pull' && device.type !== 'push') {
         throw new TypeError('invalid device type');
+      }
       if (device.type === 'push') {
-        device.on('data', buffer =>
-          this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(buffer))
-            .then(buffer => this.emit('data', buffer)));
-        device.on('end', () => this.emit('end'));
+        device.on('data', buffer => {
+          return this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(buffer))
+            .then(buffer => this.emit('data', buffer), e => this.emit('error', e));
+        });
+        device.on('end', async () => {
+          try {
+            const result = await this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(null));
+            if (result !== null) await this.emit('data', result);
+          }
+          catch (e) {
+            await this.emit('error', e);
+          } finally  {
+            await this.emit('end');
+          }
+        });
         device.on('error', e => this.emit('error', e));
       }
     }
     get filters() { return this[filtersKey]; }
     get device() { return this[deviceKey]; }
     get eof() { return this.device.eof; }
-    resume() {
+    async resume() {
       if (this.device.type === 'pull')
-        throw new TypeError('can not perform resume operation on PullSourceDevice');
-      return this.device.resume();
+      {
+        try {
+          while (!this.device.eof) {
+            let buffer = await this.device.read(8 * 1024 * 1024);
+            await this.emit('data', buffer);
+          }
+        }
+        catch (e)
+        {
+          await this.emit('error', e);
+        } finally {
+          await this.emit('end');
+        }
+        return this;
+      } else
+        return new Promise((resolve, reject) => {
+          this.once('end', () => resolve(this));
+          this.once('error', reject);
+          this.device.resume().catch(e => this.emit('error', e));
+        });
     }
     read() {
       if (this.device.type === 'push')
@@ -76,23 +107,34 @@
         return this.read().then(data =>
           Promise.all(targets.map(target => target.write(data))));
       } else if (this.device.type === 'push') {
-        const chain = data =>
-          this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(data))
-                      .then(data => Promise.all(targets.map(target => target.write(data))));
-        this.device.on('data', chain);
-        this.device.on('end', async () => {
-          await Promise.all(targets.map(t => t.write(null)));
-          await this.emit('end');
-        });
-        this.device.on('error', () => this.emit('error'));
-        return this.device.resume().then(v => { this.device.off('data', chain); return v; });
+        let disconnectAll;
+        const onData = async buffer => {
+          try {
+            await Promise.all(targets.map(target => target.write(buffer)));
+          } catch (e) {
+            await this.emit('error', e);
+          }
+        };
+        const onEnd = async () => {
+          await Promise.all(targets.map(target => target.write(null)));
+        };
+        disconnectAll = async () => {
+          this.off('data', onData);
+          this.off('end', onEnd);
+        };
+        this.on('data', onData);
+        this.once('end', onEnd);
+        return disconnectAll;
       }
     }
     pushFilter(...filters) {
-      filters.forEach(f => this.filters.push(f));
+      this.filters.push(...filters);
     }
     popFilter() {
       return this.filters.pop();
+    }
+    close() {
+      return this.device.close();
     }
   }
   return ReadableStream;

@@ -1,9 +1,46 @@
 (function() {
+  const eventsKey = Symbol();
+  class EventEmitter2 {
+    constructor() {
+      this[eventsKey] = {};
+    }
+    on(event, functor) {
+      this[eventsKey][event] = this[eventsKey][event] || [];
+      this[eventsKey][event].push({ functor, count: Infinity });
+    }
+    once(event, functor) {
+      this[eventsKey][event] = this[eventsKey][event] || [];
+      this[eventsKey][event].push({ functor, count: 1 });
+    }
+    many(event, functor, count) {
+      this[eventsKey][event] = this[eventsKey][event] || [];
+      this[eventsKey][event].push({ functor, count });
+    }
+    emit(event, ...args) {
+      if (this[eventsKey][event]) {
+        return Promise.all(
+          this[eventsKey][event].filter(e => e.count-- > 0)
+            .map(e => e.functor)
+            .map(functor => Promise.resolve(functor(...args)))
+        );
+      } else
+        return Promise.resolve([]);
+    }
+    off(event, target) {
+      if (this[eventsKey][event])
+        this[eventsKey][event] = this[eventsKey][event].filter(e => e.functor !== target);
+    }
+    allOff(event) {
+      delete this[eventsKey][event];
+    }
+  }
   const deviceKey = Symbol(), filtersKey = Symbol();
-  class WritableStream {
+  class WritableStream extends EventEmitter2 {
     constructor(device) {
+      super();
       this[deviceKey] = device;
       this[filtersKey] = [];
+      device.on('error', e => this.emit('error', e));
     }
     get filters() { return this[filtersKey]; }
     get device() { return this[deviceKey]; }
@@ -22,6 +59,9 @@
     popFilter() {
       return this.filters.pop();
     }
-  };
+    close() {
+      return this.device.close();
+    }
+  }
   return WritableStream;
 })();

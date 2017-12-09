@@ -35,9 +35,13 @@
 #include <JavaScriptCore/runtime/GenericTypedArrayViewInlines.h>
 #include <JavaScriptCore/runtime/JSModuleRecord.h>
 
-#include <boost/filesystem.hpp>
-#include <globals/global.h>
 #include <JavaScriptCore/parser/ParserError.h>
+
+#include "globals/global.h"
+
+#include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
+#include <curl/curl.h>
 
 namespace JSC {
   template<>
@@ -84,14 +88,16 @@ const GlobalObjectMethodTable NX::GlobalObject::s_NXGlobalObjectMethodTable = {
 };
 
 void NX::GlobalObject::queueTaskToEventLoop(JSC::JSGlobalObject &global, Ref<JSC::Microtask> &&task) {
-  auto &thisObject = reinterpret_cast<JSCallbackObject<NX::GlobalObject>&>(global);
+  auto & globalObject = reinterpret_cast<JSCallbackObject<NX::GlobalObject>&>(global);
   auto &t = task.leakRef();
-  thisObject.myNexus->scheduler()->scheduleTask([&]() {
-    auto *exec = thisObject.globalExec();
-    JSC::JSLockHolder lock(exec);
-    t.run(exec);
-    t.deref();
-  });
+  globalObject.nexus()->scheduler()->scheduleTask(
+    [&]() {
+      auto exec = global.globalExec();
+      JSC::JSLockHolder lock(globalObject.globalExec());
+      t.run(exec);
+      t.deref();
+    }
+  );
 }
 
 NX::GlobalObject::GlobalObject(JSC::VM &vm, JSC::Structure *structure) :
@@ -152,6 +158,7 @@ static std::optional<DirectoryName> extractDirectoryName(const String &absoluteP
 }
 
 static WTF::String resolvePath(const DirectoryName &directoryName, const ModuleName &moduleName) {
+
   WTF::Vector<WTF::String> directoryPieces;
   directoryName.queryName.split(pathSeparator(), false, directoryPieces);
 
@@ -195,15 +202,37 @@ static void convertShebangToJSComment(WTF::Vector<char> &buffer) {
 }
 
 template<typename Vector>
-static inline String stringFromUTF(const Vector &utf8) {
-  return String::fromUTF8WithLatin1Fallback(utf8.data(), utf8.size());
+static inline WTF::String stringFromUTF(const Vector &utf8) {
+  return WTF::String::fromUTF8WithLatin1Fallback(utf8.data(), utf8.size());
 }
 
-static bool fetchModuleFromLocalFileSystem(const String &fileName, WTF::Vector<char> &buffer) {
+static bool fetchModuleFromLocalFileSystem(const WTF::String &fileName, WTF::Vector<char> &buffer) {
   try {
-    auto buf = fileName.utf8().buffer();
-    std::ifstream stream(buf->data(), std::ifstream::in | std::ifstream::binary);
+    const boost::filesystem::path path(fileName.utf8().buffer()->data());
+    if (!boost::filesystem::exists(path)) {
+      static const std::list<const char *> extensions {
+        ".mjs",
+        ".js"
+      };
+      for(auto const & ext : extensions) {
+        boost::filesystem::path withExt(path);
+        withExt.concat(ext);
+        if (boost::filesystem::exists(withExt)) {
+          WTF::String fileNameWithExt(withExt.c_str());
+          return fetchModuleFromLocalFileSystem(fileNameWithExt, buffer);
+        }
+      }
+      return false;
+    } else if (boost::filesystem::is_directory(path)) {
+      boost::filesystem::path p(path);
+      p.append("index");
+      WTF::String fileNameWithIndexJs(p.c_str());
+      return fetchModuleFromLocalFileSystem(fileNameWithIndexJs, buffer);
+    }
+    boost::filesystem::ifstream stream(path, std::ifstream::in | std::ifstream::binary);
     stream.unsetf(std::ios_base::skipws);
+    if (stream.bad())
+      return false;
     buffer.appendRange(std::istream_iterator<char>(stream), std::istream_iterator<char>());
     convertShebangToJSComment(buffer);
     return true;
@@ -212,6 +241,101 @@ static bool fetchModuleFromLocalFileSystem(const String &fileName, WTF::Vector<c
     return false;
   }
 }
+
+#define URL_REGEX "(http|https)://([^/ :]+):?([^/ ]*)(/?[^ #?]*)\\x3f?([^ #]*)#?([^ ]*)"
+
+static bool isURL(const WTF::String &url) {
+  boost::regex ex(URL_REGEX);
+  boost::cmatch what;
+  return regex_match(url.utf8().data(), what, ex);
+}
+
+struct sURL {
+  std::string protocol, domain, port, path, query;
+};
+
+static sURL parseURL(const WTF::String & url) {
+  boost::regex ex(URL_REGEX);
+  boost::cmatch what;
+  if (regex_match(url.utf8().data(), what, ex)) {
+    return {
+      std::string(what[1].first, what[1].second), // protocol
+      std::string(what[2].first, what[2].second), // domain
+      std::string(what[3].first, what[3].second), // port
+      std::string(what[4].first, what[4].second), // path
+      std::string(what[5].first, what[5].second) // query
+    };
+  }
+  throw NX::Exception("Invalid URL");
+}
+
+static size_t curlWriteCallback(char *ptr, size_t size, size_t nmemb, void * userdata) {
+  if (userdata == nullptr)
+    return 0;
+  auto buf = reinterpret_cast<WTF::Vector<char>*>(userdata);
+  buf->appendRange(ptr, ptr + size * nmemb);
+  return size * nmemb;
+}
+
+static bool fetchModuleFromURL(const WTF::String &url, WTF::Vector<char> &buffer) {
+  try {
+    static thread_local bool init;
+    CURLcode code;
+    if (!init) {
+      code = curl_global_init(CURL_GLOBAL_ALL);
+      if (code != CURLE_OK)
+        return false;
+      init = true;
+    }
+    char errorBuf[CURL_ERROR_SIZE];
+    CURL * session = curl_easy_init();
+    if (!session)
+      return false;
+    std::string utf8URL(url.utf8().data());
+    code = curl_easy_setopt(session, CURLOPT_ERRORBUFFER, errorBuf);
+    if (code != CURLE_OK)
+    {
+      curl_easy_cleanup(session);
+      return false;
+    }
+    code = curl_easy_setopt(session, CURLOPT_NOSIGNAL, 1L);
+    if (code != CURLE_OK) {
+      curl_easy_cleanup(session);
+      return false;
+    }
+    code = curl_easy_setopt(session, CURLOPT_URL, utf8URL.c_str());
+    if (code != CURLE_OK) {
+      curl_easy_cleanup(session);
+      return false;
+    }
+    code = curl_easy_setopt(session, CURLOPT_FOLLOWLOCATION, 1L);
+    if (code != CURLE_OK) {
+      curl_easy_cleanup(session);
+      return false;
+    }
+    code = curl_easy_setopt(session, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+    if (code != CURLE_OK) {
+      curl_easy_cleanup(session);
+      return false;
+    }
+    code = curl_easy_setopt(session, CURLOPT_WRITEDATA, &buffer);
+    if (code != CURLE_OK) {
+      curl_easy_cleanup(session);
+      return false;
+    }
+    code = curl_easy_perform(session);
+    curl_easy_cleanup(session);
+    if (code != CURLE_OK) {
+      return false;
+    }
+    convertShebangToJSComment(buffer);
+    return true;
+  } catch (const std::exception &e) {
+    NX::Nexus::ReportException(e);
+    return false;
+  }
+}
+
 
 JSInternalPromise *
 NX::GlobalObject::moduleLoaderImportModule(JSGlobalObject *globalObject, ExecState *exec, JSModuleLoader *,
@@ -293,7 +417,7 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
                                                        "'.")));
     return {};
   }
-  return Identifier::fromString(&vm, resolvePath(directoryName.value(), ModuleName(key.impl())));
+  return Identifier::fromString(&vm, isURL(key.impl()) ? key.impl() : resolvePath(directoryName.value(), ModuleName(key.impl())));
 }
 
 JSInternalPromise *
@@ -308,10 +432,18 @@ NX::GlobalObject::moduleLoaderFetch(JSGlobalObject *globalObject, ExecState *exe
     scope.clearException();
     return deferred->reject(exec, exception);
   }
-
   // Here, now we consider moduleKey as the fileName.
   WTF::Vector<char> utf8;
-  if (!fetchModuleFromLocalFileSystem(moduleKey, utf8))
+
+//  auto ctx = reinterpret_cast<NX::Context*>(
+//    static_cast<JSCallbackObject<NX::GlobalObject>*>(globalObject)->getPrivate()
+//  );
+
+  if (isURL(moduleKey)) {
+    if (!fetchModuleFromURL(moduleKey, utf8)) {
+      return deferred->reject(exec, createError(exec, makeString("Could not open URL '", moduleKey, "'.")));
+    }
+  } else if (!fetchModuleFromLocalFileSystem(moduleKey, utf8))
     return deferred->reject(exec, createError(exec, makeString("Could not open file '", moduleKey, "'.")));
 
   auto source = makeSource(stringFromUTF(utf8),
@@ -341,6 +473,14 @@ NX::GlobalObject::moduleLoaderCreateImportMetaProperties(JSGlobalObject *globalO
 
   metaProperties->putDirect(vm, Identifier::fromString(&vm, "filename"), key);
   RETURN_IF_EXCEPTION(scope, nullptr);
+  if (!key.isSymbol()) {
+    auto path = boost::filesystem::path(key.toString(exec)->value(exec).utf8().data());
+    path.remove_filename();
+    NX::ScopedString dirNameStr(path.c_str());
+    JSValueRef dirName = JSValueMakeString(toRef(exec), dirNameStr);
+    metaProperties->putDirect(vm, Identifier::fromString(&vm, "dirname"), toJS(exec, dirName).toString(exec));
+    RETURN_IF_EXCEPTION(scope, nullptr);
+  }
 
   return metaProperties;
 }
@@ -351,7 +491,7 @@ void NX::GlobalObject::promiseRejectionTracker(JSGlobalObject *jsGlobalObject, E
 //  if (JSC::jsDynamicCast<JSC::JSInternalPromise*>(vm, promise)) {
 //    return;
 //  }
-  auto &globalObject = *JSC::jsCast<JSCallbackObject<NX::GlobalObject> *>(jsGlobalObject);
+//  auto &globalObject = *JSC::jsCast<JSCallbackObject<NX::GlobalObject> *>(jsGlobalObject);
   auto result = promise->result(vm);
   NX::Nexus::ReportException(toRef(exec), toRef(exec, result));
 }
@@ -362,6 +502,8 @@ NX::GlobalObject::moduleLoaderEvaluate(JSGlobalObject *global, ExecState *exec, 
                                        JSC::JSValue scriptFetcher)
 {
   auto thisObject = reinterpret_cast<JSCallbackObject<NX::GlobalObject>*>(global);
+//  auto parent = static_cast<NX::Context*>(thisObject->getPrivate());
+//  auto context = new NX::Context(parent);
   JSLockHolder lockHolder(exec);
   auto moduleRecord = JSC::jsDynamicCast<JSC::JSModuleRecord*>(thisObject->vm(), moduleRecordValue);
   if (!moduleRecord) {

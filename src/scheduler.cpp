@@ -23,10 +23,15 @@
 
 #include <functional>
 #include <JavaScriptCore/runtime/InitializeThreading.h>
+#include <JavaScriptCore/heap/GCDeferralContext.h>
+#include <JavaScriptCore/heap/GCDeferralContextInlines.h>
+#include <JavaScriptCore/heap/Heap.h>
+#include <JavaScriptCore/heap/HeapInlines.h>
+#include <JavaScriptCore/heap/MachineStackMarker.h>
 
 NX::Scheduler::Scheduler (NX::Nexus * nexus, unsigned int maxThreads):
   myNexus(nexus), myMaxThreads(maxThreads), myThreadCount(0), myService(), myWork(),
-  myThreadGroup(), myCurrentTask(), myTaskQueue(256), myTaskCount(0), myActiveTaskCount(0),
+  myThreadGroup(), myCurrentTask(nullptr), myTaskQueue(256), myTaskCount(0), myActiveTaskCount(0), myHoldCount(0),
   myPauseTasks(false)
 {
   myService.reset(new boost::asio::io_service(maxThreads));
@@ -37,6 +42,10 @@ NX::Scheduler::~Scheduler()
 {
   this->stop();
   myThreadGroup.join_all();
+  for(auto task : myThreadInitQueue) {
+    delete task;
+  }
+  myThreadInitQueue.clear();
 }
 
 void NX::Scheduler::addThread()
@@ -46,13 +55,20 @@ void NX::Scheduler::addThread()
 
 void NX::Scheduler::dispatcher()
 {
-  WTF::initializeThreading();
-  JSC::initializeThreading();
+  static const std::chrono::microseconds delay(200);
+  for(auto task : myThreadInitQueue) {
+    if (task->status() != NX::AbstractTask::Status::ABORTED) {
+      task->create();
+      task->enter();
+      task->exit();
+    }
+  }
   myThreadCount++;
-  while (myService->poll() || remaining())
+  while (myService->poll_one() || queued())
   {
-    if (!processTasks())
-      std::this_thread::sleep_for(std::chrono::microseconds(200));
+    if (!drainTasks()) {
+      std::this_thread::sleep_for(delay);
+    }
     std::this_thread::yield();
     if (myService->stopped())
       break;
@@ -65,34 +81,37 @@ void NX::Scheduler::makeCurrent (NX::AbstractTask * task)
   myCurrentTask.reset(task);
 }
 
-bool NX::Scheduler::processTasks()
+std::size_t NX::Scheduler::drainTasks()
 {
-  if (myPauseTasks) return false;
+  if (myPauseTasks) return 0;
+  std::size_t processed = 0;
   NX::AbstractTask * task = nullptr;
-  if (myTaskQueue.pop(task))
+  while (myTaskQueue.pop(task))
   {
     myActiveTaskCount++;
+    myTaskCount--;
     myCurrentTask.reset(task);
     if (myCurrentTask->status() != NX::AbstractTask::ABORTED) {
       if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::INACTIVE)
         myCurrentTask->create();
       if (myCurrentTask.get() &&(myCurrentTask->status() == NX::AbstractTask::CREATED ||
-                                 myCurrentTask->status() == NX::AbstractTask::PENDING))
+                                 myCurrentTask->status() == NX::AbstractTask::PENDING)) {
         myCurrentTask->enter();
+      }
       if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::PENDING)
       {
         myTaskQueue.push(myCurrentTask.release());
       }
-      else if (myCurrentTask.get()) {
-        myCurrentTask->exit();
-        myCurrentTask.reset();
+      else if (auto pTask = myCurrentTask.release()) {
+        pTask->exit();
+        delete pTask;
       }
     }
     myActiveTaskCount--;
-    return true;
+    processed++;
+    if (myPauseTasks) break;
   }
-  else
-    return false;
+  return processed;
 }
 
 void NX::Scheduler::balanceThreads()
@@ -122,43 +141,10 @@ void NX::Scheduler::join()
 
 NX::AbstractTask * NX::Scheduler::scheduleAbstractTask (NX::AbstractTask * task)
 {
+  myTaskCount++;
   myTaskQueue.push(task);
   balanceThreads();
   return task;
-}
-
-NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::CompletionHandler & handler)
-{
-  auto * task = new NX::Task(handler, this);
-  scheduleAbstractTask(task);
-  return task;
-}
-
-NX::Task * NX::Scheduler::scheduleTask (const NX::Scheduler::duration & time, const NX::Scheduler::CompletionHandler & handler)
-{
-  auto * taskObject = new NX::Task(handler, this);
-  std::shared_ptr<timer_type> timer(new timer_type(*myService));
-  timer->expires_from_now(time);
-  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
-  taskObject->addCancellationHandler([=]() { timer->cancel(); });
-  return taskObject;
-}
-
-NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::CompletionHandler & handler)
-{
-  auto * task = new NX::CoroutineTask(handler, this);
-  scheduleAbstractTask(task);
-  return task;
-}
-
-NX::CoroutineTask * NX::Scheduler::scheduleCoroutine (const NX::Scheduler::duration & time, const NX::Scheduler::CompletionHandler & handler)
-{
-  auto * taskObject = new NX::CoroutineTask(handler, this);
-  std::shared_ptr<timer_type> timer(new timer_type(*myService));
-  timer->expires_from_now(time);
-  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
-  taskObject->addCancellationHandler([=]() { timer->cancel(); });
-  return taskObject;
 }
 
 void NX::Scheduler::yield()
@@ -170,4 +156,81 @@ void NX::Scheduler::yield()
     throw NX::Exception("call to yield outside of a coroutine");
   }
   myCurrentTask->yield();
+}
+
+void NX::Scheduler::joinPool() {
+  do {
+    dispatcher();
+    std::this_thread::sleep_for(std::chrono::microseconds(200));
+  } while (myHoldCount);
+}
+
+NX::Task *NX::Scheduler::scheduleTask(CompletionHandler &&handler) {
+  if (!handler)
+    throw NX::Exception("empty handler provided");
+  auto * task = new NX::Task(std::move(handler), this);
+  scheduleAbstractTask(task);
+  return task;
+}
+
+NX::Task *NX::Scheduler::scheduleTask(const NX::Scheduler::duration &time, CompletionHandler && handler) {
+  if (!handler)
+    throw NX::Exception("empty handler provided");
+  auto * taskObject = new NX::Task(std::move(handler), this);
+  std::shared_ptr<timer_type> timer(new timer_type(*myService));
+  timer->expires_from_now(time);
+  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
+  taskObject->addCancellationHandler([=]() { timer->cancel(); });
+  return taskObject;
+}
+
+NX::CoroutineTask *NX::Scheduler::scheduleCoroutine(CompletionHandler &&handler) {
+  if (!handler)
+    throw NX::Exception("empty handler provided");
+  auto * task = new NX::CoroutineTask(std::move(handler), this);
+  scheduleAbstractTask(task);
+  return task;
+}
+
+NX::CoroutineTask *NX::Scheduler::scheduleCoroutine(const NX::Scheduler::duration &time, CompletionHandler &&handler) {
+  if (!handler)
+    throw NX::Exception("empty handler provided");
+  auto * taskObject = new NX::CoroutineTask(std::move(handler), this);
+  std::shared_ptr<timer_type> timer(new timer_type(*myService));
+  timer->expires_from_now(time);
+  timer->async_wait(boost::bind(boost::bind(&Scheduler::scheduleAbstractTask, this, taskObject), timer));
+  taskObject->addCancellationHandler([=]() { timer->cancel(); });
+  return taskObject;
+}
+
+bool NX::Scheduler::canYield() const {
+  return dynamic_cast<NX::CoroutineTask*>(myCurrentTask.get()) != nullptr;
+}
+
+NX::Task *NX::Scheduler::scheduleThreadInitTask(NX::Scheduler::CompletionHandler &&handler) {
+  if (!handler)
+    throw NX::Exception("empty handler provided");
+  auto task = new NX::Task(std::move(handler), this, false);
+  myThreadInitQueue.emplace_back(task);
+  return task;
+}
+
+NX::Scheduler::Holder::Holder() : myScheduler(nullptr) {}
+
+NX::Scheduler::Holder::Holder(NX::Scheduler *scheduler) : myScheduler(scheduler) {
+  if (myScheduler)
+    myScheduler->hold();
+}
+
+NX::Scheduler::Holder::Holder(const NX::Scheduler::Holder &other) : myScheduler(other.myScheduler) {
+  if (myScheduler)
+    myScheduler->hold();
+}
+
+NX::Scheduler::Holder::~Holder() { if (myScheduler) myScheduler->release(); }
+
+void NX::Scheduler::Holder::reset() {
+  if (myScheduler)
+    myScheduler->release();
+  myScheduler = nullptr;
 }

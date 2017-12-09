@@ -50,15 +50,22 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) = 0;
+          const boost::system::error_code & deviceError() const override { return myError; }
+
+          void deviceClose() override { }
+
+          virtual JSValueRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) = 0;
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
+          virtual boost::system::error_code & error() { return myError; }
+
           NX::Classes::Net::HTCommon::Connection * connection() { return myConnection; }
         private:
           NX::Classes::Net::HTCommon::Connection * myConnection;
+          boost::system::error_code myError;
         };
       }
     }

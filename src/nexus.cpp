@@ -61,7 +61,6 @@ NX::Nexus::~Nexus()
 bool NX::Nexus::parseArguments()
 {
   unsigned int nThreads = 0;
-  bool silent = false;
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "produce this help message")
@@ -93,20 +92,22 @@ bool NX::Nexus::parseArguments()
 }
 
 void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
-  NX::Object exp(ctx, exception);
   std::ostringstream stream;
+  stream << std::endl;
   try {
+    if (JSValueGetType(ctx, exception) != kJSTypeObject)
+    {
+      stream << "Unhandled exception: " << NX::Value(ctx, exception).toString() << std::endl;
+    } else {
+      NX::Object exp(ctx, exception);
+      stream << "Unhandled exception: " << exp["message"]->toString() << std::endl;
+      stream << "stack trace:\n" << exp["stack"]->toString() << std::endl;
+    }
     stream << std::endl;
-    stream << exp["message"]->toString() << std::endl;
-    stream << "stack trace:\n" << exp["stack"]->toString() << std::endl;
-    std::cerr << stream.str();
-    stream << std::endl << std::endl;
   } catch(const NX::Exception & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
   }
-//   stream << val["message"]->toString() << " in \"" <<
-//     boost::filesystem::absolute(val["sourceURL"]->toString()).string() << "\" at line " << val["line"]->toString() << std::endl;
-//   stream << "Stack trace:\n" << val["stack"]->toString() << std::endl;
+  std::cerr << stream.str();
 }
 
 void NX::Nexus::ReportException(const std::exception &e) {
@@ -118,22 +119,23 @@ void NX::Nexus::ReportException(const std::exception &e) {
 
 void NX::Nexus::initScheduler()
 {
-  unsigned int concurrency = myOptions["concurrency"].as<unsigned int>();
+  auto concurrency = myOptions["concurrency"].as<unsigned int>();
   myScheduler.reset(new Scheduler(this, concurrency));
 }
 
 void NX::Nexus::run() {
-  if (!myMainContext)
-    myMainContext = new NX::Context(nullptr, this);
   try {
     if (parseArguments()) {
       exit(0);
     }
-    // enable these to debug the module loader!
+    initScheduler();
+    if (!myMainContext) {
+      myMainContext = new NX::Context(nullptr, this);
+    }
+// enable these to debug the module loader!
 //    JSC::Options::dumpModuleLoadingState() = true;
 //    JSC::Options::dumpModuleRecord() = true;
-    initScheduler();
-    myMainContext->evaluateModule(myScriptSource, nullptr, myScriptPath, 1);
+    myMainContext->evaluateModule("import \"" + myScriptPath + "\";", nullptr, myScriptPath + "[entry]", 1);
     myScheduler->start();
     myScheduler->joinPool();
     myScheduler->join();
@@ -155,6 +157,10 @@ void NX::Nexus::ReportSyntaxError(const JSC::SourceCode & code, const JSC::Parse
   } catch(const NX::Exception & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
   }
+}
+
+NX::Context * NX::Nexus::mainContext() {
+  return myMainContext;
 }
 
 

@@ -1,8 +1,9 @@
 
 project(nexus)
 
-find_package(Boost 1.62 COMPONENTS program_options system thread filesystem coroutine context REQUIRED)
+find_package(Boost 1.62 COMPONENTS program_options system thread regex filesystem coroutine context iostreams REQUIRED)
 find_package(ICU REQUIRED)
+find_package(CURL REQUIRED)
 
 if (MSVC)
   # Force to always compile with W4
@@ -14,8 +15,13 @@ if (MSVC)
 elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   # Update if necessary
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-  set(CMAKE_CXX_FLAGS_DEBUG "-g")
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+  option(BUILD_PROFILING "Build with gprof profiling" OFF)
+  if(BUILD_PROFILING)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -pg")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+  endif(BUILD_PROFILING)
 endif ()
 
 include(WebKitCommon)
@@ -125,9 +131,10 @@ add_executable(nexus ${INCLUDES}
 
 add_dependencies(nexus webkit-build)
 
-target_link_libraries(nexus js_bundle JavaScriptCore WTF bmalloc ${Boost_LIBRARIES} ${ICU_LIBRARIES} ${ICU_I18N_LIBRARIES} pthread)
+target_link_libraries(nexus js_bundle JavaScriptCore WTF bmalloc ${Boost_LIBRARIES} ${ICU_LIBRARIES}
+    ${ICU_I18N_LIBRARIES} ${CURL_LIBRARIES} pthread)
 target_include_directories(nexus
-    PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/generated/
+    PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/generated/ ${CURL_INCLUDE_DIRS}
     SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICU_INCLUDE_DIR} ${BEAST_INCLUDE_DIR})
 
 link_directories(${Boost_LIBRARY_DIRS})

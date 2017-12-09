@@ -22,6 +22,9 @@
 
 #include "classes/io/filter.h"
 
+#include <wtf/FastMalloc.h>
+#include <new>
+
 #include <unicode/ucnv.h>
 
 namespace NX {
@@ -48,12 +51,35 @@ namespace NX {
           }
 
         public:
+
+          template <class T>
+          struct WTFAllocator {
+            typedef T value_type;
+            WTFAllocator() = default;
+            template <class U>
+            constexpr WTFAllocator(const WTFAllocator<U>&) noexcept {}
+            [[nodiscard]] T* allocate(std::size_t n) {
+              if(n > std::size_t(-1) / sizeof(T)) throw std::bad_alloc();
+              if(auto p = static_cast<T*>(WTF::fastMalloc(n*sizeof(T))))
+                return p;
+              throw std::bad_alloc();
+            }
+            void deallocate(T* p, std::size_t) noexcept { WTF::fastFree(p); }
+          };
+
           EncodingConversionFilter (const std::string & fromEncoding,
                                     const std::string & toEncoding);
-          virtual ~EncodingConversionFilter();
 
-          virtual std::size_t estimateOutputLength(const char * buffer, std::size_t length) { return length * 4; }
-          virtual std::size_t processBuffer(const char * buffer, std::size_t length, char * dest, std::size_t outLength);
+          ~EncodingConversionFilter() override;
+
+          std::size_t estimateOutputLength(const char * buffer, std::size_t length) override {
+            return length;
+          }
+
+          std::size_t processBuffer(const char ** buffer,
+                             std::size_t * length,
+                             char **  dest,
+                             std::size_t * outLength) override;
 
           static NX::Classes::IO::Filters::EncodingConversionFilter * FromObject(JSObjectRef obj) {
             auto filter = reinterpret_cast<NX::Classes::IO::Filter*>(JSObjectGetPrivate(obj));
@@ -67,6 +93,9 @@ namespace NX {
         protected:
           std::string myEncodingFrom, myEncodingTo;
           UConverter * mySource, * myTarget;
+          std::vector<UChar, WTFAllocator<UChar>> myPivotBuffer;
+          uint16_t * myPivotSource, * myPivotTarget;
+          std::atomic_uint64_t myPayloadId;
         };
       }
     }

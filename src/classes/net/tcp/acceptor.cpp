@@ -34,58 +34,54 @@ const JSStaticFunction NX::Classes::Net::TCP::Acceptor::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
       NX::Classes::Net::TCP::Acceptor * acceptor = NX::Classes::Net::TCP::Acceptor::FromObject(thisObject);
       if (!acceptor) {
-        NX::Value message(ctx, "bind() not implemented on Acceptor instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
+        return *exception = NX::Exception("bind() not implemented on Acceptor instance").toError(ctx);
       }
       try {
-        if (argumentCount < 1)
-          throw NX::Exception("invalid arguments passed to Acceptor.bind");
+        if (argumentCount < 2) {
+          return *exception = NX::Exception("invalid arguments passed to Acceptor.bind").toError(ctx);
+        }
         std::string addr = NX::Value(ctx, arguments[0]).toString();
-        unsigned short port = NX::Value(ctx, arguments[1]).toNumber();
-        JSValueRef ret = acceptor->bind(ctx, thisObject, addr, port, exception);
-        return ret;
+        auto port = static_cast<unsigned short>(NX::Value(ctx, arguments[1]).toNumber());
+        auto reuse = argumentCount > 2 ? NX::Value(ctx, arguments[2]).toBoolean() : false;
+        return acceptor->bind(ctx, thisObject, addr, port, reuse, exception);
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      return JSValueMakeUndefined(ctx);
     }, 0
   },
   { "listen", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef
+    {
+      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::Net::TCP::Acceptor * acceptor = NX::Classes::Net::TCP::Acceptor::FromObject(thisObject);
       if (!acceptor) {
-        NX::Value message(ctx, "listen() not implemented on Acceptor instance");
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
-        return JSValueMakeUndefined(ctx);
+        return *exception = NX::Exception("listen() not implemented on Acceptor instance").toError(ctx);
       }
       try {
-        int maxConnections = boost::asio::socket_base::max_connections;
+        unsigned maxConnections = boost::asio::socket_base::max_connections;
         if (argumentCount >= 1) {
           NX::Value arg(ctx, arguments[0]);
-          maxConnections = arg.toNumber();
+          maxConnections = static_cast<unsigned>(arg.toNumber());
         }
-        JSValueRef ret = acceptor->listen(ctx, thisObject, maxConnections, exception);
+        JSValueRef ret = acceptor->listen(ctx, NX::Object(context->toJSContext(), thisObject), maxConnections, exception);
         return ret;
       } catch(const std::exception & e) {
         return JSWrapException(ctx, e, exception);
       }
-      return JSValueMakeUndefined(ctx);
     }, 0
   },
   { nullptr, nullptr, 0 }
 };
 
 JSValueRef NX::Classes::Net::TCP::Acceptor::bind(JSContextRef ctx, JSObjectRef thisObject,
-                                                 const std::string & addr, unsigned short port, JSValueRef * exception)
+                                                 const std::string & addr, unsigned short port, bool reuse, JSValueRef * exception)
 {
   typedef boost::asio::ip::tcp::endpoint Endpoint;
   Endpoint endpoint(boost::asio::ip::address::from_string(addr), port);
   try {
     if (!myAcceptor->is_open())
       myAcceptor->open(endpoint.protocol());
+    myAcceptor->set_option(boost::asio::ip::tcp::acceptor::reuse_address(reuse));
     myAcceptor->bind(endpoint);
   } catch(const std::exception & e) {
     return JSWrapException(ctx, e, exception);
@@ -93,31 +89,41 @@ JSValueRef NX::Classes::Net::TCP::Acceptor::bind(JSContextRef ctx, JSObjectRef t
   return thisObject;
 }
 
-JSValueRef NX::Classes::Net::TCP::Acceptor::listen(JSContextRef ctx, JSObjectRef thisObject, int maxConnections, JSValueRef * exception)
+JSValueRef NX::Classes::Net::TCP::Acceptor::listen(JSContextRef ctx, const NX::Object & thisObject, int maxConnections, JSValueRef * exception)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  JSValueProtect(context->toJSContext(), thisObject);
-  myScheduler->hold();
+  if (!myThisObject)
+    myThisObject = thisObject;
   try {
     myAcceptor->listen(maxConnections);
     beginAccept(context, thisObject);
   } catch(const std::exception & e) {
-    JSValueUnprotect(context->toJSContext(), thisObject);
-    return JSWrapException(ctx, e, exception);
+    JSWrapException(ctx, e, exception);
   }
   return thisObject;
 }
 
-void NX::Classes::Net::TCP::Acceptor::beginAccept(NX::Context * context, JSObjectRef thisObject)
+void NX::Classes::Net::TCP::Acceptor::beginAccept(NX::Context * context, const NX::Object & thisObject)
 {
-  std::shared_ptr<boost::asio::ip::tcp::socket> socket(new boost::asio::ip::tcp::socket(*myScheduler->service()));
-  JSValueProtect(context->toJSContext(), thisObject);
-  myAcceptor->async_accept(*socket, std::bind(&Acceptor::handleAccept, this, context, thisObject, socket));
+  auto socket = std::make_shared<boost::asio::ip::tcp::socket>(*myScheduler->service());
+  myAcceptor->async_accept(*socket, std::bind(&Acceptor::handleAccept, this, context,
+                                              NX::Object(context->toJSContext(), thisObject), socket, false, std::placeholders::_1));
 }
 
-void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
+void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, const NX::Object & thisObject,
+                                                          const std::shared_ptr< boost::asio::ip::tcp::socket > & socket,
+                                                          bool continuation, const boost::system::error_code& error)
 {
-  beginAccept(context, thisObject);
+  if (!myThisObject)
+    myThisObject = NX::Object(context->toJSContext(), thisObject);
+  if (!continuation) {
+    beginAccept(context, thisObject);
+  }
+  if (error) {
+    JSValueRef args[] { NX::Object(context->toJSContext(), error )};
+    emitFastAndSchedule(context->toJSContext(), thisObject, "error", 1, args, nullptr);
+  }
+  NX::Object thisObj(myThisObject);
   if (socket->is_open()) {
     NX::Object remoteEndpoint(context->toJSContext());
     try {
@@ -129,11 +135,11 @@ void NX::Classes::Net::TCP::Acceptor::handleAccept(NX::Context* context, JSObjec
     }
     const JSValueRef arguments[] {
       NX::Classes::IO::Devices::TCPSocket::wrapSocket(context, socket),
-      remoteEndpoint.value()
+      remoteEndpoint.value(),
+      thisObj
     };
     JSValueRef exception = nullptr;
-    emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, arguments, &exception);
-    JSValueUnprotect(context->toJSContext(), thisObject);
+    emitFastAndSchedule(context->toJSContext(), thisObj, "connection", 3, arguments, &exception);
     if (exception) {
       NX::Nexus::ReportException(context->toJSContext(), exception);
     }

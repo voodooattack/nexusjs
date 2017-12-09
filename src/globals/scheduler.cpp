@@ -49,8 +49,8 @@ const JSStaticValue NX::Globals::Scheduler::Properties[] {
 const JSStaticFunction NX::Globals::Scheduler::Methods[] {
   { "schedule", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
-      NX::Scheduler * scheduler = reinterpret_cast<NX::Scheduler*>(JSObjectGetPrivate(thisObject));
+      auto context = Context::FromJsContext(ctx);
+      auto * scheduler = reinterpret_cast<NX::Scheduler*>(JSObjectGetPrivate(thisObject));
       if (argumentCount != 1) {
         *exception = NX::Object(ctx, NX::Exception("Scheduler.schedule called without an argument"));
         return JSValueMakeUndefined(ctx);
@@ -72,19 +72,19 @@ const JSStaticFunction NX::Globals::Scheduler::Methods[] {
             }
             JSValueUnprotect(context->toJSContext(), fun);
           }, scheduler);
-//           JSValueRef ret = NX::Classes::Task::wrapTask(ctx, taskPtr);
-          scheduler->scheduleAbstractTask(taskPtr);
-//           return ret;
+           JSValueRef ret = JSValueMakeUndefined(ctx); // NX::Classes::Task::wrapTask(ctx, taskPtr);
+           scheduler->scheduleAbstractTask(taskPtr);
+           return ret;
         } else {
           NX::Classes::Task * taskObj = NX::Classes::Task::FromObject(fun);
           if (taskObj) {
             scheduler->scheduleAbstractTask(taskObj->task());
           } else {
-            *exception =  NX::Object(ctx, NX::Exception("argument must be a function or Task instance"));
+            *exception = NX::Object(ctx, NX::Exception("argument must be a function or Task instance"));
           }
         }
       } else {
-        *exception =  NX::Object(ctx, NX::Exception("argument must be a function or Task instance"));
+        *exception = NX::Object(ctx, NX::Exception("argument must be a function or Task instance"));
       }
       return JSValueMakeUndefined(ctx);
     }, 0

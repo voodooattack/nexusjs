@@ -29,7 +29,7 @@ namespace NX {
       namespace HTTP {
         class Server: public NX::Classes::Net::TCP::Acceptor {
           Server (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::acceptor> & acceptor):
-            Acceptor(scheduler, acceptor)
+            Acceptor(scheduler, acceptor), myThisObject()
           {
           }
 
@@ -66,11 +66,18 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket) override;
+          void handleAccept(NX::Context* context, const NX::Object & thisObject,
+                            const std::shared_ptr<boost::asio::ip::tcp::socket> & socket,
+                            bool continuation, const boost::system::error_code& error) override;
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
+
+          NX::Object thisObject() const { return myThisObject; }
+
+        private:
+          NX::Object myThisObject;
 
         };
       }

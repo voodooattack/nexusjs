@@ -22,21 +22,33 @@
 
 #include <boost/noncopyable.hpp>
 #include <boost/coroutine2/all.hpp>
+#include <utility>
 
 #include "scheduler.h"
 #include "exception.h"
+
+#include <wtf/FastMalloc.h>
 
 namespace NX
 {
   class Task;
   class CoroutineTask;
   class AbstractTask: public boost::noncopyable {
+
+    WTF_MAKE_FAST_ALLOCATED;
+
     friend class NX::Scheduler;
     friend class boost::thread_specific_ptr<AbstractTask>;
     friend class Task;
     friend class CoroutineTask;
   protected:
-    virtual ~AbstractTask() { }
+
+    NX::Scheduler::Holder myHolder;
+
+    AbstractTask(NX::Scheduler * scheduler, bool hold): myHolder(hold ? scheduler : nullptr) {}
+
+    virtual ~AbstractTask() = default;
+
   public:
 
     enum Status {
@@ -59,36 +71,46 @@ namespace NX
     virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler &) = 0;
     virtual void addCompletionHandler(const NX::Scheduler::CompletionHandler &) = 0;
 
+    virtual void await() = 0;
+
   };
 
   class Task: public AbstractTask {
   protected:
-    virtual ~Task() { myScheduler->release(); }
+    ~Task() override { }
+
+    WTF_MAKE_FAST_ALLOCATED;
+
   public:
-    Task(const NX::Scheduler::CompletionHandler & handler, NX::Scheduler * scheduler):
-      myHandler(handler), myScheduler(scheduler), myStatus(INACTIVE)
+    Task(NX::Scheduler::CompletionHandler && handler, NX::Scheduler * scheduler, bool hold = true):
+      AbstractTask(scheduler, hold), myHandler(std::move(handler)), myScheduler(scheduler), myStatus(INACTIVE)
     {
-      scheduler->hold();
     }
-    virtual Scheduler * scheduler() { return myScheduler; }
-    virtual Status status() const { return myStatus; }
-    virtual void abort() { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }
-    virtual void create() { myStatus.store(CREATED); }
-    virtual void enter() {
-      if (myStatus == ABORTED) return;
-      myStatus.store(ACTIVE);
-      myScheduler->makeCurrent(this);
-      myHandler();
-      myStatus.store(FINISHED);
-    }
-    virtual void yield() { throw NX::Exception("can't yield on a regular task"); }
-    virtual void exit() { for(auto & i : myCompletionHandlers) i(); }
-    virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
+
+    Scheduler * scheduler() override { return myScheduler; }
+    Status status() const override { return myStatus; }
+    void abort() override { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }
+    void create() override { myStatus.store(CREATED); }
+    void enter() override;
+    void yield() override { throw NX::Exception("can't yield on a regular task"); }
+    void exit() override { for(auto & i : myCompletionHandlers) i(); }
+    void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) override {
       myCancellationHandlers.push_back(handler);
     }
-    virtual void addCompletionHandler(const NX::Scheduler::CompletionHandler & handler) {
+    void addCompletionHandler(const NX::Scheduler::CompletionHandler & handler) override {
       myCompletionHandlers.push_back(handler);
     }
+
+    void await() override {
+      if (myStatus == Status::FINISHED || myStatus == Status::ABORTED)
+        return;
+      std::atomic_bool finished(false);
+      myCancellationHandlers.emplace_back([&] { finished.store(true); });
+      myCompletionHandlers.emplace_back([&] { finished.store(true); });
+      while (!finished)
+        myScheduler->yield();
+    }
+
   protected:
     NX::Scheduler::CompletionHandler myHandler;
     std::vector<NX::Scheduler::CompletionHandler> myCancellationHandlers, myCompletionHandlers;
@@ -98,25 +120,44 @@ namespace NX
 
   class CoroutineTask: public AbstractTask {
     typedef boost::coroutines2::coroutine<void> coro_t;
-    typedef boost::coroutines2::coroutine<void>::push_type push_type;
+    typedef coro_t::push_type push_type;
     typedef boost::coroutines2::coroutine<void>::pull_type pull_type;
+
+  WTF_MAKE_FAST_ALLOCATED;
+
   protected:
-    virtual ~CoroutineTask() { myScheduler->release(); }
+    ~CoroutineTask() override = default;
+
   public:
-    CoroutineTask(const NX::Scheduler::CompletionHandler &, NX::Scheduler *);
-    virtual Scheduler * scheduler() { return myScheduler; }
-    virtual Status status() const { return myStatus; }
-    virtual void abort() { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }
-    virtual void create();
-    virtual void enter();
-    virtual void yield();
-    virtual void exit() { for (auto & i: myCompletionHandlers) i(); }
-    virtual void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) {
+    CoroutineTask(NX::Scheduler::CompletionHandler &&, NX::Scheduler *, bool hold = false);
+
+    Scheduler * scheduler() override { return myScheduler; }
+
+    Status status() const override { return myStatus; }
+
+    void abort() override { myStatus.store(ABORTED); for (auto & i : myCancellationHandlers) i(); }
+    void create() override;
+    void enter() override;
+    void yield() override;
+    void exit() override { for (auto & i: myCompletionHandlers) i(); }
+
+    void addCancellationHandler(const NX::Scheduler::CompletionHandler & handler) override {
       myCancellationHandlers.push_back(handler);
     }
-    virtual void addCompletionHandler(const NX::Scheduler::CompletionHandler & handler) {
+    void addCompletionHandler(const NX::Scheduler::CompletionHandler & handler) override {
       myCompletionHandlers.push_back(handler);
     }
+
+    void await() override {
+      if (myStatus == Status::FINISHED || myStatus == Status::ABORTED)
+        return;
+      std::atomic_bool finished(false);
+      myCancellationHandlers.emplace_back([&] { finished.store(true); });
+      myCompletionHandlers.emplace_back([&] { finished.store(true); });
+      while (!finished)
+        myScheduler->yield();
+    }
+
   protected:
     void coroutine(pull_type & ca);
   protected:
@@ -126,6 +167,60 @@ namespace NX
     std::shared_ptr<push_type> myCoroutine;
     pull_type * myPullCa;
     boost::atomic<Status> myStatus;
+  };
+
+  class TaskGroup: public std::vector<NX::AbstractTask*> {
+  public:
+    explicit TaskGroup(NX::Scheduler * scheduler): std::vector<NX::AbstractTask*>(), myScheduler(scheduler),
+                                                   myFinished(nullptr) { attach(); }
+    TaskGroup(std::vector<NX::AbstractTask*> tasks, NX::Scheduler * scheduler):
+      std::vector<NX::AbstractTask*>(std::move(tasks)), myScheduler(scheduler), myFinished(nullptr) { attach(); }
+    TaskGroup(std::vector<NX::AbstractTask*> && tasks, NX::Scheduler * scheduler):
+      std::vector<NX::AbstractTask*>(tasks), myScheduler(scheduler), myFinished(nullptr) { attach(); }
+
+    TaskGroup(NX::TaskGroup && other):
+      std::vector<NX::AbstractTask*>(other), myScheduler(other.myScheduler), myFinished(other.myFinished)
+    {
+    }
+
+    Scheduler * scheduler() { return myScheduler; }
+
+    void push_back(NX::AbstractTask* task) {
+      attach(task);
+      std::vector<NX::AbstractTask*>::push_back(task);
+    }
+
+    void emplace_back(NX::AbstractTask* task) {
+      attach(task);
+      std::vector<NX::AbstractTask*>::emplace_back(task);
+    }
+
+    void attach() {
+      myFinished = std::make_shared<std::atomic_size_t>(0);
+      for (auto task : *this) {
+        attach(task);
+      }
+    }
+
+    void attach(NX::AbstractTask * task) {
+      auto status = task->status();
+      if (status == NX::AbstractTask::Status::FINISHED || status == NX::AbstractTask::Status::ABORTED)
+        (*myFinished)++;
+      else {
+        std::shared_ptr<std::atomic_size_t> finished(myFinished);
+        task->addCompletionHandler([finished] { (*finished)++; });
+        task->addCancellationHandler([finished] { (*finished)++; });
+      }
+    }
+
+    void await() {
+      while (*myFinished < size())
+        myScheduler->yield();
+    }
+
+  private:
+    NX::Scheduler * myScheduler;
+    std::shared_ptr<std::atomic_size_t> myFinished;
   };
 }
 

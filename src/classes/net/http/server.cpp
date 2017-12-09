@@ -33,9 +33,26 @@ const JSStaticFunction NX::Classes::Net::HTTP::Server::Methods[] {
   { nullptr, nullptr, 0 }
 };
 
-void NX::Classes::Net::HTTP::Server::handleAccept(NX::Context * context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
+void NX::Classes::Net::HTTP::Server::handleAccept(NX::Context * context, const NX::Object & thisObject,
+                                                         const std::shared_ptr< boost::asio::ip::tcp::socket > & socket,
+                                                         bool continuation, const boost::system::error_code& error)
 {
-  beginAccept(context, thisObject);
+  if (!myThisObject) {
+    myThisObject = thisObject;
+  }
+  if (!continuation)
+    beginAccept(context, thisObject);
+  if (error) {
+    if (error == boost::system::errc::operation_canceled ||
+        error == boost::system::errc::broken_pipe ||
+        error == boost::system::errc::timed_out ||
+        error == boost::system::errc::connection_aborted ||
+        error == boost::system::errc::connection_reset
+      )
+      return;
+    JSValueRef args[] { NX::Object(context->toJSContext(), error )};
+    emitFastAndSchedule(context->toJSContext(), thisObject, "error", 1, args, nullptr);
+  }
   if (socket->is_open()) {
     NX::Object remoteEndpoint(context->toJSContext());
     try {
@@ -45,23 +62,26 @@ void NX::Classes::Net::HTTP::Server::handleAccept(NX::Context * context, JSObjec
       remoteEndpoint.set("address", JSValueMakeUndefined(context->toJSContext()));
       remoteEndpoint.set("port", JSValueMakeUndefined(context->toJSContext()));
     }
-    JSObjectRef connection = NX::Classes::Net::HTTP::Connection::wrapSocket(context, socket);
-    JSValueRef arguments[] {
-      connection,
-      remoteEndpoint
-    };
-    NX::ProtectedArguments args(context->toJSContext(), 2, arguments);
-    NX::Classes::Net::HTTP::Connection * conn = NX::Classes::Net::HTTP::Connection::FromObject(connection);
-    NX::Object promise (context->toJSContext(), conn->start(context, connection));
-    promise.then([=](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {
-      JSValueRef exp = nullptr;
-      emitFastAndSchedule(context->toJSContext(), thisObject, "connection", 2, args, &exp);
-      if (exp)
-        NX::Nexus::ReportException(context->toJSContext(), exp);
-      return value;
-    }, [=](JSContextRef ctx, JSValueRef value, JSValueRef * exception) {
-      NX::Nexus::ReportException(context->toJSContext(), value);
-      return JSValueMakeUndefined(ctx);
-    });
+    JSObjectRef connection = nullptr;
+    auto conn = NX::Classes::Net::HTTP::Connection::wrapSocket(context, socket, this, &connection);
+    if (conn) {
+      JSValueRef arguments[] { connection, remoteEndpoint };
+      NX::ProtectedArguments args(context->toJSContext(), 2, arguments);
+      args.push_back(thisObject.value());
+      NX::Object promise(context->toJSContext(), conn->start(context, connection, continuation));
+      promise.then([=](JSContextRef ctx, JSValueRef value, JSValueRef *exception) {
+        JSValueRef exp = nullptr;
+        emitFast(context->toJSContext(), thisObject, "connection", args.size(), args, &exp);
+        if (exp)
+          *exception = NX::Exception(ctx, exp).toError(ctx);
+        return thisObject;
+      }, [=](JSContextRef ctx, JSValueRef value, JSValueRef *exception) {
+        JSValueRef errorArgs[] { value };
+        emitFast(context->toJSContext(), thisObject, "error", 1, errorArgs, exception);
+        return JSValueMakeUndefined(ctx);
+      });
+    } else {
+      throw NX::Exception("couldn't create connection object");
+    }
   }
 }

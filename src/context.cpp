@@ -39,8 +39,11 @@
 #include <JavaScriptCore/API/JSCallbackFunction.h>
 #include <JavaScriptCore/API/JSCallbackObject.h>
 #include <JavaScriptCore/runtime/InitializeThreading.h>
-#include <globals/global.h>
 #include <JavaScriptCore/parser/ParserError.h>
+#include <JavaScriptCore/heap/MachineStackMarker.h>
+
+#include "globals/global.h"
+
 
 JSValueRef NX::Context::evaluateScript(const std::string &src, JSObjectRef thisObject,
                                        const std::string &filePath, unsigned int lineNo, JSValueRef *exception) {
@@ -65,7 +68,6 @@ JSC::JSInternalPromise * NX::Context::evaluateModule(const std::string &src, JSO
   JSC::ParserError e;
   auto valid = JSC::checkModuleSyntax(exec, source, e);
   if (valid) {
-//    return JSC::importModule(exec, JSC::Identifier::fromString(exec, path), JSC::jsUndefined(), JSC::jsUndefined());
     return JSC::loadAndEvaluateModule(exec, source, JSC::jsUndefined());
   } else {
     NX::Nexus::ReportSyntaxError(source, e);
@@ -85,6 +87,7 @@ NX::Context::Context(NX::Context *parent, NX::Nexus *nx):
 {
   if (parent && !myNexus)
     myNexus = parent->myNexus;
+  myNexus->scheduler()->scheduleThreadInitTask([=] { registerThread(); });
   myGlobal = createGlobalObject();
 }
 
@@ -107,10 +110,16 @@ NX::Context *NX::Context::FromJsContext(JSContextRef pContext) {
   auto exec = toJS(pContext);
   auto global = exec->lexicalGlobalObject();
   auto ptr = static_cast<JSCallbackObject<NX::GlobalObject>*>(global)->getPrivate();
-  return reinterpret_cast<NX::Context*>(ptr);
+  auto context = reinterpret_cast<NX::Context*>(ptr);
+//  context->garbageCollect();
+  return context;
 }
 
-JSGlobalContextRef NX::Context::toJSContext() const { return toGlobalRef(myGlobal->globalExec()); }
+JSGlobalContextRef NX::Context::toJSContext() const {
+  if (myGlobal)
+    return toGlobalRef(myGlobal->globalExec());
+  return nullptr;
+}
 
 JSValueRef NX::Context::getGlobal(const char * name) {
   auto search = myGlobals.find(name);
@@ -120,17 +129,18 @@ JSValueRef NX::Context::getGlobal(const char * name) {
   return search->second;
 }
 
-JSValueRef NX::Context::getOrInitGlobal(const char *name) {
+JSValueRef NX::Context::getOrInitGlobal(JSContextRef ctx, const char *name) {
   auto search = myGlobals.find(name);
   if (search == myGlobals.end()) {
-    auto exec = myGlobal->globalExec();
+    auto exec = toJS(ctx);
     JSC::JSLockHolder lock(exec);
     auto ident = Identifier::fromString(exec, name);
     if (myGlobal->hasOwnProperty(exec, ident)) {
       auto value = myGlobal->get(exec, JSC::PropertyName(ident));
-      auto ref = toRef(exec, value);
-      if (!value.isUndefinedOrNull())
-        return myGlobals[name] = ref;
+      if (!value.isUndefinedOrNull()) {
+        auto global = toRef(myGlobal->globalExec(), value);
+        return setGlobal(name, global);
+      }
     }
     return nullptr;
   }
@@ -142,8 +152,19 @@ JSValueRef NX::Context::setGlobal(const char * name, JSValueRef value) {
   return myGlobals[name] = value;
 }
 
-JSObjectRef NX::Context::globalObjectRef() const {
-  auto obj = myGlobal->toObject(myGlobal->globalExec(), myGlobal);
-  return toRef(obj);
+JSObjectRef NX::Context::globalThisValue() const {
+  return toRef(myGlobal->globalThis());
+}
+
+std::size_t NX::Context::garbageCollect() {
+  JSC::VM& vm = myVM.get();;
+  JSC::JSLockHolder lock(vm);
+  vm.heap.collectNowFullIfNotDoneRecently(JSC::Sync);
+  return vm.heap.sizeAfterLastFullCollection();
+}
+
+void NX::Context::registerThread() {
+  if (myVM.ptr())
+    myVM->heap.machineThreads().addCurrentThread();
 }
 

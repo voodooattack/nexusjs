@@ -32,7 +32,7 @@ const JSStaticFunction NX::Classes::Net::HTTP2::Server::Methods[] {
   { nullptr, nullptr, 0 }
 };
 
-void NX::Classes::Net::HTTP2::Server::handleAccept(NX::Context * context, JSObjectRef thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
+void NX::Classes::Net::HTTP2::Server::handleAccept(NX::Context * context, const NX::Object & thisObject, const std::shared_ptr< boost::asio::ip::tcp::socket > & socket)
 {
   beginAccept(context, thisObject);
 }

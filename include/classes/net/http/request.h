@@ -33,9 +33,13 @@ namespace NX {
       namespace HTTP {
         class Request: public NX::Classes::Net::HTCommon::Request {
         public:
-          explicit Request (NX::Classes::Net::HTTP::Connection * connection):
-            HTCommon::Request(connection), myConnection(connection), myParser()
+          explicit Request (NX::Classes::Net::HTTP::Connection * connection, bool continuation):
+            HTCommon::Request(connection), myConnection(connection), myParser(),
+            myHeaderParsedFlag(false), myContinuationFlag(continuation)
+
           {
+            myParser = std::make_unique<Parser>();
+            myParser->get().keep_alive(continuation);
           }
 
         public:
@@ -55,24 +59,29 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
-          JSObjectRef attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) override;
+          JSValueRef attach (JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) override;
 
           NX::Classes::Net::HTTP::Connection * connection() { return myConnection; }
 
           bool deviceReady() const override { return myConnection->deviceReady(); }
+          bool deviceOpen() const override { return myConnection->deviceOpen(); }
           bool eof() const override { return myConnection->eof(); }
+
           JSObjectRef pause ( JSContextRef ctx, JSObjectRef thisObject ) override { return myConnection->pause(ctx, thisObject); }
           JSObjectRef reset ( JSContextRef ctx, JSObjectRef thisObject ) override { return myConnection->reset(ctx, thisObject); }
           JSObjectRef resume ( JSContextRef ctx, JSObjectRef thisObject ) override { return myConnection->resume(ctx, thisObject); }
           State state() const override { return myConnection->state(); }
 
-          unsigned int version() const { return myParser.get().version(); }
-          bool keep_alive() const { return myParser.get().keep_alive(); }
-          boost::beast::http::verb method() const { return myParser.get().method(); }
+          unsigned int version() const { return myParser->get().version(); }
+          bool keep_alive() const { return myParser->get().keep_alive(); }
+          boost::beast::http::verb method() const { return myParser->get().method(); }
 
         protected:
+          typedef boost::beast::http::request_parser<boost::beast::http::dynamic_body> Parser;
           NX::Classes::Net::HTTP::Connection * myConnection;
-          boost::beast::http::request_parser<boost::beast::http::dynamic_body> myParser;
+          std::unique_ptr<Parser> myParser;
+          std::atomic_bool myHeaderParsedFlag;
+          bool myContinuationFlag;
         };
       }
     }

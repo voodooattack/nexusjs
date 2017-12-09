@@ -58,7 +58,7 @@ JSObjectRef NX::Classes::Task::getConstructor(NX::Context * context)
 JSObjectRef NX::Classes::Task::wrapTask (JSContextRef ctx, NX::AbstractTask * task)
 {
   NX::Context * context = NX::Context::FromJsContext (ctx);
-  NX::Classes::Task * wrapper = new Task (task);
+  auto * wrapper = new Task (task);
   JSObjectRef ret = JSObjectMake (context->toJSContext(), createClass (context), wrapper);
   JSValueProtect(context->toJSContext(), ret);
   auto handler = [=]() { wrapper->myTask.store(nullptr); JSValueUnprotect(context->toJSContext(), ret); };
@@ -97,7 +97,7 @@ const JSClassDefinition NX::Classes::Task::Class {
 const JSStaticValue NX::Classes::Task::Properties[] {
   { "status", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef
     {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       NX::Classes::Task * task = FromObject(object);
       if (!task) {
         NX::Value message(ctx, "invalid `this` value");
@@ -132,7 +132,7 @@ const JSStaticFunction NX::Classes::Task::Methods[] {
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef
     {
       try {
-        NX::Context * context = NX::Context::FromJsContext(ctx);
+//        NX::Context * context = NX::Context::FromJsContext(ctx);
         NX::Classes::Task * task = NX::Classes::Task::FromObject(thisObject);
         if (NX::AbstractTask * realTask = task->task()) {
           realTask->abort();

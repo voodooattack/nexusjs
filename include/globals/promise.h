@@ -44,8 +44,8 @@ namespace NX {
         return JSStaticValue { "Promise", &NX::Globals::Promise::Get, nullptr, kJSPropertyAttributeNone };
       }
 
-      typedef boost::function<void(JSValueRef)> ResolveRejectHandler;
-      typedef boost::function<void(NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject)> Executor;
+      typedef std::function<void(JSContextRef, JSValueRef)> ResolveRejectHandler;
+      typedef std::function<void(JSContextRef, ResolveRejectHandler resolve, ResolveRejectHandler reject)> Executor;
 
       static JSValueRef createPromise(JSContextRef ctx, JSObjectRef executor, JSValueRef * exception);
       static JSObjectRef createPromise(JSContextRef ctx, const Executor & executor);

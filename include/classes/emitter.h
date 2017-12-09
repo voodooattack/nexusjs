@@ -25,10 +25,13 @@
 #include <atomic>
 #include <unordered_map>
 #include <boost/noncopyable.hpp>
-#include <boost/thread/recursive_mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
+#include <utility>
 
 #include "object.h"
 #include "classes/base.h"
+
+#include <wtf/FastMalloc.h>
 
 namespace NX
 {
@@ -53,16 +56,17 @@ namespace NX
       }
 
     public:
-      Emitter(): myMap() {}
-      virtual ~Emitter() {}
+      Emitter(): myMap(), myTidyLock() {}
+
+      ~Emitter() override = default;
 
       typedef std::function<JSValueRef(JSContextRef, std::size_t argumentCount, const JSValueRef arguments[], JSValueRef *)> EventCallback;
 
       virtual JSValueRef addListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, EventCallback callback) {
-        return addManyListener(ctx, thisObject, e, callback, -1);
+        return addManyListener(ctx, thisObject, e, std::move(callback), -1);
       }
       virtual JSValueRef addOnceListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, EventCallback callback) {
-        return addManyListener(ctx, thisObject, e, callback, 1);
+        return addManyListener(ctx, thisObject, e, std::move(callback), 1);
       }
       virtual JSValueRef addManyListener( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, EventCallback callback, int count );
 
@@ -76,57 +80,37 @@ namespace NX
       virtual JSValueRef removeListener( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback );
       virtual JSValueRef removeAllListeners( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e );
 
-      /* Returns a Promise! */
-      virtual JSObjectRef emit( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string e,
+      /* Returns a Promise! (slow) */
+      virtual JSObjectRef emit( JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e,
                                 std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
+
+      /* Fast version that returns schedules the calls and returns the tasks */
+      virtual NX::TaskGroup emitFastAndSchedule( JSContextRef ctx, JSObjectRef thisObject, const std::string & e,
+                             std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
 
       /* Faster version that returns nothing */
-      virtual void emitFast( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
-                                std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
-
-      /* Faster version that returns nothing and schedules the call */
-      virtual void emitFastAndSchedule( JSContextRef ctx, JSObjectRef thisObject, const std::string e,
+      virtual void emitFast( JSContextRef ctx, JSObjectRef thisObject, const std::string & e,
                              std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception );
 
 
       static const JSClassDefinition EventCallbackClass;
 
     protected:
-      virtual void tidy(const std::string & e) {
-        boost::recursive_mutex::scoped_lock lock(myMutex);
-        if (myMap.find(e) != myMap.end()) {
-          for(auto i = myMap[e].begin(); i != myMap[e].end();)
-          {
-            if ((*i)->count == 0) {
-              myMap[e].erase(i++);
-              continue;
-            }
-            i++;
-          }
-          if (myMap[e].empty())
-            myMap.erase(e);
-        }
-      }
+      virtual void tidy(JSContextRef ctx, const std::string & e);
+
+    WTF_MAKE_FAST_ALLOCATED;
 
     private:
       struct Event: public boost::noncopyable {
-        Event(const std::string & name, JSObjectRef handler, JSGlobalContextRef context, int count):
-          name(name), handler(handler), context(context), count(count)
-        {
-          JSGlobalContextRetain(context);
-          JSValueProtect(context, handler);
-        }
-        ~Event() {
-          JSValueUnprotect(context, handler);
-          JSGlobalContextRelease(context);
-        }
+        Event(std::string name, NX::Object && handler, int count):
+          name(std::move(name)), handler(handler), count(count) { }
         std::string name;
-        JSObjectRef handler;
-        JSGlobalContextRef context;
+        NX::Object handler;
         std::atomic_int count;
+        WTF_MAKE_FAST_ALLOCATED;
       };
-      boost::recursive_mutex myMutex;
       std::unordered_map<std::string, std::vector<std::shared_ptr<NX::Classes::Emitter::Event>>> myMap;
+      boost::shared_mutex myTidyLock;
     };
   }
 }

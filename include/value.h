@@ -22,8 +22,11 @@
 
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
+
 #include <string>
-#include <JavaScript.h>
+
+#include <JavaScriptCore/API/JSValueRef.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
 
 namespace NX {
   class Object;
@@ -33,6 +36,8 @@ namespace NX {
     Value(JSContextRef context, JSStringRef strRef);
     Value(JSContextRef context, const std::string & str);
     Value(JSContextRef context, double value);
+    Value(const NX::Value & other);
+    Value(NX::Value && other) noexcept;
     ~Value();
 
     std::shared_ptr<NX::Value> operator[] (unsigned int index);
@@ -45,7 +50,9 @@ namespace NX {
 
     bool isObject() { return JSValueIsObject(myContext, myVal); }
     bool isFunction() { return isObject() && JSObjectIsFunction(myContext, JSValueToObject(myContext, myVal, nullptr)); }
-    JSValueRef value() { return myVal; }
+
+    JSValueRef value() const { return myVal; }
+    JSContextRef context() const { return myContext; }
 
   private:
     JSContextRef myContext;

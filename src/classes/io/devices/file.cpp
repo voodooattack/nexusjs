@@ -21,12 +21,10 @@
 #include "nexus.h"
 #include "classes/io/device.h"
 #include "classes/io/devices/file.h"
-#include "globals/promise.h"
 
-#include <wtf/FastMalloc.h>
 #include <boost/filesystem.hpp>
 
-NX::Classes::IO::Devices::FilePullDevice::FilePullDevice (const std::string & path): myStream(path, std::ifstream::binary) {
+NX::Classes::IO::Devices::FilePullDevice::FilePullDevice (const std::string & path): myStream(path, std::ifstream::in | std::ifstream::binary) {
   if (!boost::filesystem::exists(path))
     throw NX::Exception("file '" + path + "' not found");
   myStream.unsetf(std::ios_base::skipws);
@@ -94,10 +92,21 @@ JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::Constructor (JSContextRef 
   NX::Context * context = NX::Context::FromJsContext(ctx);
   JSClassRef fileSourceClass = createClass(context);
   try {
-    if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-      throw NX::Exception("argument must be a string path");
-    NX::Value path(ctx, arguments[0]);
-    return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::IO::Devices::FileSinkDevice(path.toString())));
+    auto type = JSValueGetType(ctx, arguments[0]);
+    if (argumentCount < 1 || (type != kJSTypeString && type != kJSTypeNumber))
+      *exception = NX::Exception("argument must be a string path or file descriptor").toError(ctx);
+    NX::Value pathOrFD(ctx, arguments[0]);
+    if (type == kJSTypeString)
+      return JSObjectMake(ctx, fileSourceClass, dynamic_cast<NX::Classes::Base*>(new NX::Classes::IO::Devices::FileSinkDevice(
+        pathOrFD.toString()
+      )));
+    else {
+      auto fd = static_cast<int>(pathOrFD.toNumber());
+      return JSObjectMake(ctx, fileSourceClass,
+                          dynamic_cast<NX::Classes::Base *>(new NX::Classes::IO::Devices::FileSinkDevice(
+                            fd, false
+                          )));
+    }
   } catch (const std::exception & e) {
     JSWrapException(ctx, e, exception);
     return JSObjectMake(ctx, nullptr, nullptr);
@@ -111,10 +120,19 @@ JSClassRef NX::Classes::IO::Devices::FileSinkDevice::createClass (NX::Context * 
   return context->nexus()->defineOrGetClass (def);
 }
 
-NX::Classes::IO::Devices::FileSinkDevice::FileSinkDevice (const std::string & path): myStream(path, std::ofstream::binary)
+NX::Classes::IO::Devices::FileSinkDevice::FileSinkDevice (const std::string & path): myStream()
 {
-
+  std::ios_base::iostate exceptionMask = myStream.exceptions() | std::ios::failbit | std::ios::badbit;
+  myStream.exceptions(exceptionMask);
+  myStream.open(boost::iostreams::file_descriptor(path, std::ios::out | std::ios::binary | std::ios::trunc));
 }
+
+NX::Classes::IO::Devices::FileSinkDevice::FileSinkDevice(int fd, bool close): myStream() {
+  std::ios_base::iostate exceptionMask = myStream.exceptions() | std::ios::failbit | std::ios::badbit;
+  myStream.exceptions(exceptionMask);
+  myStream.open(boost::iostreams::file_descriptor(fd, close ? boost::iostreams::close_handle : boost::iostreams::never_close_handle));
+}
+
 
 JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::getConstructor (NX::Context * context)
 {
@@ -122,95 +140,92 @@ JSObjectRef NX::Classes::IO::Devices::FileSinkDevice::getConstructor (NX::Contex
 }
 
 NX::Classes::IO::Devices::FilePushDevice::FilePushDevice (NX::Scheduler * scheduler, const std::string & path) :
-  myScheduler(scheduler), myState(Paused), myTask(nullptr), myStream(path, std::ifstream::binary), myPromise(),
-  /*myMutex(),*/ myAllocator(FILE_PUSH_DEVICE_BUFFER_SIZE)
+  myScheduler(scheduler), myPath(path), myState(Paused), myTask(nullptr), myStream(path, std::ios_base::in | std::ios_base::binary), myPromise()
 {
-  if (!boost::filesystem::exists (path))
-  {
-    throw NX::Exception ("file '" + path + "' not found");
-  }
 }
 
 JSObjectRef NX::Classes::IO::Devices::FilePushDevice::resume (JSContextRef ctx, JSObjectRef thisObject)
 {
   if (myState == Paused)
   {
-    myState = Resumed;
     NX::Context * context = NX::Context::FromJsContext (ctx);
-    auto allocator = &myAllocator;
-    JSValueProtect(context->toJSContext(), thisObject);
-    JSValueRef exp = nullptr;
-    myPromise = NX::Object(ctx, this->emit(context->toJSContext(), thisObject, "resumed", 0, nullptr, &exp)).then(
-      [=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
-       return NX::Globals::Promise::createPromise (context->toJSContext(),
-          [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
-        {
-          auto readHandler = [=](auto readHandler) {
-            boost::recursive_mutex::scoped_lock lock(myMutex);
-            if(myState == Resumed) {
-              auto buffer = (char*)myAllocator.malloc();
+    if (!myStream.is_open()) {
+      myStream.open(myPath, std::ios_base::in | std::ios_base::binary);
+    }
+    myState = Resumed;
+    NX::Object thisObj(context->toJSContext(), thisObject);
+    myPromise = NX::Object(context->toJSContext(), NX::Globals::Promise::createPromise(context->toJSContext(),
+      [=](JSContextRef ctx, NX::ResolveRejectHandler resolve, NX::ResolveRejectHandler reject) -> JSValueRef
+      {
+        NX::Context * context = NX::Context::FromJsContext(ctx);
+        auto readHandler = [=](auto readHandler) {
+          if (myState == Resumed) {
+            try {
+              auto buffer = (char *) WTF::fastMalloc(FILE_PUSH_DEVICE_BUFFER_SIZE);
               auto sizeOut = static_cast<size_t>(myStream.readsome(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE));
               if (!sizeOut) {
                 myStream.read(buffer, FILE_PUSH_DEVICE_BUFFER_SIZE);
                 sizeOut = static_cast<size_t>(myStream.gcount());
               }
               if (sizeOut) {
+                if (sizeOut < FILE_PUSH_DEVICE_BUFFER_SIZE)
+                  buffer = static_cast<char *>(WTF::fastRealloc(buffer, sizeOut));
                 JSValueRef exp = nullptr;
-                lock.unlock();
                 JSObjectRef arrayBuffer = JSObjectMakeArrayBufferWithBytesNoCopy(
                   context->toJSContext(), buffer, sizeOut,
-                  [](void * ptr, void * ctx) {
-                    reinterpret_cast<FilePushDevice*>(ctx)->myAllocator.free((char*)ptr, 1);
+                  [](void *ptr, void *) {
+                    WTF::fastFree(ptr);
                   }, this, &exp);
-                JSValueRef args[] { arrayBuffer };
-                NX::Object(context->toJSContext(), this->emit(context->toJSContext(), thisObject, "data", 1, args, &exp))
-                  .then([=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
-                    myScheduler->scheduleTask(std::bind(readHandler, readHandler));
+                if (exp) {
+                  myState = Paused;
+                  WTF::fastFree(buffer);
+                  reject(context->toJSContext(), exp);
+                  return;
+                }
+                JSValueRef args[]{arrayBuffer};
+                NX::Object(context->toJSContext(), this->emit(context->toJSContext(), thisObj, "data", 1, args, &exp))
+                  .then([=](JSContextRef ctx, JSValueRef arg, JSValueRef *exception) {
+                    if (!myStream.eof()) {
+                      myScheduler->scheduleTask(std::move(std::bind<void>(readHandler, readHandler)));
+                    } else {
+                      emitFast(context->toJSContext(), thisObj, "end", 0, nullptr, nullptr);
+                      resolve(ctx, thisObj);
+                    }
                     return arg;
-                  }, [=](JSContextRef ctx, JSValueRef arg, JSValueRef * exception) {
-                    reject(arg);
+                  }, [=](JSContextRef ctx, JSValueRef arg, JSValueRef *exception) {
                     myState = Paused;
-                    JSValueUnprotect(context->toJSContext(), thisObject);
+                    JSValueRef args[] { arg };
+                    emitFast(context->toJSContext(), thisObj, "error", 1, args, nullptr);
+                    reject(ctx, arg);
                     return arg;
                   });
                 if (exp) {
-                  allocator->free(buffer, 1);
-                  reject(exp);
                   myState = Paused;
-                  JSValueUnprotect(context->toJSContext(), thisObject);
+                  JSValueRef args[] { exp };
+                  emitFast(context->toJSContext(), thisObj, "error", 1, args, nullptr);
+                  reject(context->toJSContext(), exp);
+                  return;
                 }
               } else {
-                allocator->free(buffer, 1);
+                WTF::fastFree(buffer);
                 if (myStream.eof()) {
-                  lock.unlock();
-                  resolve(NX::Globals::Promise::createPromise (context->toJSContext(),
-                    [=](NX::Context *, ResolveRejectHandler resolve, ResolveRejectHandler reject)
-                  {
-                    JSValueRef exp = nullptr;
-                    JSObjectRef promise = this->emit(context->toJSContext(), thisObject, "end", 0, nullptr, &exp);
-                    if (!exp)
-                      resolve(promise);
-                    else
-                      reject(exp);
-                    JSValueUnprotect(context->toJSContext(), thisObject);
-                  }));
                   myState = Paused;
+                  this->emitFast(context->toJSContext(), thisObj, "end", 0, nullptr, nullptr);
+                  resolve(context->toJSContext(), thisObj);
+                  return;
                 } else {
-                  lock.unlock();
-                  myScheduler->scheduleTask(std::bind(readHandler, readHandler));
+                  myScheduler->scheduleTask(std::move(std::bind<void>(readHandler, readHandler)));
                 }
               }
+            } catch(const std::exception &e) {
+              reject(context->toJSContext(), NX::Object(context->toJSContext(), e));
             }
-          };
-          myScheduler->scheduleTask(std::bind(readHandler, readHandler));
-        });
-      }
-    );
-    if (exp) {
-      myState = Paused;
-      myPromise = NX::Object(context->toJSContext(), NX::Globals::Promise::reject(ctx, exp));
-      JSValueUnprotect(context->toJSContext(), thisObject);
-    }
+          } else
+            myScheduler->scheduleTask(std::bind<void>(readHandler, readHandler));
+        };
+        myScheduler->scheduleTask(std::bind(readHandler, readHandler));
+        return JSValueMakeUndefined(ctx);
+    }));
   }
   return myPromise;
 }

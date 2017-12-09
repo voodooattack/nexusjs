@@ -1,3 +1,4 @@
+#include <nexus.h>
 #include "value.h"
 #include "object.h"
 #include "exception.h"
@@ -31,7 +32,8 @@ NX::Value::Value (JSContextRef context, double value): myContext(context), myVal
 
 NX::Value::~Value()
 {
-  JSValueUnprotect (myContext, myVal);
+  if (myContext && myVal)
+    JSValueUnprotect (myContext, myVal);
 }
 
 std::shared_ptr<NX::Object> NX::Value::toObject()
@@ -65,13 +67,9 @@ double NX::Value::toNumber()
 
 std::string NX::Value::toString()
 {
-  JSValueRef exception = nullptr;
-  JSStringRef strRef = JSValueToStringCopy (myContext, myVal, &exception);
-  if (exception)
-  {
-    NX::Object except (myContext, exception);
-    throw NX::Exception (except["message"]->toString());
-  }
+  JSStringRef strRef = JSValueToStringCopy (myContext, myVal, nullptr);
+  if (!strRef)
+    throw NX::Exception ("could not convert value to string");
   std::size_t len = JSStringGetMaximumUTF8CStringSize (strRef);
   std::string str (len, ' ');
   len = JSStringGetUTF8CString (strRef, &str[0], len);
@@ -95,4 +93,13 @@ std::string NX::Value::toJSON(unsigned int indent)
   JSStringRelease (strRef);
   str.resize (len);
   return str;
+}
+
+NX::Value::Value(const NX::Value &other) : myContext(other.myContext), myVal(other.myVal) {
+  JSValueProtect(myContext, myVal);
+}
+
+NX::Value::Value(NX::Value &&other) noexcept : myContext(other.myContext), myVal(other.myVal) {
+  other.myContext = nullptr;
+  other.myVal = nullptr;
 }

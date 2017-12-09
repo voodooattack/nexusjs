@@ -39,7 +39,7 @@ namespace NX
         class Acceptor: public NX::Classes::Emitter {
         protected:
           Acceptor (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::acceptor> & acceptor):
-            myScheduler(scheduler), myAcceptor(acceptor)
+            myScheduler(scheduler), myHolder(scheduler), myAcceptor(acceptor), myThisObject()
           {
           }
 
@@ -83,20 +83,24 @@ namespace NX
 
         public:
 
-          JSValueRef bind ( JSContextRef ctx, JSObjectRef thisObject, const std::string & addr, short unsigned int port, JSValueRef * exception );
-          JSValueRef listen ( JSContextRef ctx, JSObjectRef thisObject, int maxConnections, JSValueRef * exception );
+          JSValueRef bind ( JSContextRef ctx, JSObjectRef thisObject, const std::string & addr, short unsigned int port, bool reuse, JSValueRef * exception );
+          JSValueRef listen ( JSContextRef ctx, const NX::Object & thisObject, int maxConnections, JSValueRef * exception );
 
         protected:
 
-          virtual void beginAccept(NX::Context* context, JSObjectRef thisObject);
-          virtual void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
+          virtual void beginAccept(NX::Context* context, const NX::Object & thisObject);
+          virtual void handleAccept(NX::Context* context, const NX::Object & thisObject,
+                                   const std::shared_ptr<boost::asio::ip::tcp::socket> & socket,
+                                   bool continuation, const boost::system::error_code& error);
 
           NX::Scheduler * scheduler() { return myScheduler; }
           std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor() { return myAcceptor; }
 
         private:
           NX::Scheduler * myScheduler;
+          NX::Scheduler::Holder myHolder;
           std::shared_ptr<boost::asio::ip::tcp::acceptor> myAcceptor;
+          NX::Object myThisObject;
         };
       }
     }

@@ -37,37 +37,37 @@ namespace NX
   JSValueRef JSWrapException(JSContextRef ctx, const std::exception & e, JSValueRef * exception);
 
 
-  class ProtectedArguments {
+  class ProtectedArguments: public std::vector<JSValueRef> {
   public:
     ProtectedArguments(JSContextRef ctx, size_t argumentCount, const JSValueRef arguments[]):
-      myContext(ctx), myArguments(arguments, arguments + argumentCount)
+      std::vector<JSValueRef>(arguments, arguments + argumentCount), myContext(ctx)
     {
-      for(auto i: myArguments)
+      for(auto i: *this)
         JSValueProtect(myContext, i);
     }
-    ProtectedArguments(const ProtectedArguments & other): myContext(other.myContext), myArguments(other.myArguments) {
-      for(auto i: myArguments)
+    ProtectedArguments(JSContextRef ctx, std::vector<JSValueRef> && values):
+      std::vector<JSValueRef>(values), myContext(ctx)
+    {
+      for(auto i: *this)
         JSValueProtect(myContext, i);
     }
+    ProtectedArguments(const ProtectedArguments & other): std::vector<JSValueRef>(other), myContext(other.myContext) {
+      for(auto i: *this)
+        JSValueProtect(myContext, i);
+    }
+    ProtectedArguments(ProtectedArguments && other) noexcept: std::vector<JSValueRef>(std::move(other)), myContext(other.myContext) {
+      other.clear();
+    }
+
     ~ProtectedArguments() {
-      for(auto i: myArguments)
+      for(auto i: *this)
         JSValueUnprotect(myContext, i);
     }
 
-    JSValueRef operator[](int index) { return myArguments[index]; }
-    operator JSValueRef *() { return &myArguments[0]; }
-
-    JSValueRef operator[](int index) const { return myArguments[index]; }
-    operator const JSValueRef *() const { return myArguments.data(); }
-
-    const std::vector<JSValueRef> & vector() { return myArguments; }
-    std::vector<JSValueRef> vector() const { return myArguments; }
-
-    std::size_t count() const { return myArguments.size(); }
+    operator JSValueRef const *() const { return this->data(); }
 
   private:
     JSContextRef myContext;
-    std::vector<JSValueRef> myArguments;
   };
 
 }

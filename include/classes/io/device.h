@@ -42,9 +42,13 @@ namespace NX
       public:
         enum Position { Beginning = std::ios::beg, Current = std::ios::cur, End = std::ios::end };
 
-        virtual ~Device() {}
+        ~Device() override = default;
 
         virtual bool deviceReady() const = 0;
+        virtual bool deviceOpen() const = 0;
+        virtual void deviceClose() = 0;
+
+        virtual const boost::system::error_code & deviceError() const = 0;
 
         static NX::Classes::IO::Device * FromObject(JSObjectRef obj) {
           return dynamic_cast<NX::Classes::IO::Device *>(NX::Classes::Base::FromObject(obj));
@@ -77,7 +81,7 @@ namespace NX
 
       struct PullSourceDevice: public virtual SourceDevice {
 
-        virtual SourceType sourceDeviceType() const { return PullType; }
+        SourceType sourceDeviceType() const override { return PullType; }
         virtual std::size_t deviceRead(char * dest, std::size_t length) = 0;
 
         static NX::Classes::IO::PullSourceDevice * FromObject(JSObjectRef obj) {
@@ -95,7 +99,7 @@ namespace NX
           Resumed,
         };
 
-        virtual SourceType sourceDeviceType() const { return PushType; }
+        SourceType sourceDeviceType() const override { return PushType; }
 
         virtual State state() const = 0;
 
@@ -116,7 +120,7 @@ namespace NX
       struct SinkDevice: public virtual Device {
         virtual std::size_t maxWriteBufferSize() const = 0;
         virtual std::size_t recommendedWriteBufferSize() const { return maxWriteBufferSize(); }
-        virtual void deviceWrite(const char * buffer, std::size_t length) = 0;
+        virtual std::size_t deviceWrite(const char * buffer, std::size_t length) = 0;
 
         static NX::Classes::IO::SinkDevice * FromObject(JSObjectRef obj) {
           return dynamic_cast<NX::Classes::IO::SinkDevice *>(NX::Classes::Base::FromObject(obj));

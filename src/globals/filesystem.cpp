@@ -23,6 +23,7 @@
 #include "globals/filesystem.h"
 
 #include <boost/filesystem.hpp>
+#include <globals/promise.h>
 
 JSValueRef NX::Globals::FileSystem::Get (JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception)
 {
@@ -56,9 +57,8 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
 //   },
   { "Permissions", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef OpenMode = JSValueToObject(ctx, context->getGlobal("Nexus.FileSystem.Permissions"), exception))
-        if (!*exception)
-          return OpenMode;
+      if (auto OpenMode = context->getGlobal("Nexus.FileSystem.Permissions"))
+        return OpenMode;
       NX::Object modes(ctx);
       modes.set("AllAll",                JSValueMakeNumber(ctx, boost::filesystem::perms::all_all));
       modes.set("GroupAll",           JSValueMakeNumber(ctx, boost::filesystem::perms::group_all));
@@ -86,9 +86,8 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
   },
   { "FileType", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (JSObjectRef OpenMode = JSValueToObject(ctx, context->getGlobal("Nexus.FileSystem.FileType"), exception))
-        if (!*exception)
-          return OpenMode;
+      if (auto OpenMode = context->getGlobal("Nexus.FileSystem.FileType"))
+        return OpenMode;
       NX::Object modes(ctx);
       modes.set("Directory",          JSValueMakeNumber(ctx, boost::filesystem::file_type::directory_file));
       modes.set("Block",              JSValueMakeNumber(ctx, boost::filesystem::file_type::block_file));
@@ -114,25 +113,47 @@ const JSStaticFunction NX::Globals::FileSystem::Methods[] {
         boost::filesystem::file_status stats = boost::filesystem::status(filePath);
         boost::filesystem::perms perms = stats.permissions();
         boost::filesystem::file_type type = stats.type();
-        time_t lastMod = boost::filesystem::last_write_time(filePath);
-        JSObjectRef statsObj = JSObjectMake(ctx, context->nexus()->genericClass(), nullptr);
-        JSObjectSetProperty(ctx, statsObj, NX::ScopedString("permissions"), NX::Value(ctx, perms).value(), kJSPropertyAttributeNone, exception);
-        JSObjectSetProperty(ctx, statsObj, NX::ScopedString("type"), NX::Value(ctx, type).value(), kJSPropertyAttributeNone, exception);
-        JSObjectSetProperty(ctx, statsObj, NX::ScopedString("lastModified"), NX::Object(ctx, lastMod).value(), kJSPropertyAttributeNone, exception);
-        return statsObj;
+        NX::Object statsObj(ctx);
+        statsObj.set("type", NX::Value(ctx, type).value());
+        if (stats.type() != boost::filesystem::file_type::file_not_found) {
+          time_t lastMod = boost::filesystem::last_write_time(filePath);
+          statsObj.set("permissions", NX::Value(ctx, perms).value());
+          statsObj.set("lastModified", NX::Object(ctx, lastMod).value());
+        }
+        return NX::Globals::Promise::resolve(ctx, statsObj);
       } catch(const std::exception & e) {
-        NX::Value message(ctx, e.what());
-        JSValueRef args[] { message.value(), nullptr };
-        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return NX::Globals::Promise::reject(ctx, NX::Object(context->toJSContext(), e));
+      }
+    }, 0
+  },
+  { "join", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+//      NX::Context * context = Context::FromJsContext(ctx);
+      try {
+        if (argumentCount == 0)
+          return NX::Value(ctx, "").value();
+        boost::filesystem::path p(NX::Value(ctx, arguments[0]).toString());
+        for(std::size_t i = 1; i < argumentCount; i++) {
+          p.append(NX::Value(ctx, arguments[i]).toString());
+        }
+        return NX::Value(ctx, p.c_str()).value();
+      } catch(const std::exception & e) {
+        *exception = NX::Object(ctx, e);
       }
       return JSValueMakeUndefined(ctx);
     }, 0
   },
-  { "resolve", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+  { "absolute", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = Context::FromJsContext(ctx);
+//      NX::Context * context = Context::FromJsContext(ctx);
       try {
-        /* TODO implement this */
+        if (argumentCount == 0)
+          return NX::Value(ctx, "").value();
+        boost::filesystem::path p(NX::Value(ctx, arguments[0]).toString());
+        for(std::size_t i = 1; i < argumentCount; i++) {
+          p.append(NX::Value(ctx, arguments[i]).toString());
+        }
+        return NX::Value(ctx, boost::filesystem::absolute(p).c_str()).value();
       } catch(const std::exception & e) {
         NX::Value message(ctx, e.what());
         JSValueRef args[] { message.value(), nullptr };

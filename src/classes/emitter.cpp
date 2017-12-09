@@ -17,6 +17,8 @@
  *
  */
 
+#include <utility>
+
 #include "classes/emitter.h"
 #include "context.h"
 #include "globals/promise.h"
@@ -56,124 +58,127 @@ JSObjectRef NX::Classes::Emitter::getConstructor (NX::Context * context)
 
 JSValueRef NX::Classes::Emitter::addManyListener (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback, int count)
 {
-  boost::recursive_mutex::scoped_lock lock(myMutex);
-  myMap[e].push_back(std::shared_ptr<Event>(new Event(e, callback, ctx, count)));
+  JSC::JSLockHolder lock(toJS(ctx));
+  myMap[e].emplace_back(std::make_shared<Event>(e, NX::Object(ctx, callback), count));
   return JSValueMakeUndefined(ctx);
 }
 
 JSValueRef NX::Classes::Emitter::addManyListener(JSGlobalContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string & e, EventCallback callback, int count)
 {
   NX::Context * context = NX::Context::FromJsContext(ctx);
-  JSObjectRef thisObjectForBind = JSObjectMake(ctx, context->nexus()->defineOrGetClass(NX::Classes::Emitter::EventCallbackClass), new EventCallback(callback));
+  JSObjectRef thisObjectForBind = JSObjectMake(ctx,
+                                               context->nexus()->defineOrGetClass(NX::Classes::Emitter::EventCallbackClass),
+                                               new EventCallback(std::move(callback)));
   JSObjectRef jsCallback = JSBindFunction(ctx, JSObjectMakeFunctionWithCallback(ctx, ScopedString("addManyListenersCallback"),
     [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount,
        const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      EventCallback * callback = reinterpret_cast<EventCallback*>(JSObjectGetPrivate(thisObject));
+      NX::Context * context = NX::Context::FromJsContext(ctx);
+      auto cn = reinterpret_cast<EventCallback*>(JSObjectGetPrivate(thisObject));
       try {
-        return callback->operator()(ctx, argumentCount, arguments, exception);
+        return cn->operator()(context->toJSContext(), argumentCount, arguments, exception);
       } catch(const std::exception & e) {
-        return JSWrapException(ctx, e, exception);
+        return JSWrapException(context->toJSContext(), e, exception);
       }
       return JSValueMakeUndefined(ctx);
     }), thisObjectForBind, 0, nullptr, nullptr);
-
   return addManyListener(ctx, thisObject, e, jsCallback, count);
 }
 
-JSObjectRef NX::Classes::Emitter::emit (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
+JSObjectRef NX::Classes::Emitter::emit (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, std::size_t
                                         argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  boost::recursive_mutex::scoped_lock lock(myMutex);
-  if (myMap.find(e) != myMap.end()) {
+  JSC::JSLockHolder lock(toJS(ctx));
+  auto item = myMap.find(e);
+  if (item != myMap.end()) {
     ProtectedArguments args(ctx, argumentCount, arguments);
     std::vector<JSValueRef> promises;
-    for(auto & i: myMap[e])
+    for(auto & i: item->second)
     {
       JSValueProtect(ctx, thisObject);
       if (i->count > 0)
         i->count--;
-      NX::Object func(i->context, i->handler);
+      NX::Object func(i->handler);
       promises.emplace_back(NX::Globals::Promise::createPromise(ctx,
-        [=](NX::Context * context, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
+        [=](JSContextRef ctx, ResolveRejectHandler resolve, ResolveRejectHandler reject) {
           NX::Object funcCopy(func);
           JSValueRef exp = nullptr;
-          JSValueRef val = funcCopy.call(nullptr, args.vector(), &exp);
+          JSValueRef val = funcCopy.call(nullptr, args, &exp);
           if (exp)
-            reject(exp);
+            reject(ctx, exp);
           else
-            resolve(val);
+            resolve(ctx, val);
           JSValueUnprotect(ctx, thisObject);
         }));
     }
-    tidy(e);
+    tidy(ctx, e);
     return NX::Globals::Promise::all(ctx, promises);
-  } else
-    return NX::Globals::Promise::resolve(ctx, JSValueMakeUndefined(ctx));
-}
-
-
-void NX::Classes::Emitter::emitFast (JSContextRef ctx, JSObjectRef thisObject, const std::string e, std::size_t
-                                     argumentCount, const JSValueRef arguments[], JSValueRef * exception)
-{
-  boost::recursive_mutex::scoped_lock lock(myMutex);
-  if (myMap.find(e) != myMap.end()) {
-    for(auto i: myMap[e])
-    {
-      if (i->count > 0)
-        i->count--;
-      lock.unlock();
-      JSObjectCallAsFunction(i->context, i->handler, nullptr, argumentCount, arguments, exception);
-      lock.lock();
-      if (exception && *exception) {
-        NX::Nexus::ReportException(ctx, *exception);
-        break;
-      }
-    }
-    tidy(e);
+  } else {
+    std::vector<JSValueRef> emptyArrayValues;
+    NX::Object emptyArray(ctx, emptyArrayValues);
+    return NX::Globals::Promise::resolve(ctx, emptyArray);
   }
 }
 
-void NX::Classes::Emitter::emitFastAndSchedule(JSContextRef ctx, JSObjectRef thisObject, const std::__cxx11::string e,
-                                               std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+
+void NX::Classes::Emitter::emitFast (JSContextRef ctx, JSObjectRef thisObject, const std::string & e, std::size_t
+                                     argumentCount, const JSValueRef arguments[], JSValueRef * exception)
 {
-  boost::recursive_mutex::scoped_lock lock(myMutex);
-  NX::Context * context = NX::Context::FromJsContext(ctx);
-  if (myMap.find(e) != myMap.end()) {
-    for(auto i: myMap[e])
+  JSC::JSLockHolder lock(toJS(ctx));
+  auto item = myMap.find(e);
+  if (item != myMap.end()) {
+    for(const auto &i: item->second)
     {
       if (i->count > 0)
         i->count--;
-      ProtectedArguments args(ctx, argumentCount, arguments);
-      NX::Object func(i->context, i->handler);
-      context->nexus()->scheduler()->scheduleTask([=]() {
-        NX::Object funcCopy(func);
+      i->handler.call(nullptr, std::vector<JSValueRef>(arguments, arguments + argumentCount), exception);
+    }
+    tidy(ctx, e);
+  }
+}
+
+NX::TaskGroup NX::Classes::Emitter::emitFastAndSchedule(JSContextRef ctx, JSObjectRef thisObject, const std::string & e,
+                                               std::size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
+{
+  NX::Context * context = NX::Context::FromJsContext(ctx);
+  JSC::JSLockHolder lock(toJS(ctx));
+  NX::TaskGroup tasks(context->nexus()->scheduler());
+  auto item = myMap.find(e);
+  if (item != myMap.end()) {
+    for(const auto &i: item->second)
+    {
+      if (i->count > 0)
+        i->count--;
+      ProtectedArguments args(context->toJSContext(), argumentCount, arguments);
+      NX::Object func(i->handler);
+      auto task = context->nexus()->scheduler()->scheduleTask([=]() {
         JSValueRef exp = nullptr;
-        funcCopy.call(nullptr, args.vector(), &exp);
+        func.call(nullptr, args, &exp);
         if (exp)
           NX::Nexus::ReportException(context->toJSContext(), exp);
       });
-      if (exception && *exception)
-        break;
+      tasks.emplace_back(task);
     }
-    tidy(e);
+    tidy(ctx, e);
   }
+  return std::move(tasks);
 }
 
 
 JSValueRef NX::Classes::Emitter::removeAllListeners (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e)
 {
-  boost::recursive_mutex::scoped_lock lock(myMutex);
+  JSC::JSLockHolder lock(toJS(ctx));
   myMap.erase(e);
   return JSValueMakeUndefined(ctx);
 }
 
 JSValueRef NX::Classes::Emitter::removeListener (JSGlobalContextRef ctx, JSObjectRef thisObject, const std::string & e, JSObjectRef callback)
 {
-  boost::recursive_mutex::scoped_lock lock(myMutex);
-  if (myMap.find(e) != myMap.end()) {
-    myMap[e].erase(std::remove_if(myMap[e].begin(), myMap[e].end(), [&](auto & event) {
+  JSC::JSLockHolder lock(toJS(ctx));
+  auto item = myMap.find(e);
+  if (item != myMap.end()) {
+    item->second.erase(std::remove_if(item->second.begin(), item->second.end(), [&](auto & event) {
       return JSValueIsStrictEqual(ctx, callback, event->handler);
-    }), myMap[e].end());
+    }), item->second.end());
   }
   return JSValueMakeUndefined(ctx);
 }
@@ -288,3 +293,23 @@ const JSStaticFunction NX::Classes::Emitter::Methods[] {
   },
   { nullptr, nullptr, 0 }
 };
+
+void NX::Classes::Emitter::tidy(JSContextRef ctx, const std::string &e) {
+  JSC::JSLockHolder lock(toJS(ctx));
+  auto item = myMap.find(e);
+  if (item != myMap.end()) {
+    auto & vec = item->second;
+    std::vector<std::vector<std::shared_ptr<NX::Classes::Emitter::Event>>::iterator> toRemove;
+    for(auto i = vec.begin(); i != vec.end();)
+    {
+      if ((*i)->count == 0) {
+        toRemove.push_back(i);
+      }
+      i++;
+    }
+    for(auto & i : toRemove)
+      vec.erase(i);
+    if (vec.empty())
+      myMap.erase(item);
+  }
+}

@@ -61,7 +61,15 @@ const JSStaticFunction NX::Globals::Console::Methods[] {
         std::string output;
         for(std::size_t i = 0; i < argumentCount; i++)
         {
-          output += NX::Value(ctx, arguments[i]).toString();
+          if (JSValueIsObject(ctx, arguments[i])) {
+            NX::Object obj(ctx, arguments[i]);
+            if (obj["constructor"]->toObject()->operator[]("name")->toString() == "Error") {
+              output += obj["message"]->toString() + "\n";
+              output += obj["stack"]->toString();
+            } else
+              output += NX::Value(ctx, arguments[i]).toString();
+          } else
+            output += NX::Value(ctx, arguments[i]).toString();
           if (i < argumentCount - 1)
             output += " ";
         }

@@ -33,18 +33,32 @@ JSClassRef NX::Classes::IO::Filters::UTF8StringFilter::createClass (NX::Context 
 
 JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
   { "process", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
-    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef
+    {
       NX::Context * context = NX::Context::FromJsContext(ctx);
       JSObjectRef arrayBuffer = nullptr;
       try {
         if (argumentCount == 0) {
           throw NX::Exception("must supply buffer to process");
         } else {
-          if (JSValueGetType(ctx, arguments[0]) != kJSTypeObject)
+          auto type = JSValueGetType(ctx, arguments[0]);
+          if (type == kJSTypeNull)
+            return NX::Globals::Promise::resolve(ctx, JSValueMakeNull(ctx));
+          if (type == kJSTypeString) {
+            JSStringRef strRef = JSValueToStringCopy (ctx, arguments[0], nullptr);
+            std::size_t len = JSStringGetMaximumUTF8CStringSize (strRef);
+            auto buffer = (char *)WTF::fastMalloc(len+1);
+            len = JSStringGetUTF8CString (strRef, buffer, len);
+            JSStringRelease (strRef);
+            return NX::Globals::Promise::resolve(ctx, JSObjectMakeArrayBufferWithBytesNoCopy(ctx, buffer, len, [](void * buf, void*) {
+              WTF::fastFree(buf);
+            }, nullptr, exception));
+          }
+          if (type != kJSTypeObject)
             throw NX::Exception("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
-          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+          JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
           if (!except)
             arrayBuffer = obj.value();
           else {
@@ -59,7 +73,9 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
         return JSWrapException(ctx, e, exception);
       }
       JSValueRef argsForBind[] { arrayBuffer };
-      JSObjectRef executor = JSBindFunction(context->toJSContext(), JSObjectMakeFunctionWithCallback(context->toJSContext(), ScopedString("UTF8StringFilterExecutor"),
+      JSObjectRef executor = JSBindFunction(context->toJSContext(),
+                                            JSObjectMakeFunctionWithCallback(context->toJSContext(),
+                                                                             ScopedString("UTF8StringFilterExecutor"),
         [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
           size_t argumentCount, const JSValueRef originalArguments[], JSValueRef * exception) -> JSValueRef
       {
@@ -73,7 +89,7 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
           return JSValueMakeUndefined(ctx);
         }
         JSValueProtect(context->toJSContext(), thisObject);
-        for(int i = 0; i < argumentCount; i++)
+        for(unsigned i = 0; i < argumentCount; i++)
           JSValueProtect(context->toJSContext(), arguments[i]);
         NX::Scheduler * scheduler = context->nexus()->scheduler();
         try {
@@ -88,7 +104,7 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
             JSStringRelease(outputStringRef);
             JSValueRef args[] { outputString };
             JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 2], exception), nullptr, 1, args, exception);
-            for(int i = 0; i < argumentCount; i++)
+            for(unsigned i = 0; i < argumentCount; i++)
               JSValueUnprotect(context->toJSContext(), arguments[i]);
             JSValueUnprotect(ctx, thisObject);
           });
@@ -98,7 +114,7 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
             JSValueRef args1[] { message.value(), nullptr };
             JSValueRef args2[] { JSObjectMakeError(ctx, 1, args1, nullptr) };
             JSObjectCallAsFunction(ctx, JSValueToObject(ctx, arguments[argumentCount - 1], exception), nullptr, 1, args2, exception);
-            for(int i = 0; i < argumentCount; i++)
+            for(unsigned i = 0; i < argumentCount; i++)
               JSValueUnprotect(context->toJSContext(), arguments[i]);
             JSValueUnprotect(ctx, thisObject);
           });
@@ -110,7 +126,7 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
   },
   { "processSync", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
     size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
       try {
         NX::Classes::IO::Filter * filter = NX::Classes::IO::Filter::FromObject(thisObject);
         if (!filter) {
@@ -124,7 +140,7 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
             throw NX::Exception("bad value for buffer argument");
           JSValueRef except = nullptr;
           NX::Object obj(ctx, arguments[0]);
-          std::size_t length = JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
+          JSObjectGetArrayBufferByteLength(ctx, obj.value(), &except);
           if (!except)
             arrayBuffer = obj.value();
           else {
@@ -135,7 +151,7 @@ JSStaticFunction NX::Classes::IO::Filters::UTF8StringFilter::Methods[] {
             }
           }
         }
-        char * buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
+        auto buffer =  (char *)JSObjectGetArrayBufferBytesPtr(ctx, arrayBuffer, exception);
         JSStringRef outputStringRef = JSStringCreateWithUTF8CString(buffer);
         JSValueRef outputString = JSValueMakeString(ctx, outputStringRef);
         JSStringRelease(outputStringRef);

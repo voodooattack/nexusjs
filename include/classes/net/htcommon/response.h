@@ -50,6 +50,8 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
+          const boost::system::error_code & deviceError() const override { return myError; }
+
           virtual JSObjectRef attach(JSContextRef ctx, JSObjectRef thisObject, JSObjectRef connection) = 0;
 
           static const JSClassDefinition Class;
@@ -61,9 +63,16 @@ namespace NX {
 
           virtual void set(const std::string & name, const std::string & value) = 0;
 
+          virtual void send(JSContextRef context, JSValueRef body) = 0;
+
+          virtual boost::system::error_code & error() { return myError; }
+
+          void deviceClose() override { }
+
           NX::Classes::Net::HTCommon::Connection * connection() { return myConnection; }
         private:
           NX::Classes::Net::HTCommon::Connection * myConnection;
+          boost::system::error_code myError;
         };
       }
     }

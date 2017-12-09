@@ -17,10 +17,34 @@
  *
  */
 
+#include "object.h"
 #include "exception.h"
 
-NX::Exception::Exception(const std::string &message) : std::runtime_error(message) {
+NX::Exception::Exception(const std::string &message) : runtime_error(message) {
+  myTrace = WTF::StackTrace::captureStackTrace(10);
+}
+
+NX::Exception::Exception(std::string && message) : runtime_error(message) {
   myTrace = WTF::StackTrace::captureStackTrace(10);
 }
 
 const WTF::StackTrace *NX::Exception::trace() const { return myTrace.get(); }
+
+NX::Exception::Exception(JSContextRef ctx, JSValueRef exception):
+  runtime_error(JSExceptionToString(ctx, exception))
+{
+  myTrace = WTF::StackTrace::captureStackTrace(10);
+}
+
+std::string NX::Exception::JSExceptionToString(JSContextRef ctx, JSValueRef exception) {
+  NX::Object exp(ctx, exception);
+  return exp.toString();
+}
+
+NX::Exception::Exception(const char *message) : runtime_error(message) {
+  myTrace = WTF::StackTrace::captureStackTrace(10);
+}
+
+NX::Exception::Exception(const boost::system::error_code & ec): runtime_error(ec.message()) {
+  myTrace = WTF::StackTrace::captureStackTrace(10);
+}

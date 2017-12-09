@@ -35,6 +35,9 @@
 #include <boost/thread/recursive_mutex.hpp>
 
 #include <thread>
+#include <WTF/wtf/ThreadGroup.h>
+#include <WTF/wtf/PriorityQueue.h>
+#include "exception.h"
 
 namespace NX
 {
@@ -47,7 +50,7 @@ namespace NX
   public:
     typedef boost::asio::deadline_timer timer_type;
     typedef timer_type::duration_type duration;
-    typedef boost::function<void(void)> CompletionHandler;
+    typedef std::function<void(void)> CompletionHandler;
     typedef boost::lockfree::queue<NX::AbstractTask*> TaskQueue;
   public:
     Scheduler(NX::Nexus *, unsigned int maxThreads);
@@ -58,27 +61,40 @@ namespace NX
     void resume() { myPauseTasks.store(false); }
     void stop();
     void join();
-    void joinPool() { dispatcher(); }
+    void joinPool();
 
     NX::AbstractTask * scheduleAbstractTask(NX::AbstractTask * task);
 
-    NX::Task * scheduleTask(const CompletionHandler & handler);
-    NX::Task * scheduleTask(const duration & time, const CompletionHandler & handler);
+    NX::Task * scheduleTask(CompletionHandler && handler);
+    NX::Task * scheduleTask(const duration & time, CompletionHandler && handler);
+    NX::CoroutineTask * scheduleCoroutine(CompletionHandler && handler);
+    NX::CoroutineTask * scheduleCoroutine(const duration & time, CompletionHandler && handler);
 
-    NX::CoroutineTask * scheduleCoroutine(const CompletionHandler & handler);
-    NX::CoroutineTask * scheduleCoroutine(const duration & time, const CompletionHandler & handler);
+    NX::Task * scheduleThreadInitTask(CompletionHandler && handler);
 
     void yield();
 
     NX::Nexus * nexus() { return myNexus; }
 
-    unsigned int concurrency() const { return myThreadCount; }
-    unsigned int queued() const { return myTaskCount; }
-    unsigned int active() const { return myActiveTaskCount; }
-    unsigned int remaining() const { return myActiveTaskCount + myTaskCount; }
+    std::size_t concurrency() const { return myThreadCount; }
+    std::size_t queued() const { return myTaskCount; }
+    std::size_t active() const { return myActiveTaskCount; }
+    std::size_t remaining() const { return (std::size_t)myTaskCount + (std::size_t)myActiveTaskCount; }
 
-    void hold() { myTaskCount++; }
-    void release() { myTaskCount--; }
+    struct Holder {
+      Holder();
+      Holder(const Holder& other);
+      explicit Holder(Scheduler * scheduler);
+      ~Holder();
+
+      void reset();
+
+    private:
+      Scheduler * myScheduler;
+    };
+
+    void hold() { myHoldCount++; }
+    void release() { myHoldCount--; }
 
     const std::shared_ptr<boost::asio::io_service> service() const { return myService; }
     std::shared_ptr<boost::asio::io_service> service() { return myService; }
@@ -88,23 +104,25 @@ namespace NX
      */
     void makeCurrent(NX::AbstractTask * task);
 
+    bool canYield() const;
+
   protected:
     void addThread();
     void balanceThreads();
     void dispatcher();
-    bool processTasks();
+    std::size_t drainTasks();
   private:
     NX::Nexus * myNexus;
-    boost::atomic<unsigned int> myMaxThreads;
-    boost::atomic_uint myThreadCount;
+    std::atomic_size_t myMaxThreads;
+    std::atomic_size_t myThreadCount;
     std::shared_ptr<boost::asio::io_service> myService;
     std::shared_ptr<boost::asio::io_service::work> myWork;
     boost::thread_group myThreadGroup;
     boost::thread_specific_ptr<NX::AbstractTask> myCurrentTask;
     TaskQueue myTaskQueue;
-    boost::atomic_uint myTaskCount, myActiveTaskCount;
-    boost::atomic_bool myPauseTasks;
-    boost::recursive_mutex myBalancerMutex;
+    std::vector<NX::AbstractTask*> myThreadInitQueue;
+    std::atomic_size_t myTaskCount, myActiveTaskCount, myHoldCount;
+    std::atomic_bool myPauseTasks;
   };
 }
 #endif // SCHEDULER_H

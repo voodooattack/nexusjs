@@ -22,20 +22,25 @@
 #include "global_object.h"
 #include <JavaScriptCore/runtime/InitializeThreading.h>
 
-using namespace JSC;
-
 int main (int argc, const char ** argv)
 {
-  WTF::initializeThreading();
-  if (!setlocale(LC_ALL, ""))
+  NX::Nexus nexus(argc, argv);
+  struct sigaction sa;
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = SA_RESTART;
+  sigaction(SIGALRM, &sa, nullptr);
+  sigaction(SIGPIPE, &sa, nullptr);
+  if (!setlocale(LC_ALL, "")) {
     WTFLogAlways("Locale not supported by C library.\n\tUsing the fallback 'C' locale.");
+  }
+  if (Gigacage::canPrimitiveGigacageBeDisabled())
+    Gigacage::disablePrimitiveGigacage();
   WTF::initializeMainThread();
+  WTF::initializeThreading();
   JSC::initializeThreading();
 //#if ENABLE(WEBASSEMBLY)
 //  JSC::Wasm::enableFastMemory();
 //#endif
-//  Gigacage::disableDisablingPrimitiveGigacageIfShouldBeEnabled();
-  NX::Nexus nexus(argc, argv);
   nexus.run();
   return 0;
 }

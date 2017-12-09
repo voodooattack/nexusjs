@@ -21,9 +21,11 @@
 #ifndef CLASSES_NET_HTCOMMON_CONNECTION_H
 #define CLASSES_NET_HTCOMMON_CONNECTION_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/JSValueRef.h>
+#include <JavaScriptCore/JSObjectRef.h>
 
 #include "classes/io/devices/socket.h"
+#include "globals/promise.h"
 
 namespace NX {
   namespace Classes {
@@ -33,8 +35,8 @@ namespace NX {
         class Response;
         class Connection: public NX::Classes::IO::Devices::TCPSocket {
         public:
-          Connection (NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket):
-            TCPSocket(scheduler, socket), mySocket(socket)
+          Connection (NX::Scheduler * scheduler, std::shared_ptr< boost::asio::ip::tcp::socket> socket):
+            TCPSocket(scheduler, socket), mySocket(std::move(socket)), myThisObject(), myContext(nullptr)
           {
           }
 
@@ -51,7 +53,11 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          virtual JSObjectRef start(NX::Context * context, JSObjectRef thisObject) = 0;
+          virtual JSObjectRef start(NX::Context * context, JSObjectRef thisObject, bool continuation) {
+            myContext = context;
+            myThisObject = NX::Object(context->toJSContext(), thisObject);
+            return NX::Globals::Promise::resolve(context->toJSContext(), thisObject);
+          }
 
           virtual NX::Classes::Net::HTCommon::Response * res() const = 0;
           virtual NX::Classes::Net::HTCommon::Request * req() const = 0;
@@ -60,10 +66,21 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
+          NX::Context * context() const { return myContext; }
+          JSObjectRef thisObject() const { return myThisObject; }
+
+          void close() override {
+            NX::Classes::IO::Devices::TCPSocket::close();
+            emitFastAndSchedule(myContext->toJSContext(), myThisObject, "close", 0, nullptr, nullptr);
+            myThisObject.clear();
+          }
+
           std::shared_ptr< boost::asio::ip::tcp::socket> socket() const { return mySocket; }
 
         private:
           std::shared_ptr< boost::asio::ip::tcp::socket> mySocket;
+          NX::Object myThisObject;
+          NX::Context * myContext;
         };
       }
     }

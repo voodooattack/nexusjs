@@ -68,7 +68,7 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          virtual void handleAccept(NX::Context* context, JSObjectRef thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
+          virtual void handleAccept(NX::Context* context, const NX::Object & thisObject, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket);
 
           static const JSClassDefinition Class;
           static const JSStaticFunction Methods[];

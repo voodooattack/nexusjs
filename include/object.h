@@ -34,8 +34,8 @@ namespace NX {
   class Value;
   class Object {
   public:
-    Object(): myContext(nullptr), myObject(nullptr) {}
-    Object(JSContextRef, JSClassRef cls = nullptr, void * data = nullptr);
+    Object(): myContext(nullptr), myObject(nullptr) { attach(); }
+    explicit Object(JSContextRef, JSClassRef cls = nullptr, void * data = nullptr);
     Object(JSContextRef context, JSObjectRef obj);
     Object(JSContextRef context, JSValueRef val);
     Object(JSContextRef context, const std::vector<JSValueRef> & values);
@@ -43,7 +43,10 @@ namespace NX {
     Object(JSContextRef context, const std::exception & e);
     Object(JSContextRef context, const boost::system::error_code & e);
     Object(const Object & other);
+    Object(Object && other) noexcept;
     ~Object();
+
+    void attach();
 
     std::string toString();
 
@@ -52,6 +55,8 @@ namespace NX {
 
     std::shared_ptr<NX::Value> operator[] (unsigned int index) const;
     std::shared_ptr<NX::Value> operator[] (const char * name) const;
+
+    void clear();
 
     void set(const std::string & name, JSValueRef value, JSPropertyAttributes attr = kJSPropertyAttributeNone,
              JSValueRef * exception = nullptr)
@@ -105,6 +110,8 @@ namespace NX {
      * @return
      */
     JSValueRef await();
+
+    bool toBoolean();
 
   private:
     JSContextRef myContext;

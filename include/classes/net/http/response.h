@@ -34,7 +34,7 @@ namespace NX {
         class Request;
         class Response: public NX::Classes::Net::HTCommon::Response {
         public:
-          explicit Response (NX::Classes::Net::HTTP::Connection * connection);
+          explicit Response (NX::Classes::Net::HTTP::Connection * connection, bool continuation);
 
         public:
           virtual ~Response() {}
@@ -66,14 +66,16 @@ namespace NX {
           }
 
           void set(const std::string & name, const std::string & value) override {
-            if (!myRes)
-              throw NX::Exception("bad response");
+            if (myHeadersSentFlag)
+              throw NX::Exception("headers already sent");
             myRes->set(boost::beast::string_view(name), boost::beast::string_param(value));
           }
 
           bool deviceReady() const override { return myConnection->deviceReady(); }
+          bool deviceOpen() const override { return myConnection->deviceOpen(); }
+          std::size_t deviceWrite ( const char * buffer, std::size_t length ) override;
 
-          void deviceWrite ( const char * buffer, std::size_t length ) override;
+          void send(JSContextRef context, JSValueRef body) override;
 
           std::size_t maxWriteBufferSize() const override { return UINT16_MAX; }
 
@@ -90,9 +92,13 @@ namespace NX {
             template<class ConstBufferSequence>
             std::size_t write_some(ConstBufferSequence const & sequence, boost::system::error_code & ec) {
               try {
-                return this->write_some(sequence);
+                return write_some(sequence);
               } catch (const std::exception & e) {
-                ec.assign(boost::system::errc::io_error, ec.category());
+                if (myConnection->error())
+                  ec = myConnection->error();
+                else {
+                  ec.assign(errno, boost::system::system_category());
+                }
                 return 0;
               }
             }
@@ -129,6 +135,7 @@ namespace NX {
           std::unique_ptr<Writer> myWriter;
           std::atomic_bool myHeadersSentFlag;
           unsigned int myStatus;
+          bool myContinuationFlag;
         };
       }
     }

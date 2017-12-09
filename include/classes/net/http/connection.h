@@ -24,6 +24,7 @@
 #include <JavaScript.h>
 
 #include "classes/net/htcommon/connection.h"
+#include "server.h"
 
 namespace NX {
   namespace Classes {
@@ -31,7 +32,7 @@ namespace NX {
       namespace HTTP {
         class Connection: public NX::Classes::Net::HTCommon::Connection {
         protected:
-          Connection(NX::Scheduler * scheduler, const std::shared_ptr< boost::asio::ip::tcp::socket> & socket);
+          Connection(Scheduler *scheduler, Server *server, std::shared_ptr<boost::asio::ip::tcp::socket> socket);
 
         public:
           virtual ~Connection() = default;
@@ -46,11 +47,29 @@ namespace NX {
             return context->nexus()->defineOrGetClass (def);
           }
 
-          static JSObjectRef wrapSocket(NX::Context * context, const std::shared_ptr<boost::asio::ip::tcp::socket> & socket) {
-            return JSObjectMake(context->toJSContext(), createClass(context), new Connection(context->nexus()->scheduler(), socket));
+          static HTTP::Connection * wrapSocket(NX::Context * context,
+                                               std::shared_ptr<boost::asio::ip::tcp::socket> socket,
+                                               NX::Classes::Net::HTTP::Server * server,
+                                               JSObjectRef * obj)
+          {
+            auto conn = new HTTP::Connection(context->nexus()->scheduler(), server, socket);
+            *obj = JSObjectMake(context->toJSContext(), createClass(context), dynamic_cast<NX::Classes::Base*>(conn));
+            conn->myThisObject = NX::Object(context->toJSContext(), *obj);
+            return conn;
           }
 
-          JSObjectRef start(NX::Context * context, JSObjectRef thisObject) override;
+          JSObjectRef start(NX::Context * context, JSObjectRef thisObject, bool continuation) override;
+
+          bool keepAlive() { return myKeepAliveFlag; }
+          void keepAlive(bool keepAlive) {
+            myKeepAliveFlag.store(keepAlive);
+          }
+
+          void deviceClose() override {
+            if (!keepAlive())
+              HTCommon::Connection::close();
+          }
+
           NX::Classes::Net::HTCommon::Response * res() const override { return myRes; };
           NX::Classes::Net::HTCommon::Request * req() const override { return myReq; };
 
@@ -58,10 +77,15 @@ namespace NX {
           static const JSStaticFunction Methods[];
           static const JSStaticValue Properties[];
 
+          void notifyCompleted();
+
         protected:
 
+          Server * myServer;
           NX::Classes::Net::HTCommon::Response * myRes;
           NX::Classes::Net::HTCommon::Request * myReq;
+          std::atomic_bool myKeepAliveFlag;
+          NX::Object myThisObject;
 
         };
       }

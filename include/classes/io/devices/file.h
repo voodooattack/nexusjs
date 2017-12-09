@@ -20,22 +20,19 @@
 #ifndef CLASSES_IO_DEVICES_FILE_H
 #define CLASSES_IO_DEVICES_FILE_H
 
-#include <JavaScript.h>
+#include <JavaScriptCore/API/JSObjectRef.h>
 #include <fstream>
 #include <atomic>
 #include "classes/io/device.h"
+#include <boost/iostreams/stream.hpp>
+#include <boost/iostreams/device/file_descriptor.hpp>
+
 #include "task.h"
 #include "globals/promise.h"
 
-#define FILE_PUSH_DEVICE_BUFFER_SIZE (size_t)(8 * 1024 * 1024) // 8MB buffer size. TODO: Make adjustable!
+#define FILE_PUSH_DEVICE_BUFFER_SIZE (size_t)(8 * 1024 * 1024) // 8MB buffer size. TODO: Make it adjustable!
 
 namespace NX {
-  struct wtf_allocator_fast_malloc_free {
-    typedef std::size_t size_type;
-    typedef std::ptrdiff_t difference_type;
-    static char *malloc(const size_type bytes) { return reinterpret_cast<char *>(WTF::fastMalloc(bytes)); }
-    static void free(char *const block) { WTF::fastFree(block); }
-  };
 
   class Nexus;
   class Context;
@@ -44,9 +41,9 @@ namespace NX {
       namespace Devices {
         class FilePullDevice : public virtual SeekableSourceDevice {
         public:
-          FilePullDevice(const std::string &path);
+          explicit FilePullDevice(const std::string &path);
 
-          virtual ~FilePullDevice() { myStream.close(); }
+          ~FilePullDevice() override { myStream.close(); }
 
         private:
           static const JSClassDefinition Class;
@@ -67,45 +64,67 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::FilePullDevice *>(Base::FromObject(obj));
           }
 
-          virtual std::size_t devicePosition() { return myStream.tellg(); }
+          std::size_t devicePosition() override { return static_cast<size_t>(myStream.tellg()); }
 
-          virtual std::size_t deviceRead(char *dest, std::size_t length) {
+          std::size_t deviceRead(char *dest, std::size_t length) override {
             myStream.read(dest, length);
-            return myStream.gcount();
+            if (!myStream.good())
+              myError = boost::system::errc::make_error_code(boost::system::errc::io_error);
+            return static_cast<size_t>(myStream.gcount());
           }
 
-          virtual bool deviceReady() const { return myStream.good(); }
+          bool deviceReady() const override { return myStream.good(); }
+          bool deviceOpen() const override { return myStream.is_open(); }
 
-          virtual std::size_t deviceSeek(std::size_t pos, Position from) {
+          void deviceClose() override { myStream.close(); }
+
+          const boost::system::error_code & deviceError() const override { return myError; }
+
+          std::size_t deviceSeek(std::size_t pos, Position from) override {
             myStream.seekg(pos, (std::ios::seekdir) from);
-            return myStream.tellg();
+            if (!myStream.good())
+              myError = boost::system::errc::make_error_code(boost::system::errc::invalid_seek);
+            return static_cast<size_t>(myStream.tellg());
           }
 
-          virtual bool eof() const { return myStream.eof(); }
+          bool eof() const override { return myStream.eof(); }
 
-          virtual std::size_t sourceSize() {
+          std::size_t sourceSize() override {
             std::streampos current = myStream.tellg();
             myStream.seekg(0, std::ios::beg);
+            if (!myStream.good()) {
+              myError = boost::system::errc::make_error_code(boost::system::errc::invalid_seek);
+              return 0;
+            }
             std::streampos beg = myStream.tellg();
             myStream.seekg(0, std::ios::end);
+            if (!myStream.good()) {
+              myError = boost::system::errc::make_error_code(boost::system::errc::invalid_seek);
+              return 0;
+            }
             std::streampos end = myStream.tellg();
             myStream.seekg(current, std::ios::beg);
-            return end - beg;
+            if (!myStream.good()) {
+              myError = boost::system::errc::make_error_code(boost::system::errc::invalid_seek);
+              return 0;
+            }
+            return static_cast<size_t>(end - beg);
           }
 
-          virtual std::size_t deviceBytesAvailable() {
+          std::size_t deviceBytesAvailable() override {
             return sourceSize() - myStream.tellg();
           }
 
         private:
           std::ifstream myStream;
+          boost::system::error_code myError;
         };
 
         class FilePushDevice : public virtual PushSourceDevice {
         public:
           FilePushDevice(NX::Scheduler *scheduler, const std::string &path);
 
-          virtual ~FilePushDevice() { myStream.close(); }
+          ~FilePushDevice() override { myStream.close(); }
 
         private:
           static const JSClassDefinition Class;
@@ -119,8 +138,10 @@ namespace NX {
             NX::Context *context = NX::Context::FromJsContext(ctx);
             JSClassRef fileSourceClass = createClass(context);
             try {
-              if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString)
-                throw NX::Exception("argument must be a string path");
+              if (argumentCount < 1 || JSValueGetType(ctx, arguments[0]) != kJSTypeString) {
+                *exception = NX::Object(ctx, NX::Exception("path must be a string"));
+                return nullptr;
+              }
               NX::Value path(ctx, arguments[0]);
               return JSObjectMake(ctx, fileSourceClass,
                                   dynamic_cast<NX::Classes::Base *>(
@@ -148,14 +169,17 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::FilePushDevice *>(Base::FromObject(obj));
           }
 
-          virtual bool deviceReady() const { return myState == State::Paused; }
+          bool deviceReady() const override { return myState == State::Paused && myStream.good() && !myError; }
+          bool deviceOpen() const override  { return myStream.is_open(); }
+          void deviceClose() override { myStream.close(); }
 
-          virtual bool eof() const {
-            boost::recursive_mutex::scoped_lock lock(myMutex);
+          const boost::system::error_code & deviceError() const override  { return myError; }
+
+          bool eof() const override {
             return myStream.eof();
           }
 
-          virtual JSObjectRef pause(JSContextRef ctx, JSObjectRef thisObject) {
+          JSObjectRef pause(JSContextRef ctx, JSObjectRef thisObject) override {
             if (myState == Resumed) {
               myState.store(Paused);
               return myPromise;
@@ -165,36 +189,31 @@ namespace NX {
             }
           }
 
-          virtual JSObjectRef reset(JSContextRef ctx, JSObjectRef thisObject) {
-            return NX::Object(ctx, pause(ctx, thisObject)).then(
-                [=](JSContextRef ctx, JSValueRef arg, JSValueRef *exception) {
-                  boost::recursive_mutex::scoped_lock lock(myMutex);
-                  myStream.seekg(0, std::ios::beg);
-                  return arg;
-                });
+          JSObjectRef reset(JSContextRef ctx, JSObjectRef thisObject) override {
+            myStream.seekg(0, std::ios_base::beg);
+            return NX::Globals::Promise::resolve(ctx, thisObject);
           }
 
-          virtual JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject);
+          JSObjectRef resume(JSContextRef ctx, JSObjectRef thisObject) override;
 
-          virtual State state() const { return myState; }
+          State state() const override { return myState; }
 
         private:
           NX::Scheduler *myScheduler;
+          std::string myPath;
           std::atomic<State> myState;
           std::atomic<NX::AbstractTask *> myTask;
           std::ifstream myStream;
           NX::Object myPromise;
-          mutable boost::recursive_mutex myMutex;
-          boost::pool<wtf_allocator_fast_malloc_free> myAllocator;
+          boost::system::error_code myError;
         };
-
 
         class FileSinkDevice : public virtual SeekableSinkDevice {
 
-          FileSinkDevice(const std::string &path);
+          explicit FileSinkDevice(const std::string &path);
+          explicit FileSinkDevice(int fd, bool close);
 
-          virtual ~FileSinkDevice() {
-            myStream.flush();
+          ~FileSinkDevice() override {
             myStream.close();
           }
 
@@ -217,40 +236,48 @@ namespace NX {
             return dynamic_cast<NX::Classes::IO::Devices::FileSinkDevice *>(Base::FromObject(obj));
           }
 
-          virtual std::size_t devicePosition() {
-//            boost::recursive_mutex::scoped_lock lock(myMutex);
-            return myStream.tellp();
+          std::size_t devicePosition() override {
+            return static_cast<size_t>(myStream.tellp());
           }
 
-          virtual bool deviceReady() const {
-//            boost::recursive_mutex::scoped_lock lock(myMutex);
+          bool deviceReady() const override {
             return myStream.good();
           }
 
-          virtual std::size_t deviceSeek(std::size_t pos, Position from) {
-//            boost::recursive_mutex::scoped_lock lock(myMutex);
-            myStream.seekp(pos, (std::ios::seekdir) from);
-            return myStream.tellp();
+          const boost::system::error_code & deviceError() const override  {
+            return myError;
+          }
+          bool deviceOpen() const override { return myStream.is_open(); }
+          void deviceClose() override { myStream.close(); }
+
+          std::size_t deviceSeek(std::size_t pos, Position from) override {
+            myStream.seekp(pos, (std::ios_base::seekdir)from);
+            return static_cast<size_t>(myStream.tellp());
           }
 
-          virtual std::size_t recommendedWriteBufferSize() const { return 1024 * 1024; }
+          std::size_t recommendedWriteBufferSize() const override { return 8 * 1024 * 1024; }
+          std::size_t maxWriteBufferSize() const override { return 8 * 1024 * 1024; }
 
-          virtual std::size_t maxWriteBufferSize() const { return UINT64_MAX; }
-
-          virtual void deviceWrite(const char *buffer, std::size_t length) {
-//            boost::recursive_mutex::scoped_lock lock(myMutex);
-            myStream.write(buffer, length);
-            myStream.flush();
+          std::size_t deviceWrite(const char *buffer, std::size_t length) override {
+            if (buffer && length) {
+              myStream.write(buffer, length);
+              myStream.flush();
+              return length;
+            } else
+              myStream.flush();
+            return 0;
           }
 
         private:
-          std::ofstream myStream;
-//          mutable boost::recursive_mutex myMutex;
+          boost::iostreams::stream<boost::iostreams::file_descriptor> myStream;
+          boost::system::error_code myError;
         };
 
-//         class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
-//
-//         };
+
+        class BidirectionalFileDevice: public BidirectionalDualSeekableDevice {
+          explicit BidirectionalFileDevice(const std::string &path) {}
+          explicit BidirectionalFileDevice(int fd) {}
+        };
       }
     }
   }

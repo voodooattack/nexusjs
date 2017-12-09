@@ -50,6 +50,8 @@ namespace NX
     Nexus(int argc, const char ** argv);
     virtual ~Nexus();
 
+    NX::Context * mainContext();
+
   public:
     void run();
 
@@ -63,7 +65,7 @@ namespace NX
       return myClasses[def.className] = JSClassCreate(&def);
     }
 
-    JSClassRef genericClass() { return defineOrGetClass({ 0, 0, "Object" }); }
+    JSClassRef genericClass() { return defineOrGetClass({ 0, 0, "GenericObject" }); }
 
   protected:
     bool parseArguments();

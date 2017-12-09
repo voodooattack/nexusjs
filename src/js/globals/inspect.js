@@ -5,16 +5,16 @@
  *
  */
 (function() {
-  var hasMap = typeof Map === 'function' && Map.prototype;
-  var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, 'size') : null;
-  var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === 'function' ? mapSizeDescriptor.get : null;
-  var mapForEach = hasMap && Map.prototype.forEach;
-  var hasSet = typeof Set === 'function' && Set.prototype;
-  var setSizeDescriptor = Object.getOwnPropertyDescriptor && hasSet ? Object.getOwnPropertyDescriptor(Set.prototype, 'size') : null;
-  var setSize = hasSet && setSizeDescriptor && typeof setSizeDescriptor.get === 'function' ? setSizeDescriptor.get : null;
-  var setForEach = hasSet && Set.prototype.forEach;
-  var booleanValueOf = Boolean.prototype.valueOf;
-  var hasOwn = Object.prototype.hasOwnProperty || function (key) { return key in this; };
+  let hasMap = typeof Map === 'function' && Map.prototype;
+  let mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, 'size') : null;
+  let mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === 'function' ? mapSizeDescriptor.get : null;
+  let mapForEach = hasMap && Map.prototype.forEach;
+  let hasSet = typeof Set === 'function' && Set.prototype;
+  let setSizeDescriptor = Object.getOwnPropertyDescriptor && hasSet ? Object.getOwnPropertyDescriptor(Set.prototype, 'size') : null;
+  let setSize = hasSet && setSizeDescriptor && typeof setSizeDescriptor.get === 'function' ? setSizeDescriptor.get : null;
+  let setForEach = hasSet && Set.prototype.forEach;
+  let booleanValueOf = Boolean.prototype.valueOf;
+  let hasOwn = Object.prototype.hasOwnProperty || function (key) { return key in this; };
 
   return function inspect() {
     try {
@@ -22,12 +22,12 @@
     } catch(e) {
       console.error(e);
     }
-  }
+  };
 
   function inspect_ (obj, opts, depth, seen) {
       if (!opts) opts = {};
 
-      var maxDepth = opts.depth === undefined ? 5 : opts.depth;
+      let maxDepth = opts.depth === undefined ? 5 : opts.depth;
       if (depth === undefined) depth = 0;
       if (depth >= maxDepth && maxDepth > 0 && obj && typeof obj === 'object') {
           return '[Object]';
@@ -50,20 +50,20 @@
           return inspectString(obj);
       }
       else if (typeof obj === 'function') {
-          var name = nameOf(obj);
+          let name = nameOf(obj);
           return '[Function' + (name ? ': ' + name : '') + ']';
       }
       else if (obj === null) {
           return 'null';
       }
       else if (isSymbol(obj)) {
-          var symString = Symbol.prototype.toString.call(obj);
+          let symString = Symbol.prototype.toString.call(obj);
           return typeof obj === 'object' ? 'Object(' + symString + ')' : symString;
       }
       else if (isElement(obj)) {
-          var s = '<' + String(obj.nodeName).toLowerCase();
-          var attrs = obj.attributes || [];
-          for (var i = 0; i < attrs.length; i++) {
+          let s = '<' + String(obj.nodeName).toLowerCase();
+          let attrs = obj.attributes || [];
+          for (let i = 0; i < attrs.length; i++) {
               s += ' ' + attrs[i].name + '="' + quote(attrs[i].value) + '"';
           }
           s += '>';
@@ -73,15 +73,15 @@
       }
       else if (isArray(obj)) {
           if (obj.length === 0) return '[]';
-          var xs = Array(obj.length);
-          for (var i = 0; i < obj.length; i++) {
+          let xs = Array(obj.length);
+          for (let i = 0; i < obj.length; i++) {
               xs[i] = has(obj, i) ? inspect(obj[i], obj) : '';
           }
           return '[ ' + xs.join(', ') + ' ]';
       }
       else if (isError(obj)) {
-          var parts = [];
-          for (var key in obj) {
+          let parts = [];
+          for (let key in obj) {
               if (!has(obj, key)) continue;
 
               if (/[^\w$]/.test(key)) {
@@ -98,14 +98,14 @@
           return obj.inspect();
       }
       else if (isMap(obj)) {
-          var parts = [];
+          let parts = [];
           mapForEach.call(obj, function (value, key) {
               parts.push(inspect(key, obj) + ' => ' + inspect(value, obj));
           });
           return 'Map (' + mapSize.call(obj) + ') {' + parts.join(', ') + '}';
       }
       else if (isSet(obj)) {
-          var parts = [];
+          let parts = [];
           setForEach.call(obj, function (value ) {
               parts.push(inspect(value, obj));
           });
@@ -124,13 +124,13 @@
           return 'Object(' + inspect(String(obj)) + ')';
       }
       else if (!isDate(obj) && !isRegExp(obj)) {
-          var xs = [], keys = [];
-          for (var key in obj) {
-              if (has(obj, key)) keys.push(key);
+          let xs = [], keys = [];
+          for (let key in obj) {
+            if (has(obj, key)) keys.push(key);
           }
-          keys.sort();
-          for (var i = 0; i < keys.length; i++) {
-              var key = keys[i];
+          // keys = keys.sort();
+          for (let i = 0; i < keys.length; i++) {
+              let key = keys[i];
               if (/[^\w$]/.test(key)) {
                   xs.push(inspect(key) + ': ' + inspect(obj[key], obj));
               }
@@ -165,13 +165,13 @@
 
   function nameOf (f) {
       if (f.name) return f.name;
-      var m = f.toString().match(/^function\s*([\w$]+)/);
+      let m = f.toString().match(/^function\s*([\w$]+)/);
       if (m) return m[1];
   }
 
   function indexOf (xs, x) {
       if (xs.indexOf) return xs.indexOf(x);
-      for (var i = 0, l = xs.length; i < l; i++) {
+      for (let i = 0, l = xs.length; i < l; i++) {
           if (xs[i] === x) return i;
       }
       return -1;
@@ -210,12 +210,12 @@
   }
 
   function inspectString (str) {
-      var s = str.replace(/(['\\])/g, '\\$1').replace(/[\x00-\x1f]/g, lowbyte);
+      let s = str.replace(/(['\\])/g, '\\$1').replace(/[\x00-\x1f]/g, lowbyte);
       return "'" + s + "'";
 
       function lowbyte (c) {
-          var n = c.charCodeAt(0);
-          var x = { 8: 'b', 9: 't', 10: 'n', 12: 'f', 13: 'r' }[n];
+          let n = c.charCodeAt(0);
+          let x = { 8: 'b', 9: 't', 10: 'n', 12: 'f', 13: 'r' }[n];
           if (x) return '\\' + x;
           return '\\x' + (n < 0x10 ? '0' : '') + n.toString(16);
       }

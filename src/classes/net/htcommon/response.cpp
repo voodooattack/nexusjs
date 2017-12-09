@@ -31,6 +31,7 @@ const JSStaticValue NX::Classes::Net::HTCommon::Response::Properties[] {
 const JSStaticFunction NX::Classes::Net::HTCommon::Response::Methods[] {
   { "status", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                 size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    NX::Context * context = NX::Context::FromJsContext(ctx);
     auto res = NX::Classes::Net::HTCommon::Response::FromObject(thisObject);
     if (!res)
       throw NX::Exception("HTCommon::Response does not implement status()");
@@ -54,14 +55,14 @@ const JSStaticFunction NX::Classes::Net::HTCommon::Response::Methods[] {
       try {
         res->status((unsigned) status);
       } catch (const std::exception & e) {
-        *exception = NX::Object(ctx, e);
-        return thisObject;
+        *exception = NX::Object(context->toJSContext(), e);
       }
     }
     return thisObject;
   }, 0 },
   { "set", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
                 size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    NX::Context * context = NX::Context::FromJsContext(ctx);
     auto res = NX::Classes::Net::HTCommon::Response::FromObject(thisObject);
     if (!res)
       throw NX::Exception("HTCommon::Response does not implement set()");
@@ -80,11 +81,38 @@ const JSStaticFunction NX::Classes::Net::HTCommon::Response::Methods[] {
       try {
         res->set(NX::Value(ctx, arguments[0]).toString(), NX::Value(ctx, arguments[1]).toString());
       } catch (const std::exception & e) {
-        *exception = NX::Object(ctx, e);
+        *exception = NX::Object(context->toJSContext(), e);
         return thisObject;
       }
     }
     return thisObject;
+  }, 0 },
+  { "send", [](JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject,
+              size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) -> JSValueRef {
+    NX::Context * context = NX::Context::FromJsContext(ctx);
+    auto res = NX::Classes::Net::HTCommon::Response::FromObject(thisObject);
+    if (!res)
+      throw NX::Exception("HTCommon::Response does not implement send()");
+    if (argumentCount != 1) {
+      NX::Value message(ctx, "send() requires exactly 1 string parameter: body");
+      JSValueRef args[] { message.value(), nullptr };
+      *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+      return thisObject;
+    } else {
+      if (JSValueGetType(ctx, arguments[0]) != kJSTypeString) {
+        NX::Value message(ctx, "body must be a string");
+        JSValueRef args[] { message.value(), nullptr };
+        *exception = JSObjectMakeError(ctx, 1, args, nullptr);
+        return thisObject;
+      }
+      try {
+        res->send(ctx, arguments[0]);
+        return thisObject;
+      } catch (const std::exception & e) {
+        *exception = NX::Object(context->toJSContext(), e);
+        return thisObject;
+      }
+    }
   }, 0 },
   { nullptr, nullptr, 0 }
 };
