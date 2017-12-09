@@ -25,11 +25,11 @@ Simply clone Nexus using git to your chosen directory.
 ```
 git clone https://github.com/voodooattack/nexusjs.git nexusjs
 cd nexusjs 
-git submodules update --init --recursive
+git submodule update --init --recursive
 ```
 Or you might wish to do a shallow clone to avoid a longer download:
 ```
-git submodules update --init --recursive --depth 1
+git submodule update --init --recursive --depth 1
 ```
 
 #### Building Nexus.js
