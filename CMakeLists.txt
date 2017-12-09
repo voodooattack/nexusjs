@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.3)
 
+# Get the latest abbreviated commit hash of the working branch
+execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+set(NEXUS_VERSION "${GIT_COMMIT_HASH}")
+
 include(CTest)
 
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
@@ -18,6 +28,7 @@ set(CMAKE_COLOR_MAKEFILE   ON)
 
 set(PORT JSCOnly)
 set(CPACK_PACKAGE_NAME Nexus)
+set(CPACK_PACKAGE_VERSION "${NEXUS_VERSION}")
 
 set(CMAKE_MODULE_PATH
     ${CMAKE_SOURCE_DIR}/cmake

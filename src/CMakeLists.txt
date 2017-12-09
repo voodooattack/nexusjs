@@ -27,6 +27,8 @@ elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   endif(BUILD_PROFILING)
 endif ()
 
+add_definitions("-DNEXUS_VERSION=\"${NEXUS_VERSION}\"")
+
 include(WebKitCommon)
 include(WebKitCompilerFlags)
 

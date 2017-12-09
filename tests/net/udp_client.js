@@ -9,7 +9,7 @@ socket.connect('127.0.0.1', 3000).then(socket => {
   const stream = new Nexus.IO.ReadableStream(fileDevice);
 
   stream.pipe(wstream).then(_ => {
-    console.log("finished!")
+    console.log("finished!");
     socket.on('data', (data, source) => { console.log(`from ${source.address}:${source.port} > `, String.fromCharCode.apply(null, new Uint8Array(data))); });
     socket.resume();
     setTimeout(() => socket.pause(), 2000);

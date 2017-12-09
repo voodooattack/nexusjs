@@ -1,5 +1,6 @@
 const acceptor = new Nexus.Net.TCP.Acceptor();
 let count = 0;
+
 acceptor.on('connection', (socket, endpoint) => {
   const connId = count++;
   console.log(`connection #${connId} from ${endpoint.address}:${endpoint.port}`);
@@ -15,6 +16,8 @@ acceptor.on('connection', (socket, endpoint) => {
   console.log(`sending greeting to #${connId}!`);
   wstream.write(buffer);
 });
+
 acceptor.bind('127.0.0.1', 10000);
 acceptor.listen();
+
 console.log('server ready');

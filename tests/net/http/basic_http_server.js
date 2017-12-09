@@ -145,7 +145,7 @@ server.on('connection', async (connection, peer) => {
   const connId = connections++;
   // Record the start time for this connection.
   const startTime = Date.now();
-  // Destructuring is supported, so why not use it?
+  // Destructuring is supported, why not use it?
   const { request, response } = connection;
   // Parse the URL parts.
   const { path } = parseURL(request.url);
@@ -158,7 +158,7 @@ server.on('connection', async (connection, peer) => {
     console.log(`> #${FgCyan + connId + Reset} ${Bright + peer.address}:${peer.port + Reset} ${
       FgGreen + request.method + Reset} "${FgYellow}${path}${Reset}"`, Reset);
     // Set the 'Server' header.
-    response.set('Server', `nexus.js/0.1.1`);
+    response.set('Server', `nexus.js/${Nexus.version}`);
     // Create our input stream.
     inStream = await createInputStream(path);
     // Create our output stream.
@@ -221,7 +221,7 @@ server.on('connection', async (connection, peer) => {
 /**
  * IP and port to listen on.
  */
-const ip = '127.0.0.1', port = 3000;
+const ip = '0.0.0.0', port = 3000;
 /**
  * Whether or not to set the `reuse` flag. (optional, default=false)
  */
@@ -242,4 +242,4 @@ server.listen(maxConcurrentConnections);
 /**
  * Happy streaming!
  */
-console.log(FgGreen + `Nexus.js HTTP server listening at ${ip}:${port}` + Reset);
+console.log(FgGreen + `Nexus.js/${Nexus.version} HTTP server listening at ${ip}:${port}` + Reset);

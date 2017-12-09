@@ -159,6 +159,10 @@ const JSStaticFunction NX::Global::NexusFunctions[] {
 };
 
 const JSStaticValue NX::Global::NexusProperties[] {
+    { "version", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
+    NX::Context * context = Context::FromJsContext(ctx);
+    return NX::Value(ctx, NEXUS_VERSION).value();
+  }, nullptr, kJSPropertyAttributeNone },
   { "Globals", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
     JSObjectRef globals = JSObjectMake(ctx, context->nexus()->genericClass(), nullptr);
