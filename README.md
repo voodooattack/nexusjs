@@ -67,6 +67,8 @@ You can read more on Nexus.js and the progress of development in the following a
 * [The Mantra (Questions and Answers)](https://medium.com/@voodooattack/concurrent-javascript-part-v-the-mantra-bbdafcac2349)
 * [Server (TCP API and Stress/Stability Testing)](https://medium.com/@voodooattack/concurrent-javascript-vi-server-9bb626f7cae1)
 * [A year's Absence (My apology for disappearing for an entire year)](https://medium.com/p/concurrent-javascript-a-years-absence-ea5ae93d3b91) 
+* [Introducing Nexus.js: A multi-threaded JavaScript run-time (Overview of what's been implemented so far, and a benchmark where Nexus serves 1,000 HTTP requests per second)](https://dev.to/voodooattack/introducing-nexusjs-a-multi-threaded-javascript-run-time-3g6)
+
 
 ## FAQ
 

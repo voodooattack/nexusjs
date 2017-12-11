@@ -80,7 +80,7 @@ async function createInputStream(path) {
     // Stat the target path.
     const {type} = await Nexus.FileSystem.stat(filePath);
     if (type === Nexus.FileSystem.FileType.Directory) // If it's a directory, return its 'index.html'
-      return createInputStream(Nexus.FileSystem.join(filePath, 'index.html'));
+      return createInputStream(Nexus.FileSystem.join(path, 'index.html'));
     else if (type === Nexus.FileSystem.FileType.Unknown || type === Nexus.FileSystem.FileType.NotFound)
       // If it's not found, throw NotFound.
       throw new NotFoundError(path);
