@@ -16,13 +16,18 @@
       this[eventsKey][event] = this[eventsKey][event] || [];
       this[eventsKey][event].push({ functor, count });
     }
-    emit(event, ...args) {
-      if (this[eventsKey][event]) {
-        return Promise.all(
-          this[eventsKey][event].filter(e => e.count-- > 0)
-            .map(e => e.functor)
-            .map(functor => Promise.resolve(functor(...args)))
-        );
+    emit(e, ...args) {
+      const event = this[eventsKey][e];
+      if (event) {
+        const events = [], length = event.length;
+        for(let i = 0; i < length; i++) {
+          if (event[i].count-- > 0) {
+            events.push(
+              Promise.resolve(event[i].functor.apply(void 0, args))
+            );
+          }
+        }
+        return Promise.all(events);
       } else
         return Promise.resolve([]);
     }

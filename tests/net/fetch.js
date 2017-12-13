@@ -1,0 +1,1 @@
+fetch('http://www.google.com').then(res => console.log(res));

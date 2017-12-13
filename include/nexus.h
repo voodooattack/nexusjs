@@ -87,6 +87,7 @@ namespace NX
     std::shared_ptr<NX::Scheduler> myScheduler;
     boost::program_options::variables_map myOptions;
     boost::unordered_map<std::string, JSClassRef> myClasses;
+    int myExitStatus;
   };
 }
 

@@ -61,7 +61,7 @@ namespace NX
     void resume() { myPauseTasks.store(false); }
     void stop();
     void join();
-    void joinPool();
+    void joinPool(const CompletionHandler & drainTasks);
 
     NX::AbstractTask * scheduleAbstractTask(NX::AbstractTask * task);
 

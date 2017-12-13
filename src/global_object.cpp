@@ -36,6 +36,7 @@
 #include <JavaScriptCore/runtime/JSModuleRecord.h>
 
 #include <JavaScriptCore/parser/ParserError.h>
+#include <JavaScriptCore/builtins/BuiltinUtils.h>
 
 #include "globals/global.h"
 
@@ -92,8 +93,8 @@ void NX::GlobalObject::queueTaskToEventLoop(JSC::JSGlobalObject &global, Ref<JSC
   auto &t = task.leakRef();
   globalObject.nexus()->scheduler()->scheduleTask(
     [&]() {
-      auto exec = global.globalExec();
-      JSC::JSLockHolder lock(globalObject.globalExec());
+      auto exec = globalObject.globalExec();
+      JSC::JSLockHolder lock(exec);
       t.run(exec);
       t.deref();
     }
@@ -105,6 +106,7 @@ NX::GlobalObject::GlobalObject(JSC::VM &vm, JSC::Structure *structure) :
 
 void NX::GlobalObject::finishCreation(VM &vm) {
   Base::finishCreation(vm);
+//  WebCore::JSBuiltinInternalFunctions::initialize(*this);
 }
 
 NX::GlobalObject *NX::GlobalObject::create(VM &vm, Structure *structure) {
@@ -194,7 +196,7 @@ static std::optional<DirectoryName> currentWorkingDirectory() {
   return extractDirectoryName(makeString(directoryString, pathSeparator()));
 }
 
-static void convertShebangToJSComment(WTF::Vector<char> &buffer) {
+static void convertShebangToJSComment(WTF::Vector<uint8_t> &buffer) {
   if (buffer.size() >= 2) {
     if (buffer[0] == '#' && buffer[1] == '!')
       buffer[0] = buffer[1] = '/';
@@ -206,14 +208,11 @@ static inline WTF::String stringFromUTF(const Vector &utf8) {
   return WTF::String::fromUTF8WithLatin1Fallback(utf8.data(), utf8.size());
 }
 
-static bool fetchModuleFromLocalFileSystem(const WTF::String &fileName, WTF::Vector<char> &buffer) {
+static bool fetchModuleFromLocalFileSystem(const WTF::String &fileName, WTF::Vector<uint8_t> &buffer) {
   try {
     const boost::filesystem::path path(fileName.utf8().buffer()->data());
     if (!boost::filesystem::exists(path)) {
-      static const std::list<const char *> extensions {
-        ".mjs",
-        ".js"
-      };
+      static const std::list<const char *> extensions { ".mjs", ".js" };
       for(auto const & ext : extensions) {
         boost::filesystem::path withExt(path);
         withExt.concat(ext);
@@ -277,7 +276,7 @@ static size_t curlWriteCallback(char *ptr, size_t size, size_t nmemb, void * use
   return size * nmemb;
 }
 
-static bool fetchModuleFromURL(const WTF::String &url, WTF::Vector<char> &buffer) {
+static bool fetchModuleFromURL(const WTF::String &url, WTF::Vector<uint8_t> &buffer) {
   try {
     static thread_local bool init;
     CURLcode code;
@@ -362,7 +361,6 @@ NX::GlobalObject::moduleLoaderImportModule(JSGlobalObject *globalObject, ExecSta
   if (!directoryName)
     return rejectPromise(
         createError(exec, makeString("Could not resolve the referrer name '", String(referrer.impl()), "'.")));
-
   auto result = JSC::importModule(exec, Identifier::fromString(&vm, resolvePath(directoryName.value(),
                                                                                 ModuleName(moduleName))), parameters,
                                   jsUndefined());
@@ -417,7 +415,23 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
                                                        "'.")));
     return {};
   }
-  return Identifier::fromString(&vm, isURL(key.impl()) ? key.impl() : resolvePath(directoryName.value(), ModuleName(key.impl())));
+
+  String moduleKey = key.impl(), moduleFetcher = "esm";
+  auto fetcherAndTarget = moduleKey.split(':');
+
+  if (fetcherAndTarget.size() >= 2) {
+    moduleFetcher = fetcherAndTarget[0];
+    moduleKey = fetcherAndTarget[1];
+    for(std::size_t i = 2; i < fetcherAndTarget.size(); i++)
+      moduleKey.append(fetcherAndTarget[i]);
+  }
+
+  if (isURL(moduleKey))
+    return Identifier::fromString(&vm, moduleFetcher + ":" + moduleKey);
+  else {
+    return Identifier::fromString(&vm, moduleFetcher + ":" + resolvePath(directoryName.value(), ModuleName(moduleKey)));
+  }
+
 }
 
 JSInternalPromise *
@@ -427,33 +441,44 @@ NX::GlobalObject::moduleLoaderFetch(JSGlobalObject *globalObject, ExecState *exe
   auto scope = DECLARE_CATCH_SCOPE(vm);
   JSInternalPromiseDeferred *deferred = JSInternalPromiseDeferred::create(exec, globalObject);
   String moduleKey = key.toWTFString(exec);
+  String moduleFetcher = "esm";
+
   if (UNLIKELY(scope.exception())) {
     auto exception = scope.exception();
     scope.clearException();
     return deferred->reject(exec, exception);
   }
+  auto fetcherAndTarget = moduleKey.split(':');
+  if (fetcherAndTarget.size() >= 2) {
+    moduleFetcher = fetcherAndTarget[0];
+    moduleKey = fetcherAndTarget[1];
+    for(std::size_t i = 2; i < fetcherAndTarget.size(); i++)
+      moduleKey.append(fetcherAndTarget[i]);
+  }
   // Here, now we consider moduleKey as the fileName.
-  WTF::Vector<char> utf8;
+  WTF::Vector<uint8_t> buffer;
+  JSC::SourceCode source;
 
-//  auto ctx = reinterpret_cast<NX::Context*>(
-//    static_cast<JSCallbackObject<NX::GlobalObject>*>(globalObject)->getPrivate()
-//  );
-
-  if (isURL(moduleKey)) {
-    if (!fetchModuleFromURL(moduleKey, utf8)) {
-      return deferred->reject(exec, createError(exec, makeString("Could not open URL '", moduleKey, "'.")));
+  if (moduleFetcher == "esm") {
+    if (isURL(moduleKey)) {
+      if (!fetchModuleFromURL(moduleKey, buffer)) {
+        return deferred->reject(exec, createError(exec, makeString("Could not open URL '", moduleKey, "'.")));
+      }
+    } else if (!fetchModuleFromLocalFileSystem(moduleKey, buffer))
+      return deferred->reject(exec, createError(exec, makeString("Could not open file '", moduleKey, "'.")));
+    source = makeSource(stringFromUTF(buffer),
+                        SourceOrigin {moduleKey}, moduleKey,
+                        TextPosition(),
+                        SourceProviderSourceType::Module);
+    JSC::ParserError error;
+    if (!JSC::checkModuleSyntax(exec, source, error)) {
+      NX::Nexus::ReportSyntaxError(source, error);
     }
-  } else if (!fetchModuleFromLocalFileSystem(moduleKey, utf8))
-    return deferred->reject(exec, createError(exec, makeString("Could not open file '", moduleKey, "'.")));
-
-  auto source = makeSource(stringFromUTF(utf8),
-                           SourceOrigin {moduleKey}, moduleKey,
-                           TextPosition(),
-                           SourceProviderSourceType::Module);
-  JSC::ParserError error;
-
-  if (!JSC::checkModuleSyntax(exec, source, error)) {
-    NX::Nexus::ReportSyntaxError(source, error);
+  } else {
+    auto ctx = reinterpret_cast<NX::Context*>(
+      static_cast<JSCallbackObject<NX::GlobalObject>*>(globalObject)->getPrivate()
+    );
+    // TODO: enumerate all fetchers.
   }
 
   auto result = deferred->resolve(exec, JSSourceCode::create(vm, std::move(source)));

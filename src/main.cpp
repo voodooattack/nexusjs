@@ -18,9 +18,9 @@
  */
 
 #include "nexus.h"
-
 #include "global_object.h"
 #include <JavaScriptCore/runtime/InitializeThreading.h>
+#include <JavaScriptCore/wasm/WasmFaultSignalHandler.h>
 
 int main (int argc, const char ** argv)
 {
@@ -38,9 +38,9 @@ int main (int argc, const char ** argv)
   WTF::initializeMainThread();
   WTF::initializeThreading();
   JSC::initializeThreading();
-//#if ENABLE(WEBASSEMBLY)
-//  JSC::Wasm::enableFastMemory();
-//#endif
+#if ENABLE(WEBASSEMBLY)
+  JSC::Wasm::enableFastMemory();
+#endif
   nexus.run();
   return 0;
 }

@@ -38,12 +38,14 @@
 #include <JavaScriptCore/runtime/InitializeThreading.h>
 #include <JavaScriptCore/parser/ParserError.h>
 #include <JavaScriptCore/parser/SourceCode.h>
+#include <JavaScriptCore/runtime/JSNativeStdFunction.h>
+#include <JavaScriptCore/runtime/PromiseDeferredTimer.h>
 
 namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
   argc(argc), argv(argv), myArguments(), myContextGroup(nullptr), myMainContext(nullptr),
-  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myClasses()
+  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myClasses(), myExitStatus(0)
 {
   for (int i = 0; i < argc; i++) {
     myArguments.emplace_back(std::string(argv[i]));
@@ -100,8 +102,13 @@ void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
       stream << "Unhandled exception: " << NX::Value(ctx, exception).toString() << std::endl;
     } else {
       NX::Object exp(ctx, exception);
-      stream << "Unhandled exception: " << exp["message"]->toString() << std::endl;
-      stream << "stack trace:\n" << exp["stack"]->toString() << std::endl;
+      auto sourceURL = exp["sourceURL"], line = exp["line"], message = exp["message"], stack = exp["stack"];
+      auto name = exp["name"];
+      stream << "Unhandled " <<
+                             (name->toBoolean() ? name->toString() : "Exception")
+             << " in " << sourceURL->toString() << ":" << exp["line"]->toString() << std::endl;
+      stream << "Message: " << exp["message"]->toString() << std::endl;
+      stream << "Stack:\n" << exp["stack"]->toString() << std::endl;
     }
     stream << std::endl;
   } catch(const NX::Exception & e) {
@@ -132,16 +139,46 @@ void NX::Nexus::run() {
     if (!myMainContext) {
       myMainContext = new NX::Context(nullptr, this);
     }
+    JSC::Options::useWebAssembly() = true;
+    JSC::Options::useWebAssemblyFastMemory() = true;
+    JSC::Options::useFastTLSForWasmContext() = true;
 // enable these to debug the module loader!
 //    JSC::Options::dumpModuleLoadingState() = true;
 //    JSC::Options::dumpModuleRecord() = true;
-    myMainContext->evaluateModule("import \"" + myScriptPath + "\";", nullptr, myScriptPath + "[entry]", 1);
+    auto promise = myMainContext->evaluateModule("import \"" + myScriptPath + "\";", nullptr, myScriptPath + "[entry]", 1);
+    {
+      JSC::JSLockHolder holder(myMainContext->vm());
+      JSC::JSFunction *fulfillHandler = JSC::JSNativeStdFunction::create(*myMainContext->vm(),
+                                                                         myMainContext->globalObject(),
+                                                                         1, WTF::String(),
+                                                                         [&](JSC::ExecState *exec)
+      {
+        myExitStatus = 0;
+        return JSC::JSValue::encode(JSC::jsUndefined());
+      });
+      JSC::JSFunction *rejectHandler = JSC::JSNativeStdFunction::create(*myMainContext->vm(),
+                                                                        myMainContext->globalObject(),
+                                                                        1, String(),
+                                                                        [&](JSC::ExecState *exec)
+      {
+        ReportException(toRef(exec), toRef(exec, exec->argument(0)));
+        myExitStatus = 1;
+        return JSC::JSValue::encode(JSC::jsUndefined());
+      });
+      promise->then(myMainContext->globalObject()->globalExec(), fulfillHandler, rejectHandler);
+    }
     myScheduler->start();
-    myScheduler->joinPool();
+    myScheduler->joinPool([&] {
+      myMainContext->vm()->promiseDeferredTimer->runRunLoop();
+      {
+        JSC::JSLockHolder holder(myMainContext->vm());
+        myMainContext->vm()->drainMicrotasks();
+      }
+    });
     myScheduler->join();
-    exit(0);
+    exit(myExitStatus);
   } catch(std::exception & e) {
-    std::cerr << e.what() << std::endl;
+    ReportException(e);
     exit(1);
   }
 }

@@ -17,6 +17,7 @@ Nexus.js is Promise-based and embraces ES6 in full; and as a result, it is not c
 * [CMake](https://cmake.org)
 * [Boost](http://www.boost.org)
 * [ICU](http://site.icu-project.org/)
+* [curl](https://curl.haxx.se/libcurl/)
 
 #### Obtaining Nexus.js
 
@@ -27,7 +28,7 @@ git clone https://github.com/voodooattack/nexusjs.git nexusjs
 cd nexusjs 
 git submodule update --init --recursive
 ```
-Or you might wish to do a shallow clone to avoid a longer download:
+Or you might wish to do a shallow clone to avoid a longer download (If this does not work, try cloning without `--depth 1`):
 ```
 git submodule update --init --recursive --depth 1
 ```

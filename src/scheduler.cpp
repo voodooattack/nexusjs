@@ -158,9 +158,11 @@ void NX::Scheduler::yield()
   myCurrentTask->yield();
 }
 
-void NX::Scheduler::joinPool() {
+void NX::Scheduler::joinPool(const CompletionHandler & drainTasks) {
   do {
     dispatcher();
+    if (drainTasks)
+      drainTasks();
     std::this_thread::sleep_for(std::chrono::microseconds(200));
   } while (myHoldCount);
 }

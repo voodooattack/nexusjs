@@ -10,7 +10,8 @@ socket.connect('127.0.0.1', 3000).then(socket => {
 
   stream.pipe(wstream).then(_ => {
     console.log("finished!");
-    socket.on('data', (data, source) => { console.log(`from ${source.address}:${source.port} > `, String.fromCharCode.apply(null, new Uint8Array(data))); });
+    socket.on('data', (data, source) => { console.log(`from ${source.address}:${source.port} > `,
+      String.fromCharCode.apply(null, new Uint8Array(data))); });
     socket.resume();
     setTimeout(() => socket.pause(), 2000);
   }, e => console.error(e));
