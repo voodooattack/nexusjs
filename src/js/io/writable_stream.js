@@ -48,7 +48,6 @@
     }
     get filters() { return this[filtersKey]; }
     get device() { return this[deviceKey]; }
-    get eof() { return this.device.eof; }
     write(data) {
       return this.filters.reduce((prev, next) => prev.then(next.process.bind(next)), Promise.resolve(data))
         .then(this.device.write.bind(this.device));

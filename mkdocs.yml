@@ -1,0 +1,26 @@
+site_name: "Nexus.js"
+site_description: "Nexus.js — A multi-threaded JavaScript platform for the server."
+site_author: "https://twitter.com/voodooattack"
+copyright: "Copyright&copy; 2016-2017, Abdullah Ali"
+site_url: "http://www.nexusjs.com"
+repo_url: "https://github.com/voodooattack/nexusjs"
+repo_name: GitHub
+google_analytics: ['UA-55214297-7', 'nexusjs.com']
+strict: true
+markdown_extensions:
+  - toc:
+      permalink: true
+pages:
+  - Home: index.md
+  - About: about.md
+  - Building: building.md
+  - Architecture: architecture.md
+  - Modules: modules.md
+  - API: api.md
+  - API Index:
+    - Scheduler: api/scheduler.md
+    - IO: api/io.md
+    - Net: api/net.md
+    - EventEmitter: api/emitter.md
+    - FileSystem: api/fs.md
+    - WebAssembly:  api/wasm.md

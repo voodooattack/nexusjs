@@ -20,6 +20,7 @@
 #include "nexus.h"
 #include "context.h"
 #include "globals/net.h"
+#include "classes/io/devices/socket.h"
 #include "classes/net/tcp/acceptor.h"
 #include "classes/net/http/server.h"
 #include "classes/net/http2/server.h"
@@ -40,6 +41,24 @@ const JSClassDefinition NX::Globals::Net::Class {
 };
 
 const JSStaticValue NX::Globals::Net::Properties[] {
+  {"SocketDevice",             [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName,
+                                  JSValueRef *exception) -> JSValueRef {
+    NX::Context *context = Context::FromJsContext(ctx);
+    if (auto val = context->getGlobal("Nexus.Net.SocketDevice"))
+      return val;
+    JSObjectRef constructor = NX::Classes::IO::Devices::Socket::getConstructor(context);
+    context->setGlobal("Nexus.Net.Socket", constructor);
+    return constructor;
+  }, nullptr, kJSPropertyAttributeNone},
+  {"UDPSocket",          [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName,
+                                  JSValueRef *exception) -> JSValueRef {
+    NX::Context *context = Context::FromJsContext(ctx);
+    if (auto val = context->getGlobal("Nexus.Net.UDPSocket"))
+      return val;
+    JSObjectRef constructor = NX::Classes::IO::Devices::UDPSocket::getConstructor(context);
+    context->setGlobal("Nexus.IO.UDPSocket", constructor);
+    return constructor;
+  }, nullptr, kJSPropertyAttributeNone},
   { "TCP", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
     if (auto TCP = context->getGlobal("Nexus.Net.TCP"))

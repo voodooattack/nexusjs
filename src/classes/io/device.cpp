@@ -497,7 +497,7 @@ JSStaticFunction NX::Classes::IO::SinkDevice::Methods[] {
             JSValueUnprotect(context->toJSContext(), thisObject);
             return;
           }
-          resolve(context->toJSContext(), JSValueMakeUndefined(context->toJSContext()));
+          resolve(context->toJSContext(), JSValueMakeNumber(context->toJSContext(), written));
           JSValueUnprotect(context->toJSContext(), arrayBuffer);
           JSValueUnprotect(context->toJSContext(), thisObject);
         };

@@ -147,19 +147,9 @@ const JSStaticValue NX::Global::NexusProperties[] {
     NX::Context * context = Context::FromJsContext(ctx);
     return NX::Value(ctx, NEXUS_VERSION).value();
   }, nullptr, kJSPropertyAttributeNone },
-  { "Globals", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
+  { "script", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);
-    JSObjectRef globals = JSObjectMake(ctx, context->nexus()->genericClass(), nullptr);
-    boost::unordered_map<std::string, JSValueRef> props {
-      { "entryPoint", NX::Value(ctx, context->nexus()->scriptPath()).value() }
-    };
-    for(std::size_t i = 0; i < props.size(); i++) {
-      auto prop = props.begin();
-      std::advance(prop, i);;
-      NX::ScopedString name(prop->first);
-      JSObjectSetProperty(ctx, globals, name, prop->second, kJSPropertyAttributeNone, nullptr);
-    }
-    return globals;
+    return NX::Value(ctx, context->nexus()->scriptPath()).value();
   }, nullptr, kJSPropertyAttributeNone },
   { "EventEmitter", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef * exception) -> JSValueRef {
     NX::Context * context = Context::FromJsContext(ctx);

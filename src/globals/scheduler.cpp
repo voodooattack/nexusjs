@@ -35,14 +35,14 @@ const JSStaticValue NX::Globals::Scheduler::Properties[] {
       return NX::Value(ctx, scheduler->concurrency()).value();
     }, nullptr, kJSPropertyAttributeReadOnly
   },
-  { "Task", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
-      NX::Context * context = NX::Context::FromJsContext(ctx);
-      if (JSObjectRef Task = JSValueToObject(ctx, context->getGlobal("Nexus.Scheduler.Task"), exception))
-        if (!*exception)
-          return Task;
-      return context->setGlobal("Nexus.Scheduler.Task", NX::Classes::Task::getConstructor(context));
-    }, nullptr, kJSPropertyAttributeReadOnly
-  },
+//  { "Task", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+//      NX::Context * context = NX::Context::FromJsContext(ctx);
+//      if (JSObjectRef Task = JSValueToObject(ctx, context->getGlobal("Nexus.Scheduler.Task"), exception))
+//        if (!*exception)
+//          return Task;
+//      return context->setGlobal("Nexus.Scheduler.Task", NX::Classes::Task::getConstructor(context));
+//    }, nullptr, kJSPropertyAttributeReadOnly
+//  },
   { nullptr, nullptr, nullptr, 0 }
 };
 

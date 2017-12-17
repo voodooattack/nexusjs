@@ -1,4 +1,3 @@
-// import { h } from 'https://unpkg.com/preact/dist/preact.esm.js';
 const server = new Nexus.Net.HTTP.Server();
 
 function createInputStream() {

@@ -45,7 +45,7 @@ namespace po = boost::program_options;
 
 NX::Nexus::Nexus(int argc, const char ** argv):
   argc(argc), argv(argv), myArguments(), myContextGroup(nullptr), myMainContext(nullptr),
-  myScriptSource(), myScriptPath(), myScheduler(nullptr), myOptions(), myClasses(), myExitStatus(0)
+  myScriptLoaders(), myScriptPath(), myScheduler(nullptr), myOptions(), myClasses(), myExitStatus(0)
 {
   for (int i = 0; i < argc; i++) {
     myArguments.emplace_back(std::string(argv[i]));
@@ -70,11 +70,12 @@ bool NX::Nexus::parseArguments()
     ("silent,s", "don't print errors")
     ("concurrency", po::value<unsigned int>(&nThreads)->default_value(boost::thread::hardware_concurrency()),
       "maximum threads in the task scheduler's pool (defaults to the available number of cores)")
-    ("input-file", po::value<std::string>(), "input file");
-  po::positional_options_description p;
-  p.add("input-file", -1);
+    ("loader,l", po::value<std::vector<std::string>>(), "ES6 module loader to use - must export `resolve()`")
+    ("module,m", po::value<std::string>(), "module to load");
+  po::positional_options_description module;
+  module.add("module", -1);
   po::variables_map & vm(myOptions);
-  po::store(po::command_line_parser(this->argc, this->argv).options(desc).positional(p).run(), vm);
+  po::store(po::command_line_parser(this->argc, this->argv).options(desc).positional(module).run(), vm);
   po::notify(vm);
   if (this->argc <= 1 || vm.count("help")) {
     std::cout << "Nexus.js - The next-gen JavaScript platform" << std::endl;
@@ -82,14 +83,13 @@ bool NX::Nexus::parseArguments()
     std::cout << desc << std::endl;
     return true;
   }
-  myScriptPath = boost::filesystem::absolute(vm["input-file"].as<std::string>()).string();
+  myScriptPath = boost::filesystem::absolute(vm["module"].as<std::string>()).string();
+  if (vm.count("loader"))
+    myScriptLoaders = vm["loader"].as<std::vector<std::string>>();
   if (!boost::filesystem::exists(myScriptPath)) {
     std::cerr << "file not found: " << myScriptPath << std::endl;
     return true;
   }
-  std::ifstream ifs(myScriptPath);
-  myScriptSource.assign(std::istreambuf_iterator<char>(ifs),
-                        std::istreambuf_iterator<char>());
   return false;
 }
 
@@ -107,14 +107,14 @@ void NX::Nexus::ReportException(JSContextRef ctx, JSValueRef exception) {
       stream << "Unhandled " <<
                              (name->toBoolean() ? name->toString() : "Exception")
              << " in " << sourceURL->toString() << ":" << exp["line"]->toString() << std::endl;
-      stream << "Message: " << exp["message"]->toString() << std::endl;
+      stream << exp["message"]->toString() << std::endl;
       stream << "Stack:\n" << exp["stack"]->toString() << std::endl;
     }
     stream << std::endl;
-  } catch(const NX::Exception & e) {
+    std::cerr << stream.str();
+  } catch(const std::exception & e) {
     std::cerr << "An exception occurred: " << e.what() << std::endl;
   }
-  std::cerr << stream.str();
 }
 
 void NX::Nexus::ReportException(const std::exception &e) {
@@ -145,7 +145,16 @@ void NX::Nexus::run() {
 // enable these to debug the module loader!
 //    JSC::Options::dumpModuleLoadingState() = true;
 //    JSC::Options::dumpModuleRecord() = true;
-    auto promise = myMainContext->evaluateModule("import \"" + myScriptPath + "\";", nullptr, myScriptPath + "[entry]", 1);
+    std::string script;
+    int idx = 0;
+    for(auto & i : myScriptLoaders) {
+      script += "import { resolve as resolve" + std::to_string(idx++) + " } from \"" + i + "\";\n";
+    }
+    for(int i = 0; i < idx; i++) {
+      script += "Nexus.Module.registerResolver(resolve" + std::to_string(i) + ");\n";
+    }
+    script += "import \"" + myScriptPath + "\";\n";
+    auto promise = myMainContext->evaluateModule(script, nullptr, myScriptPath + "[entry]", 1);
     {
       JSC::JSLockHolder holder(myMainContext->vm());
       JSC::JSFunction *fulfillHandler = JSC::JSNativeStdFunction::create(*myMainContext->vm(),

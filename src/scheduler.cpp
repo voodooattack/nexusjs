@@ -101,6 +101,7 @@ std::size_t NX::Scheduler::drainTasks()
       if (myCurrentTask.get() && myCurrentTask->status() == NX::AbstractTask::PENDING)
       {
         myTaskQueue.push(myCurrentTask.release());
+        myTaskCount++;
       }
       else if (auto pTask = myCurrentTask.release()) {
         pTask->exit();
@@ -116,7 +117,7 @@ std::size_t NX::Scheduler::drainTasks()
 
 void NX::Scheduler::balanceThreads()
 {
-  while(myTaskCount > myThreadGroup.size() && myThreadGroup.size() < myMaxThreads)
+  while(myTaskCount > 0 && myThreadGroup.size() < myMaxThreads)
     addThread();
 }
 

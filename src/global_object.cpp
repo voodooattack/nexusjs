@@ -241,12 +241,13 @@ static bool fetchModuleFromLocalFileSystem(const WTF::String &fileName, WTF::Vec
   }
 }
 
-#define URL_REGEX "(http|https)://([^/ :]+):?([^/ ]*)(/?[^ #?]*)\\x3f?([^ #]*)#?([^ ]*)"
+#define URL_REGEX "([a-zA-Z0-9]+://)?([^/ :]+)?:?([^/ ]*)(/?[^ #?]*)?\\x3f?([^ #]*)?#?([^ ]*)?"
 
 static bool isURL(const WTF::String &url) {
   boost::regex ex(URL_REGEX);
   boost::cmatch what;
-  return regex_match(url.utf8().data(), what, ex);
+  return regex_match(url.utf8().data(), what, ex) &&
+    std::string(what[1].first, what[1].second).length();
 }
 
 struct sURL {
@@ -396,6 +397,29 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
   const Identifier referrer = referrerValue.toPropertyKey(exec);
   RETURN_IF_EXCEPTION(scope, {});
 
+  sURL url {};
+
+  try {
+    url = parseURL(key.impl());
+  } catch (const std::exception & e) {
+    url.path = key.impl()->utf8().data();
+  }
+
+//  std::cout << "protocol: " << url.protocol << std::endl;
+//  std::cout << "domain: " << url.domain << std::endl;
+//  std::cout << "path: " << url.path << std::endl;
+//  std::cout << "port: " << url.port << std::endl;
+//  std::cout << "query: " << url.query << std::endl;
+//
+//  if (!url.domain.empty() && url.domain != "." && url.domain != "..")
+//  {
+//    std::cout << "domain: " << url.domain << std::endl;
+//  }
+
+  // if the protocol is specified, pass it all along
+  if (!url.protocol.empty())
+    return Identifier::fromString(&vm, key.impl());
+
   // entry point
   if (referrer.isSymbol()) {
 //    auto directoryName = currentWorkingDirectory();
@@ -404,7 +428,8 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
       throwException(exec, scope, createError(exec, ASCIILiteral("Could not resolve the current working directory.")));
       return {};
     }
-    return Identifier::fromString(&vm, resolvePath(directoryName.value(), ModuleName(key.impl())));
+    return Identifier::fromString(&vm, resolvePath(directoryName.value(), ModuleName(
+      boost::filesystem::path(url.domain).append(url.path).c_str())));
   }
 
   // If the referrer exists, we assume that the referrer is the correct absolute path.
@@ -416,21 +441,10 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
     return {};
   }
 
-  String moduleKey = key.impl(), moduleFetcher = "esm";
-  auto fetcherAndTarget = moduleKey.split(':');
+  String moduleKey = key.impl();
 
-  if (fetcherAndTarget.size() >= 2) {
-    moduleFetcher = fetcherAndTarget[0];
-    moduleKey = fetcherAndTarget[1];
-    for(std::size_t i = 2; i < fetcherAndTarget.size(); i++)
-      moduleKey.append(fetcherAndTarget[i]);
-  }
-
-  if (isURL(moduleKey))
-    return Identifier::fromString(&vm, moduleFetcher + ":" + moduleKey);
-  else {
-    return Identifier::fromString(&vm, moduleFetcher + ":" + resolvePath(directoryName.value(), ModuleName(moduleKey)));
-  }
+  return Identifier::fromString(&vm, resolvePath(directoryName.value(), ModuleName(
+    boost::filesystem::path(url.domain).append(url.path).c_str())));
 
 }
 
@@ -441,44 +455,30 @@ NX::GlobalObject::moduleLoaderFetch(JSGlobalObject *globalObject, ExecState *exe
   auto scope = DECLARE_CATCH_SCOPE(vm);
   JSInternalPromiseDeferred *deferred = JSInternalPromiseDeferred::create(exec, globalObject);
   String moduleKey = key.toWTFString(exec);
-  String moduleFetcher = "esm";
 
   if (UNLIKELY(scope.exception())) {
     auto exception = scope.exception();
     scope.clearException();
     return deferred->reject(exec, exception);
   }
-  auto fetcherAndTarget = moduleKey.split(':');
-  if (fetcherAndTarget.size() >= 2) {
-    moduleFetcher = fetcherAndTarget[0];
-    moduleKey = fetcherAndTarget[1];
-    for(std::size_t i = 2; i < fetcherAndTarget.size(); i++)
-      moduleKey.append(fetcherAndTarget[i]);
-  }
+
   // Here, now we consider moduleKey as the fileName.
   WTF::Vector<uint8_t> buffer;
   JSC::SourceCode source;
 
-  if (moduleFetcher == "esm") {
-    if (isURL(moduleKey)) {
-      if (!fetchModuleFromURL(moduleKey, buffer)) {
-        return deferred->reject(exec, createError(exec, makeString("Could not open URL '", moduleKey, "'.")));
-      }
-    } else if (!fetchModuleFromLocalFileSystem(moduleKey, buffer))
-      return deferred->reject(exec, createError(exec, makeString("Could not open file '", moduleKey, "'.")));
-    source = makeSource(stringFromUTF(buffer),
-                        SourceOrigin {moduleKey}, moduleKey,
-                        TextPosition(),
-                        SourceProviderSourceType::Module);
-    JSC::ParserError error;
-    if (!JSC::checkModuleSyntax(exec, source, error)) {
-      NX::Nexus::ReportSyntaxError(source, error);
+  if (isURL(moduleKey)) {
+    if (!fetchModuleFromURL(moduleKey, buffer)) {
+      return deferred->reject(exec, createError(exec, makeString("Could not open URL '", moduleKey, "'.")));
     }
-  } else {
-    auto ctx = reinterpret_cast<NX::Context*>(
-      static_cast<JSCallbackObject<NX::GlobalObject>*>(globalObject)->getPrivate()
-    );
-    // TODO: enumerate all fetchers.
+  } else if (!fetchModuleFromLocalFileSystem(moduleKey, buffer))
+    return deferred->reject(exec, createError(exec, makeString("Could not open file '", moduleKey, "'.")));
+  source = makeSource(stringFromUTF(buffer),
+                      SourceOrigin {moduleKey}, moduleKey,
+                      TextPosition(),
+                      SourceProviderSourceType::Module);
+  JSC::ParserError error;
+  if (!JSC::checkModuleSyntax(exec, source, error)) {
+    NX::Nexus::ReportSyntaxError(source, error);
   }
 
   auto result = deferred->resolve(exec, JSSourceCode::create(vm, std::move(source)));
@@ -498,6 +498,10 @@ NX::GlobalObject::moduleLoaderCreateImportMetaProperties(JSGlobalObject *globalO
 
   metaProperties->putDirect(vm, Identifier::fromString(&vm, "filename"), key);
   RETURN_IF_EXCEPTION(scope, nullptr);
+
+  metaProperties->putDirect(vm, Identifier::fromString(&vm, "url"), key);
+  RETURN_IF_EXCEPTION(scope, nullptr);
+
   if (!key.isSymbol()) {
     auto path = boost::filesystem::path(key.toString(exec)->value(exec).utf8().data());
     path.remove_filename();

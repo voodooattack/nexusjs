@@ -63,26 +63,12 @@ JSObjectRef NX::Classes::Task::wrapTask (JSContextRef ctx, NX::AbstractTask * ta
   JSValueProtect(context->toJSContext(), ret);
   auto handler = [=]() { wrapper->myTask.store(nullptr); JSValueUnprotect(context->toJSContext(), ret); };
   auto completionHandler = [=]{
-    if (dynamic_cast<NX::CoroutineTask*>(task)) {
-      context->nexus()->scheduler()->scheduleTask([=] {
-        wrapper->emitFast(context->toJSContext(), ret, "completed", 0, nullptr, nullptr);
-        handler();
-      });
-    } else {
-      wrapper->emitFast(context->toJSContext(), ret, "completed", 0, nullptr, nullptr);
-      handler();
-    }
+    wrapper->emitFast(context->toJSContext(), ret, "completed", 0, nullptr, nullptr);
+    handler();
   };
   auto cancellationHandler = [=]{
-    if (dynamic_cast<NX::CoroutineTask*>(task)) {
-      context->nexus()->scheduler()->scheduleTask([=] {
-        wrapper->emitFast(context->toJSContext(), ret, "aborted", 0, nullptr, nullptr);
-        handler();
-      });
-    } else {
-      wrapper->emitFast(context->toJSContext(), ret, "aborted", 0, nullptr, nullptr);
-      handler();
-    }
+    wrapper->emitFast(context->toJSContext(), ret, "aborted", 0, nullptr, nullptr);
+    handler();
   };
   task->addCompletionHandler(completionHandler);
   task->addCancellationHandler(cancellationHandler);

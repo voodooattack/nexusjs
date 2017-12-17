@@ -82,7 +82,7 @@ namespace NX
     std::list<std::string> myArguments;
     JSContextGroupRef myContextGroup;
     NX::Context * myMainContext;
-    std::string myScriptSource;
+    std::vector<std::string> myScriptLoaders;
     std::string myScriptPath;
     std::shared_ptr<NX::Scheduler> myScheduler;
     boost::program_options::variables_map myOptions;

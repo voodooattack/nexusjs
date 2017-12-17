@@ -57,10 +57,10 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
 //   },
   { "Permissions", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
       NX::Context * context = Context::FromJsContext(ctx);
-      if (auto OpenMode = context->getGlobal("Nexus.FileSystem.Permissions"))
-        return OpenMode;
+      if (auto Permissions = context->getGlobal("Nexus.FileSystem.Permissions"))
+        return Permissions;
       NX::Object modes(ctx);
-      modes.set("AllAll",                JSValueMakeNumber(ctx, boost::filesystem::perms::all_all));
+      modes.set("AllAll",             JSValueMakeNumber(ctx, boost::filesystem::perms::all_all));
       modes.set("GroupAll",           JSValueMakeNumber(ctx, boost::filesystem::perms::group_all));
       modes.set("GroupExec",          JSValueMakeNumber(ctx, boost::filesystem::perms::group_exe));
       modes.set("GroupRead",          JSValueMakeNumber(ctx, boost::filesystem::perms::group_read));
@@ -101,6 +101,13 @@ const JSStaticValue NX::Globals::FileSystem::Properties[] {
       return context->setGlobal("Nexus.FileSystem.FileType", modes.value());
     }, nullptr, kJSPropertyAttributeNone
   },
+  { "separator", [](JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception) -> JSValueRef {
+      static const char sep[] = {
+        boost::filesystem::path::preferred_separator
+      };
+      return NX::Value(ctx, sep).value();
+    }, nullptr, kJSPropertyAttributeNone
+  },
   { nullptr, nullptr, nullptr, 0 }
 };
 
@@ -112,7 +119,7 @@ const JSStaticFunction NX::Globals::FileSystem::Methods[] {
         std::string filePath = NX::Value(ctx, arguments[0]).toString();
         boost::filesystem::file_status stats = boost::filesystem::status(filePath);
         boost::filesystem::perms perms = stats.permissions();
-        boost::filesystem::file_type type = stats.type();
+                boost::filesystem::file_type type = stats.type();
         NX::Object statsObj(ctx);
         statsObj.set("type", NX::Value(ctx, type).value());
         if (stats.type() != boost::filesystem::file_type::file_not_found) {

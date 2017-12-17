@@ -1,4 +1,4 @@
-const socket = new Nexus.IO.UDPSocketDevice();
+const socket = new Nexus.Net.UDPSocket();
 socket.on('attempt', (v,w) => console.log("attempting to connect to: " + v));
 socket.on('connected', (v,w) => console.log("connected to: " + v + " on port " + w));
 socket.connect('127.0.0.1', 3000).then(socket => {

@@ -75,7 +75,7 @@ async function createInputStream(path) {
   /**
    * `import.meta.dirname` and `import.meta.filename` replace the old CommonJS `__dirname` and `__filename`.
    */
-  const filePath = Nexus.FileSystem.join(import.meta.dirname, 'server_root', path);
+  const filePath = Nexus.FileSystem.join(import.meta.dirname, 'site', path);
   try {
     // Stat the target path.
     const {type} = await Nexus.FileSystem.stat(filePath);

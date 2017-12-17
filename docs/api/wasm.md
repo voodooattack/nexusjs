@@ -1,3 +1,8 @@
+# WebAssembly
+
+Web Assembly is supported by Nexus.js. Use it as you would in a browser.
+
+```js
 const device = new Nexus.IO.FilePushDevice(Nexus.FileSystem.join(import.meta.dirname, 'add.wasm'));
 const stream = new Nexus.IO.ReadableStream(device);
 
@@ -26,3 +31,4 @@ stream.on('end', async () => {
 });
 
 stream.resume();
+```

@@ -93,6 +93,16 @@
           this.device.resume().catch(e => this.emit('error', e));
         });
     }
+    async pause() {
+      if (this.device.type === 'pull')
+        throw new Error('could not pause a PullSourceDevice');
+      return this.device.pause();
+    }
+    async reset() {
+      if (this.device.type === 'pull')
+        throw new Error('could not reset a PullSourceDevice');
+      return this.device.reset();
+    }
     read() {
       if (this.device.type === 'push')
         throw new TypeError('can not perform read operation on PushSourceDevice');

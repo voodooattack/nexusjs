@@ -9,45 +9,17 @@ Nexus.js uses an asynchronous, non-blocking I/O model, and a thread-pool schedul
 
 Nexus.js is Promise-based and embraces ES6 in full; and as a result, it is not compatible with Node.js APIs.
 
+Visit the homepage at [nexusjs.com](http://www.nexusjs.com).
+
 ## Building
 
-#### Build Requirements
-
-* [JavaScriptCore (WebKit)](https://webkit.org/)
-* [CMake](https://cmake.org)
-* [Boost](http://www.boost.org)
-* [ICU](http://site.icu-project.org/)
-* [curl](https://curl.haxx.se/libcurl/)
-
-#### Obtaining Nexus.js
-
-Simply clone Nexus using git to your chosen directory.
-
-```
-git clone https://github.com/voodooattack/nexusjs.git nexusjs
-cd nexusjs 
-git submodule update --init --recursive
-```
-Or you might wish to do a shallow clone to avoid a longer download (If this does not work, try cloning without `--depth 1`):
-```
-git submodule update --init --recursive --depth 1
-```
-
-#### Building Nexus.js
-
-After making sure you have all the dependencies installed, use CMake to build Nexus.js. I recommend using [CCMake](https://cmake.org/cmake/help/v3.0/manual/ccmake.1.html) (or your favourite CMake UI)
-```
-$ cd nexusjs/
-$ mkdir build
-$ cd build/
-$ ccmake ..
-```
+Please check out the [documentation](docs/building.md) for a guide on how to build Nexus.js.
 
 ## Documentation
 
-The Nexus.js API is a shifting haze. Because it changes so much from commit to commit, no documentation is currently available; but you can look into the [tests directory](tests/) for an insight into how to use it.
-
-Fear not, though! For a comprehensive manual is planned! Along with a package manager to make Nexus proud!
+The early documentation is available at [nexusjs.com](http://www.nexusjs.com). It will change frequently as new features are added, so keep an eye out!
+ 
+Also, you can look into the [tests directory](tests/) and the [examples directory](examples/) for an insight into how to use it.
 
 ## Native add-ons
 
@@ -68,6 +40,9 @@ You can read more on Nexus.js and the progress of development in the following a
 * [The Mantra (Questions and Answers)](https://medium.com/@voodooattack/concurrent-javascript-part-v-the-mantra-bbdafcac2349)
 * [Server (TCP API and Stress/Stability Testing)](https://medium.com/@voodooattack/concurrent-javascript-vi-server-9bb626f7cae1)
 * [A year's Absence (My apology for disappearing for an entire year)](https://medium.com/p/concurrent-javascript-a-years-absence-ea5ae93d3b91) 
+
+New Series:
+
 * [Introducing Nexus.js: A multi-threaded JavaScript run-time (Overview of what's been implemented so far, and a benchmark where Nexus serves 1,000 HTTP requests per second)](https://dev.to/voodooattack/introducing-nexusjs-a-multi-threaded-javascript-run-time-3g6)
 
 
@@ -85,9 +60,9 @@ You can read more on Nexus.js and the progress of development in the following a
 > This is necessary because Nexus.js is multi-threaded, and most Node.js libraries use globals in one form or another, which means they'd be broken anyway.
 > While accessing globals concurrently will not corrupt them or crash the program, it will produce unexpected behaviour in any event-loop based code. Since it assumes a single-threaded environment.
 
-* How does concurrent access to variables work? Do you use a Mutex for every variable?
+* How does concurrent access to variables work? Do you use a `mutex` for every variable?
 
-> No, please see [Locking in WebKit](https://webkit.org/blog/6161/locking-in-webkit/), it explains it better than I ever could.
+> No, please [read the documentation](docs/architecture.md), and see [Locking in WebKit](https://webkit.org/blog/6161/locking-in-webkit/), it explains it better than I ever could.
 
 * Can Nexus.js libraries override globals?
 
