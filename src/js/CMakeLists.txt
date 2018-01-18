@@ -1,5 +1,7 @@
 project(js_bundle)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Create directory if needed
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
 
