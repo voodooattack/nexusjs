@@ -62,7 +62,7 @@ JSObjectRef NX::Classes::Context::Constructor (JSContextRef ctx, JSObjectRef con
 NX::Classes::Context::Context(NX::Context * parent, JSObjectRef globalOverrides):
   myContext(nullptr)
 {
-  myContext.reset(new NX::Context(parent));
+  myContext.reset(parent->clone());
   if (globalOverrides)
   {
     JSValueProtect(parent->toJSContext(), globalOverrides);

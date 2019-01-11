@@ -61,7 +61,8 @@ JSC::JSInternalPromise * NX::Context::evaluateModule(const std::string &src, JSO
   auto pos = WTF::TextPosition(WTF::OrdinalNumber::fromOneBasedInt(lineNo), OrdinalNumber());
   auto source = JSC::makeSource(code,
                                 JSC::SourceOrigin { path },
-                                path,
+                                // path,
+                                WTF::URL(),
                                 pos, JSC::SourceProviderSourceType::Module);
   auto exec = myGlobal->globalExec();
   JSLockHolder lockHolder(exec);
@@ -81,12 +82,10 @@ NX::Context::~Context() {
   }
 }
 
-NX::Context::Context(NX::Context *parent, NX::Nexus *nx):
-  myParent(parent), myNexus(nx), myVM(std::move(parent ? parent->myVM.copyRef() : JSC::VM::createContextGroup(LargeHeap))),
+NX::Context::Context(NX::Nexus * nx, WTF::Ref<JSC::VM> vm):
+  myParent(nullptr), myNexus(nx), myVM(vm.leakRef()),
   myGlobal(nullptr), myGlobals()
 {
-  if (parent && !myNexus)
-    myNexus = parent->myNexus;
   myNexus->scheduler()->scheduleThreadInitTask([=] { registerThread(); });
   myGlobal = createGlobalObject();
 }
@@ -164,7 +163,14 @@ std::size_t NX::Context::garbageCollect() {
 }
 
 void NX::Context::registerThread() {
-  if (myVM.ptr())
-    myVM->heap.machineThreads().addCurrentThread();
+  myVM->heap.machineThreads().addCurrentThread();
+}
+
+NX::Context *NX::Context::create(NX::Nexus *nx) {
+  return new NX::Context(nx, JSC::VM::createContextGroup(JSC::LargeHeap));
+}
+
+NX::Context *NX::Context::clone() {
+  return new NX::Context(myNexus, myVM.copyRef());
 }
 

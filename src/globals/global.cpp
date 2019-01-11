@@ -161,7 +161,7 @@ const JSStaticValue NX::Global::NexusProperties[] {
   NX::Globals::IO::GetStaticProperty(),
   NX::Globals::Net::GetStaticProperty(),
   NX::Globals::FileSystem::GetStaticProperty(),
-  NX::Globals::Context::GetStaticProperty(),
+//  NX::Globals::Context::GetStaticProperty(),
   NX::Globals::Module::GetStaticProperty(),
   { nullptr, nullptr, 0 }
 };

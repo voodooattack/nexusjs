@@ -1,12 +1,14 @@
-
 project(nexus)
+
+include(cotire)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 
-find_package(Boost 1.62 COMPONENTS program_options system thread regex filesystem coroutine context iostreams REQUIRED)
+find_package(Threads REQUIRED)
+find_package(Boost 1.67 COMPONENTS program_options system thread regex filesystem coroutine iostreams REQUIRED)
 find_package(ICU REQUIRED)
 find_package(CURL REQUIRED)
 
@@ -22,31 +24,15 @@ elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
   option(BUILD_PROFILING "Build with gprof profiling" OFF)
-  if(BUILD_PROFILING)
+  if (BUILD_PROFILING)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -pg")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
-  endif(BUILD_PROFILING)
+  endif (BUILD_PROFILING)
 endif ()
 
 add_definitions("-DNEXUS_VERSION=\"${NEXUS_VERSION}\"")
-
-include(WebKitCommon)
-include(WebKitCompilerFlags)
-
-# Use ld.gold if it is available and isn't disabled explicitly
-CMAKE_DEPENDENT_OPTION(USE_LD_GOLD "Use GNU gold linker" ON
-    "NOT CXX_ACCEPTS_MFIX_CORTEX_A53_835769;NOT ARM_TRADITIONAL_DETECTED;NOT WIN32;NOT APPLE" OFF)
-if (USE_LD_GOLD)
-  execute_process(COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
-  if ("${LD_VERSION}" MATCHES "GNU gold")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=gold -Wl,--disable-new-dtags")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=gold -Wl,--disable-new-dtags")
-  else ()
-    message(WARNING "GNU gold linker isn't available, using the default system linker.")
-    set(USE_LD_GOLD OFF)
-  endif ()
-endif ()
+add_definitions("-DENABLE_WEBASSEMBLY=1")
 
 add_subdirectory(js)
 
@@ -111,7 +97,7 @@ add_executable(nexus ${INCLUDES}
     globals/module.cpp
     globals/loader.cpp
     globals/filesystem.cpp
-    globals/context.cpp
+    #globals/context.cpp
     globals/io.cpp
     globals/net.cpp
     classes/io/stream.cpp
@@ -130,21 +116,41 @@ add_executable(nexus ${INCLUDES}
     classes/net/htcommon/connection.cpp
     classes/net/htcommon/request.cpp
     classes/net/htcommon/response.cpp
-    classes/context.cpp
+    #classes/context.cpp
     classes/emitter.cpp
     classes/task.cpp
     classes/base.cpp
     )
 
-add_dependencies(nexus webkit-build)
+add_dependencies(nexus JavaScriptCore)
 
-target_link_libraries(nexus js_bundle JavaScriptCore WTF bmalloc ${Boost_LIBRARIES} ${ICU_LIBRARIES}
-    ${ICU_I18N_LIBRARIES} ${CURL_LIBRARIES} pthread)
+target_link_libraries(nexus js_bundle JavaScriptCore Threads::Threads
+  ${Boost_LIBRARIES} ${ICU_LIBRARIES} ${ICU_I18N_LIBRARIES} ${CURL_LIBRARIES})
+
+link_directories(${JAVASCRIPTCORE_LIBRARIES_PATH})
+
 target_include_directories(nexus
     PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/generated/ ${CURL_INCLUDE_DIRS}
     SYSTEM ${JAVASCRIPTCORE_INCLUDE_DIR} ${BOOST_INCLUDE_DIR} ${ICU_INCLUDE_DIR} ${BEAST_INCLUDE_DIR})
 
 link_directories(${Boost_LIBRARY_DIRS})
 
+include(WebKitMacros)
+include(WebKitFeatures)
+include(WebKitCommon)
+include(WebKitCompilerFlags)
+
+cotire(nexus)
+
 install(TARGETS nexus RUNTIME DESTINATION bin)
 
+# This will copy any files with differing timestamps
+foreach(LIBRARY IN LISTS ExternalSharedLibraries)
+  get_filename_component(FILE_NAME ${LIBRARY} NAME)
+  add_custom_target(nexus_copy_shared
+    DEPENDS webkit-build
+    BYPRODUCTS ${CMAKE_BINARY_DIR}/${FILE_NAME}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LIBRARY} ${CMAKE_BINARY_DIR}/${FILE_NAME}
+  )
+  add_dependencies(nexus nexus_copy_shared)
+endforeach()

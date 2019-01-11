@@ -32,8 +32,9 @@
 .idea/
 .kdev4/
 build/
+vendor
 *.kdev4
 
-site.tar.gz
 .vscode/c_cpp_properties.json
 .vscode/settings.json
+

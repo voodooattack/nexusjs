@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.3)
 
+set(ExternalSharedLibraries) # variable to track all dependencies
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+set(CMAKE_DISABLE_SOURCE_CHANGES  ON)
+
+if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+  message(SEND_ERROR "In-source builds are not allowed.")
+endif ()
 
 # Get the latest abbreviated commit hash of the working branch
 execute_process(
@@ -14,19 +22,13 @@ set(NEXUS_VERSION "${GIT_COMMIT_HASH}")
 
 include(CTest)
 
-set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
-
-if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
-  message(SEND_ERROR "In-source builds are not allowed.")
-endif ()
-
 # Remove 'lib' prefix for shared libraries on Windows
 if (WIN32)
   set(CMAKE_SHARED_LIBRARY_PREFIX "")
 endif ()
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_COLOR_MAKEFILE   ON)
+set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
+#set(CMAKE_COLOR_MAKEFILE CACHE BOOL "ON")
 
 set(PORT JSCOnly)
 set(CPACK_PACKAGE_NAME Nexus)
@@ -34,14 +36,16 @@ set(CPACK_PACKAGE_VERSION "${NEXUS_VERSION}")
 
 set(CMAKE_MODULE_PATH
     ${CMAKE_SOURCE_DIR}/cmake
-    ${CMAKE_SOURCE_DIR}/vendor/webkit/Source/cmake)
+    ${CMAKE_MODULE_PATH}
+)
 
-set(CMAKE_CXX_STANDARD 14)
+
+include(WebKitExternal)
+
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
-
-include(submodules)
-include(importSubmodules)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v")
 
 include_directories(include)
 add_subdirectory(src)
@@ -49,5 +53,3 @@ add_subdirectory(src)
 enable_testing()
 
 add_subdirectory(tests)
-
-

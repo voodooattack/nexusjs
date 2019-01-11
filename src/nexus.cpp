@@ -36,8 +36,8 @@
 #include <JavaScriptCore/JSContextRef.h>
 #include <JavaScriptCore/API/APICast.h>
 #include <JavaScriptCore/runtime/InitializeThreading.h>
-#include <JavaScriptCore/parser/ParserError.h>
 #include <JavaScriptCore/parser/SourceCode.h>
+#include <JavaScriptCore/parser/ParserError.h>
 #include <JavaScriptCore/runtime/JSNativeStdFunction.h>
 #include <JavaScriptCore/runtime/PromiseDeferredTimer.h>
 
@@ -57,7 +57,6 @@ NX::Nexus::~Nexus()
 //  delete myMainContext;
   for(auto & c : myClasses)
     JSClassRelease(c.second);
-  this->~noncopyable();
 }
 
 bool NX::Nexus::parseArguments()
@@ -130,18 +129,20 @@ void NX::Nexus::initScheduler()
   myScheduler.reset(new Scheduler(this, concurrency));
 }
 
-void NX::Nexus::run() {
+int NX::Nexus::run() {
   try {
     if (parseArguments()) {
       exit(0);
     }
     initScheduler();
     if (!myMainContext) {
-      myMainContext = new NX::Context(nullptr, this);
+      myMainContext = NX::Context::create(this);
     }
+#if ENABLE_WEBASSEMBLY
     JSC::Options::useWebAssembly() = true;
     JSC::Options::useWebAssemblyFastMemory() = true;
     JSC::Options::useFastTLSForWasmContext() = true;
+#endif
 // enable these to debug the module loader!
 //    JSC::Options::dumpModuleLoadingState() = true;
 //    JSC::Options::dumpModuleRecord() = true;
@@ -185,10 +186,10 @@ void NX::Nexus::run() {
       }
     });
     myScheduler->join();
-    exit(myExitStatus);
+    return myExitStatus;
   } catch(std::exception & e) {
     ReportException(e);
-    exit(1);
+    return 1;
   }
 }
 

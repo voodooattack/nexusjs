@@ -1,14 +1,13 @@
-diff --git a/Source/cmake/WebKitCompilerFlags.cmake b/Source/cmake/WebKitCompilerFlags.cmake
-index 86715cc88..7d456555c 100644
---- a/Source/cmake/WebKitCompilerFlags.cmake
-+++ b/Source/cmake/WebKitCompilerFlags.cmake
-@@ -102,8 +102,7 @@ if (COMPILER_IS_GCC_OR_CLANG)
+Index: Source/cmake/WebKitCompilerFlags.cmake
+===================================================================
+--- Source/cmake/WebKitCompilerFlags.cmake	(revision 239662)
++++ Source/cmake/WebKitCompilerFlags.cmake	(working copy)
+@@ -102,7 +102,7 @@
                                               -Wno-unknown-argument)
      else ()
          WEBKIT_APPEND_GLOBAL_COMPILER_FLAGS(-fno-exceptions)
--        WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-std=c++14
--                                       -fno-rtti)
-+        WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-std=c++14)
+-        WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-fno-rtti)
++        # WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-fno-rtti)
  
-         if (WIN32)
-             WEBKIT_APPEND_GLOBAL_COMPILER_FLAGS(-mno-ms-bitfields)
+         check_cxx_compiler_flag("-std=c++14" CXX_COMPILER_SUPPORTS_CXX14)
+         if (CXX_COMPILER_SUPPORTS_CXX14)

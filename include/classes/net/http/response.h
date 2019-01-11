@@ -109,7 +109,7 @@ namespace NX {
               for (auto const & buffer : sequence) {
                 std::size_t bufSize = boost::asio::buffer_size(buffer);
                 if (bufSize)
-                  myConnection->deviceWrite((const char *)boost::asio::detail::buffer_cast_helper(buffer), bufSize);
+                  myConnection->deviceWrite(boost::asio::buffer_cast<const char *>(buffer), bufSize);
                 written += bufSize;
               }
               if (written == 0)

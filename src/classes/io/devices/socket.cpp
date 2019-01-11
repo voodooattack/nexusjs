@@ -19,6 +19,7 @@
 
 #include "globals/promise.h"
 #include "classes/io/devices/socket.h"
+#include <boost/asio/ip/basic_resolver_iterator.hpp>
 
 JSObjectRef NX::Classes::IO::Devices::Socket::Constructor (JSContextRef ctx, JSObjectRef constructor,
                                                            size_t argumentCount, const JSValueRef arguments[], JSValueRef * exception)
@@ -223,7 +224,8 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
     typedef boost::asio::ip::udp::resolver resolver;
     NX::Context * context = NX::Context::FromJsContext(ctx);
     std::shared_ptr<resolver> res(new resolver(*myScheduler->service()));
-    res->async_resolve(boost::asio::ip::udp::resolver::query(address, port), [=](const auto & error, const auto & it)
+    res->async_resolve(boost::asio::ip::udp::resolver::query(address, port),
+      [=](const boost::system::error_code & error, const boost::asio::ip::udp::resolver::results_type & it)
     {
       /* We keep a reference to the resolver here */
       auto res2 = res;
@@ -231,8 +233,9 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
         reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
       }
       else {
-        boost::asio::async_connect(*mySocket, it, boost::asio::ip::udp::resolver::iterator(),
-                                   [=](const auto & error, const auto & next)
+        auto socket = mySocket.get();
+        boost::asio::async_connect(*socket, it,
+          [=](const boost::system::error_code & error, boost::asio::ip::udp::resolver::iterator next)
         {
           std::shared_ptr<resolver> res3 = res;
           JSValueRef args[] {
@@ -241,16 +244,16 @@ JSObjectRef NX::Classes::IO::Devices::UDPSocket::connect (JSContextRef ctx, JSOb
           };
           this->emitFast(context->toJSContext(), thisObject, "attempt", 2, args, nullptr);
           return next;
-        }, [=](const auto & error, const auto & it) {
+        }, [=](const boost::system::error_code & error, auto ep) {
           if (error) {
             reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
           }
           else {
             JSValueRef args[] {
-              NX::Value(context->toJSContext(), it->host_name()).value(),
-              NX::Value(context->toJSContext(), it->service_name()).value()
+              NX::Value(context->toJSContext(), ep.address().to_string()).value(),
+              NX::Value(context->toJSContext(), ep.port()).value()
             };
-            myEndpoint = *it;
+            myEndpoint = ep;
             this->emitFast(context->toJSContext(), thisObject, "connected", 2, args, nullptr);
             resolve(context->toJSContext(), thisObject);
           }
@@ -436,7 +439,7 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
         reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
       }
       else {
-        boost::asio::async_connect(*mySocket, it, boost::asio::ip::tcp::resolver::iterator(),
+        boost::asio::async_connect(*mySocket, it,
                                    [=](const auto & error, const auto & next)
                                    {
                                      std::shared_ptr<resolver> res3 = res;
@@ -446,16 +449,16 @@ JSObjectRef NX::Classes::IO::Devices::TCPSocket::connect (JSContextRef ctx, JSOb
                                      };
                                      this->emitFast(context->toJSContext(), thisObject, "attempt", 2, args, nullptr);
                                      return next;
-                                   }, [=](const auto & error, const auto & it) {
+                                   }, [=](const auto & error, const boost::asio::ip::tcp::endpoint & it) {
                                      if (error) {
                                        reject(context->toJSContext(), NX::Object(context->toJSContext(), error));
                                      }
                                      else {
                                        JSValueRef args[] {
-                                         NX::Value(context->toJSContext(), it->host_name()).value(),
-                                         NX::Value(context->toJSContext(), it->service_name()).value()
+                                         NX::Value(context->toJSContext(), it.address().to_string()).value(),
+                                         NX::Value(context->toJSContext(), it.port()).value()
                                        };
-                                       myEndpoint = *it;
+                                       myEndpoint = it;
                                        this->emitFast(context->toJSContext(), thisObject, "connected", 2, args, nullptr);
                                        resolve(context->toJSContext(),thisObject);
                                      }

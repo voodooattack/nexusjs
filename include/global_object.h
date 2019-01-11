@@ -20,12 +20,6 @@
 #ifndef GLOBAL_OBJECT_H
 #define GLOBAL_OBJECT_H
 
-#ifdef BUILDING_WITH_CMAKE
-
-#include <cmakeconfig.h>
-
-#endif
-
 #include <JavaScriptCore/runtime/JSCInlines.h>
 #include <JavaScriptCore/API/JSCallbackObject.h>
 

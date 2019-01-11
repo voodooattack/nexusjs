@@ -20,9 +20,9 @@
 #ifndef NEXUS_H
 #define NEXUS_H
 
-#ifdef BUILDING_WITH_CMAKE
-#include <cmakeconfig.h>
-#endif
+// #ifdef BUILDING_WITH_CMAKE
+// #include <cmakeconfig.h>
+// #endif
 
 #include <utility>
 #include <list>
@@ -53,7 +53,7 @@ namespace NX
     NX::Context * mainContext();
 
   public:
-    void run();
+    int run();
 
     JSContextGroupRef group() { return myContextGroup; }
     NX::Scheduler * scheduler() { return myScheduler.get(); }

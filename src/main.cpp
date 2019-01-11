@@ -25,7 +25,7 @@
 int main (int argc, const char ** argv)
 {
   NX::Nexus nexus(argc, argv);
-  struct sigaction sa;
+  struct sigaction sa {};
   sa.sa_handler = SIG_IGN;
   sa.sa_flags = SA_RESTART;
   sigaction(SIGALRM, &sa, nullptr);
@@ -38,9 +38,8 @@ int main (int argc, const char ** argv)
   WTF::initializeMainThread();
   WTF::initializeThreading();
   JSC::initializeThreading();
-#if ENABLE(WEBASSEMBLY)
+#if ENABLE_WEBASSEMBLY
   JSC::Wasm::enableFastMemory();
 #endif
-  nexus.run();
-  return 0;
+  return nexus.run();
 }

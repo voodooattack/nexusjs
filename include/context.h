@@ -20,10 +20,6 @@
 #ifndef MODULE_H
 #define MODULE_H
 
-#ifdef BUILDING_WITH_CMAKE
-#include <cmakeconfig.h>
-#endif
-
 #include <JavaScriptCore/runtime/JSInternalPromise.h>
 #include <JavaScriptCore/API/JSCallbackObject.h>
 
@@ -39,8 +35,9 @@ namespace NX {
   class GlobalObject;
   class Context
   {
+  protected:
+    explicit Context(NX::Nexus * nx, WTF::Ref<JSC::VM> vm);
   public:
-    explicit Context(NX::Context * parent = nullptr, NX::Nexus * nx = nullptr);
     virtual ~Context();
 
     JSValueRef evaluateScript(const std::string & src,
@@ -70,6 +67,10 @@ namespace NX {
     void registerThread();
 
     std::size_t garbageCollect();
+
+    static NX::Context * create(NX::Nexus * nx);
+
+    virtual NX::Context * clone();
 
   protected:
 

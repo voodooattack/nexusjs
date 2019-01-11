@@ -94,7 +94,7 @@ namespace NX {
           std::string myEncodingFrom, myEncodingTo;
           UConverter * mySource, * myTarget;
           std::vector<UChar, WTFAllocator<UChar>> myPivotBuffer;
-          uint16_t * myPivotSource, * myPivotTarget;
+          UChar * myPivotSource, * myPivotTarget;
           std::atomic_uint64_t myPayloadId;
         };
       }

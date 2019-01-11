@@ -92,11 +92,11 @@ JSValueRef NX::Classes::Net::HTTP::Request::attach(JSContextRef ctx, JSObjectRef
                                     if (myParser->is_header_done()) {
                                       myHeaderParsedFlag.store(true);
                                       try {
-                                        myConnection->keepAlive(myParser->is_keep_alive());
+                                        myConnection->keepAlive(myParser->keep_alive());
                                         NX::Object req(ctx, thisObj);
                                         std::string method(boost::to_string(myParser->get().method()));
                                         auto response = dynamic_cast<HTTP::Response *>(myConnection->res());
-                                        if (myParser->is_keep_alive()) {
+                                        if (myParser->keep_alive()) {
                                           myConnection->socket()->set_option(
                                             boost::asio::socket_base::keep_alive(true));
                                           response->res().keep_alive(true);

@@ -20,6 +20,8 @@
 #include "nexus.h"
 #include "global_object.h"
 
+#include <wtf/Optional.h>
+
 #include <wtf/text/StringBuilder.h>
 
 #include <JavaScriptCore/runtime/JSGenericTypedArrayView.h>
@@ -125,7 +127,7 @@ struct DirectoryName {
 
 struct ModuleName {
   explicit ModuleName(const String &moduleName) {
-    moduleName.split('/', true, queries);
+    queries = moduleName.splitAllowingEmptyEntries('/');
   }
 
   bool startsWithRoot() const {
@@ -139,10 +141,10 @@ static UChar pathSeparator() {
   return boost::filesystem::path::preferred_separator;
 }
 
-static std::optional<DirectoryName> extractDirectoryName(const String &absolutePathToFile) {
+static WTF::Optional<DirectoryName> extractDirectoryName(const String &absolutePathToFile) {
   size_t firstSeparatorPosition = absolutePathToFile.find(pathSeparator());
   if (firstSeparatorPosition == notFound)
-    return std::nullopt;
+    return WTF::nullopt;
   DirectoryName directoryName;
   directoryName.rootName = absolutePathToFile.substring(0, (unsigned) firstSeparatorPosition +
                                                            1); // Include the separator.
@@ -161,18 +163,17 @@ static std::optional<DirectoryName> extractDirectoryName(const String &absoluteP
 
 static WTF::String resolvePath(const DirectoryName &directoryName, const ModuleName &moduleName) {
 
-  WTF::Vector<WTF::String> directoryPieces;
-  directoryName.queryName.split(pathSeparator(), false, directoryPieces);
+  WTF::Vector<WTF::String> directoryPieces(directoryName.queryName.splitAllowingEmptyEntries(pathSeparator()));
 
   // Only first '/' is recognized as the path from the root.
   if (moduleName.startsWithRoot())
     directoryPieces.clear();
 
   for (const auto &query : moduleName.queries) {
-    if (query == String(ASCIILiteral(".."))) {
+    if (query == String("..")) {
       if (!directoryPieces.isEmpty())
         directoryPieces.removeLast();
-    } else if (!query.isEmpty() && query != String(ASCIILiteral(".")))
+    } else if (!query.isEmpty() && query != String("."))
       directoryPieces.append(query);
   }
 
@@ -186,10 +187,10 @@ static WTF::String resolvePath(const DirectoryName &directoryName, const ModuleN
   return builder.toString();
 }
 
-static std::optional<DirectoryName> currentWorkingDirectory() {
+static WTF::Optional<DirectoryName> currentWorkingDirectory() {
   String directoryString = String::fromUTF8(boost::filesystem::current_path().c_str());
   if (directoryString.isEmpty())
-    return std::nullopt;
+    return WTF::nullopt;
   if (directoryString[directoryString.length() - 1] == pathSeparator())
     return extractDirectoryName(directoryString);
   // Append the separator to represent the file name. extractDirectoryName only accepts the absolute file name.
@@ -344,11 +345,11 @@ NX::GlobalObject::moduleLoaderImportModule(JSGlobalObject *globalObject, ExecSta
   VM &vm = globalObject->vm();
   auto scope = DECLARE_CATCH_SCOPE(vm);
   auto rejectPromise = [&](auto error) {
-    return JSInternalPromiseDeferred::create(exec, globalObject)->reject(exec, error);
+    return JSInternalPromiseDeferred::tryCreate(exec, globalObject)->reject(exec, error);
   };
 
   if (sourceOrigin.isNull())
-    return rejectPromise(createError(exec, ASCIILiteral("Could not resolve the module specifier.")));
+    return rejectPromise(createError(exec, String("Could not resolve the module specifier.")));
 
   const auto &referrer = sourceOrigin.string();
   const auto &moduleName = moduleNameValue->value(exec);
@@ -388,7 +389,7 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
   if (referrerValue.isUndefined()) {
     auto directoryName = extractDirectoryName(WTF::String::fromUTF8(thisObject->nexus()->scriptPath().c_str()));
     if (!directoryName) {
-      throwException(exec, scope, createError(exec, ASCIILiteral("Could not resolve the current working directory.")));
+      throwException(exec, scope, createError(exec, String("Could not resolve the current working directory.")));
       return {};
     }
     return Identifier::fromString(&vm, resolvePath(directoryName.value(), ModuleName(key.impl())));
@@ -425,7 +426,7 @@ NX::GlobalObject::moduleLoaderResolve(JSGlobalObject *globalObject, ExecState *e
 //    auto directoryName = currentWorkingDirectory();
     auto directoryName = extractDirectoryName(WTF::String::fromUTF8(thisObject->nexus()->scriptPath().c_str()));
     if (!directoryName) {
-      throwException(exec, scope, createError(exec, ASCIILiteral("Could not resolve the current working directory.")));
+      throwException(exec, scope, createError(exec, String("Could not resolve the current working directory.")));
       return {};
     }
     return Identifier::fromString(&vm, resolvePath(directoryName.value(), ModuleName(
@@ -453,7 +454,7 @@ NX::GlobalObject::moduleLoaderFetch(JSGlobalObject *globalObject, ExecState *exe
                                     JSValue key, JSValue, JSValue) {
   VM &vm = globalObject->vm();
   auto scope = DECLARE_CATCH_SCOPE(vm);
-  JSInternalPromiseDeferred *deferred = JSInternalPromiseDeferred::create(exec, globalObject);
+  JSInternalPromiseDeferred *deferred = JSInternalPromiseDeferred::tryCreate(exec, globalObject);
   String moduleKey = key.toWTFString(exec);
 
   if (UNLIKELY(scope.exception())) {
@@ -473,7 +474,9 @@ NX::GlobalObject::moduleLoaderFetch(JSGlobalObject *globalObject, ExecState *exe
   } else if (!fetchModuleFromLocalFileSystem(moduleKey, buffer))
     return deferred->reject(exec, createError(exec, makeString("Could not open file '", moduleKey, "'.")));
   source = makeSource(stringFromUTF(buffer),
-                      SourceOrigin {moduleKey}, moduleKey,
+                      SourceOrigin {moduleKey}, 
+                      // WTF::URL(moduleKey),
+                      WTF::URL(),
                       TextPosition(),
                       SourceProviderSourceType::Module);
   JSC::ParserError error;
