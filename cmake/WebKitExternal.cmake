@@ -77,7 +77,7 @@ set(CMAKE_MODULE_PATH
 
 set(THIRDPARTY_DIR "${WEBKIT_BUILD_DIR}/Source/ThirdParty")
 
-add_subdirectory(${WEBKIT_BUILD_DIR})
+add_subdirectory(${WEBKIT_BUILD_DIR} ${CMAKE_BINARY_DIR}/build/webkit EXCLUDE_FROM_ALL)
 
 set(CMAKE_MODULE_PATH
   ${WEBKIT_BUILD_DIR}/Source/cmake

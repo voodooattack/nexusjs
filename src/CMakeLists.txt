@@ -124,7 +124,7 @@ add_executable(nexus ${INCLUDES}
 
 add_dependencies(nexus JavaScriptCore)
 
-target_link_libraries(nexus js_bundle JavaScriptCore Threads::Threads
+target_link_libraries(nexus js_bundle WTF JavaScriptCore Threads::Threads
   ${Boost_LIBRARIES} ${ICU_LIBRARIES} ${ICU_I18N_LIBRARIES} ${CURL_LIBRARIES})
 
 link_directories(${JAVASCRIPTCORE_LIBRARIES_PATH})

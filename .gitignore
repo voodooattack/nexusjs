@@ -35,6 +35,6 @@ build/
 vendor
 *.kdev4
 
-.vscode/c_cpp_properties.json
-.vscode/settings.json
+.vscode/
+nbproject/
 
