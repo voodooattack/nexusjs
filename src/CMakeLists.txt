@@ -1,7 +1,5 @@
 project(nexus)
 
-include(cotire)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -12,28 +10,7 @@ find_package(Boost 1.67 COMPONENTS program_options system thread regex filesyste
 find_package(ICU REQUIRED)
 find_package(CURL REQUIRED)
 
-if (MSVC)
-  # Force to always compile with W4
-  if (CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
-    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  else ()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-  endif ()
-elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  # Update if necessary
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-  option(BUILD_PROFILING "Build with gprof profiling" OFF)
-  if (BUILD_PROFILING)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -pg")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
-  endif (BUILD_PROFILING)
-endif ()
-
 add_definitions("-DNEXUS_VERSION=\"${NEXUS_VERSION}\"")
-add_definitions("-DENABLE_WEBASSEMBLY=1")
-
 add_subdirectory(js)
 
 set(INCLUDES
@@ -120,11 +97,28 @@ add_executable(nexus ${INCLUDES}
     classes/emitter.cpp
     classes/task.cpp
     classes/base.cpp
+    "${CMAKE_BINARY_DIR}/cmakeconfig.h"
     )
 
-add_dependencies(nexus JavaScriptCore)
+WEBKIT_FRAMEWORK(nexus)
 
-target_link_libraries(nexus js_bundle WTF JavaScriptCore Threads::Threads
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  # using Clang
+  set(COMPILER_IS_GCC_OR_CLANG TRUE)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  # using GCC
+  set(COMPILER_IS_GCC_OR_CLANG TRUE)
+endif()
+
+if (COMPILER_IS_GCC_OR_CLANG)
+  add_definitions(-include "${CMAKE_BINARY_DIR}/cmakeconfig.h")
+  WEBKIT_ADD_TARGET_CXX_FLAGS(nexus -fexceptions -ffp-contract=off -fPIE -fno-strict-aliasing)
+endif ()
+
+add_definitions(-DSTATICALLY_LINKED_WITH_JavaScriptCore -DASSERT_MSG_DISABLED)
+add_dependencies(nexus JavaScriptCore bmalloc WTF)
+
+target_link_libraries(nexus js_bundle bmalloc WTF JavaScriptCore Threads::Threads
   ${Boost_LIBRARIES} ${ICU_LIBRARIES} ${ICU_I18N_LIBRARIES} ${CURL_LIBRARIES})
 
 link_directories(${JAVASCRIPTCORE_LIBRARIES_PATH})
@@ -135,12 +129,11 @@ target_include_directories(nexus
 
 link_directories(${Boost_LIBRARY_DIRS})
 
-include(WebKitMacros)
-include(WebKitFeatures)
 include(WebKitCommon)
-include(WebKitCompilerFlags)
 
-cotire(nexus)
+
+
+#cotire(nexus)
 
 install(TARGETS nexus RUNTIME DESTINATION bin)
 

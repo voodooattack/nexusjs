@@ -44,6 +44,9 @@
 
 #include "globals/global.h"
 
+#include <JavaScriptCore/runtime/Structure.h>
+#include <JavaScriptCore/runtime/StructureInlines.h>
+
 
 JSValueRef NX::Context::evaluateScript(const std::string &src, JSObjectRef thisObject,
                                        const std::string &filePath, unsigned int lineNo, JSValueRef *exception) {
@@ -167,7 +170,7 @@ void NX::Context::registerThread() {
 }
 
 NX::Context *NX::Context::create(NX::Nexus *nx) {
-  return new NX::Context(nx, JSC::VM::createContextGroup(JSC::LargeHeap));
+  return new NX::Context(nx, JSC::VM::createContextGroup(JSC::HeapType::LargeHeap));
 }
 
 NX::Context *NX::Context::clone() {

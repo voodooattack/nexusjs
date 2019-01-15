@@ -32,9 +32,9 @@
 .idea/
 .kdev4/
 build/
-vendor
+vendor/webkit
 *.kdev4
 
 .vscode/
 nbproject/
-
+cmake-build-*

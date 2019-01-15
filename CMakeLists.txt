@@ -39,13 +39,12 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
 )
 
+include(cotire)
 
 include(WebKitExternal)
 
-set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v")
 
 include_directories(include)
 add_subdirectory(src)

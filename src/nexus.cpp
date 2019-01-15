@@ -138,7 +138,7 @@ int NX::Nexus::run() {
     if (!myMainContext) {
       myMainContext = NX::Context::create(this);
     }
-#if ENABLE_WEBASSEMBLY
+#if ENABLE(WEBASSEMBLY)
     JSC::Options::useWebAssembly() = true;
     JSC::Options::useWebAssemblyFastMemory() = true;
     JSC::Options::useFastTLSForWasmContext() = true;

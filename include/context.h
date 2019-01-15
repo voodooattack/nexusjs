@@ -17,18 +17,18 @@
  *
  */
 
-#ifndef MODULE_H
-#define MODULE_H
+#ifndef CONTEXT_H
+#define CONTEXT_H
+
+#include "object.h"
+#include "value.h"
+#include "scoped_string.h"
 
 #include <JavaScriptCore/runtime/JSInternalPromise.h>
 #include <JavaScriptCore/API/JSCallbackObject.h>
 
 #include <string>
 #include <boost/unordered_map.hpp>
-
-#include "object.h"
-#include "value.h"
-#include "scoped_string.h"
 
 namespace NX {
   class Nexus;
@@ -84,4 +84,4 @@ namespace NX {
   };
 }
 
-#endif // MODULE_H
+#endif // CONTEXT_H

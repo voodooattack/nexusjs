@@ -33,12 +33,12 @@ int main (int argc, const char ** argv)
   if (!setlocale(LC_ALL, "")) {
     WTFLogAlways("Locale not supported by C library.\n\tUsing the fallback 'C' locale.");
   }
-//  if (Gigacage::canPrimitiveGigacageBeDisabled())
-//    Gigacage::disablePrimitiveGigacage();
+  if (Gigacage::canPrimitiveGigacageBeDisabled())
+    Gigacage::disablePrimitiveGigacage();
   WTF::initializeMainThread();
   WTF::initializeThreading();
   JSC::initializeThreading();
-#if ENABLE_WEBASSEMBLY
+#if ENABLE(WEBASSEMBLY)
   JSC::Wasm::enableFastMemory();
 #endif
   return nexus.run();
