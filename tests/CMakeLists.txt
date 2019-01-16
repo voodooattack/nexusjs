@@ -1,3 +1,5 @@
+project(nexus_tests)
+
 set(ENWIK8_URL http://mattmahoney.net/dc/enwik8.zip)
 
 if(NOT EXISTS "${CMAKE_BINARY_DIR}/tests/enwik8.zip")
