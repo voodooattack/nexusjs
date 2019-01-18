@@ -6,37 +6,39 @@ set(WEBKIT_ROOT "${CMAKE_SOURCE_DIR}/vendor/webkit")
 set(WEBKIT_PATCH_DIR "${CMAKE_SOURCE_DIR}/patch/webkit")
 set(WEBKIT_BUILD_DIR "${CMAKE_BINARY_DIR}/vendor/webkit")
 
-message(STATUS "Updating WebKit")
-execute_process(
-    COMMAND ${SVN_EXECUTABLE} cleanup
-    WORKING_DIRECTORY ${WEBKIT_ROOT}
-    OUTPUT_QUIET
-    ERROR_QUIET
-)
-
-execute_process(
-    COMMAND ${SVN_EXECUTABLE} checkout "${WEBKIT_REPO_URL}" --revision ${WEBKIT_REPO_REV} ${WEBKIT_ROOT}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor
-)
-
-execute_process(
-    COMMAND ${SVN_EXECUTABLE} revert --recursive .
-    WORKING_DIRECTORY ${WEBKIT_ROOT}
-    OUTPUT_QUIET
-    ERROR_QUIET
-)
-
-file(GLOB_RECURSE PATCHES "${WEBKIT_PATCH_DIR}/*.patch")
-
-message(STATUS "Patching WebKit")
-foreach (PATCH ${PATCHES})
-  message(STATUS "Applying patch ${PATCH} to WebKit")
+if(SVN_EXECUTABLE)
+  message(STATUS "Updating WebKit")
   execute_process(
-      COMMAND ${SVN_EXECUTABLE} patch ${PATCH}
+      COMMAND ${SVN_EXECUTABLE} cleanup
       WORKING_DIRECTORY ${WEBKIT_ROOT}
       OUTPUT_QUIET
+      ERROR_QUIET
   )
-endforeach ()
+
+  execute_process(
+      COMMAND ${SVN_EXECUTABLE} checkout "${WEBKIT_REPO_URL}" --revision ${WEBKIT_REPO_REV} ${WEBKIT_ROOT}
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor
+  )
+
+  execute_process(
+      COMMAND ${SVN_EXECUTABLE} revert --recursive .
+      WORKING_DIRECTORY ${WEBKIT_ROOT}
+      OUTPUT_QUIET
+      ERROR_QUIET
+  )
+
+  file(GLOB_RECURSE PATCHES "${WEBKIT_PATCH_DIR}/*.patch")
+
+  message(STATUS "Patching WebKit")
+  foreach (PATCH ${PATCHES})
+    message(STATUS "Applying patch ${PATCH} to WebKit")
+    execute_process(
+        COMMAND ${SVN_EXECUTABLE} patch ${PATCH}
+        WORKING_DIRECTORY ${WEBKIT_ROOT}
+        OUTPUT_QUIET
+    )
+  endforeach ()
+endif()
 
 # big hack because patching this would be useless!
 
@@ -58,6 +60,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(PORT "JSCOnly" CACHE STRING "" FORCE)
+set(ENABLE_STATIC_JSC ON CACHE BOOL "" FORCE)
 set(EVENT_LOOP_TYPE "Generic" CACHE STRING "" FORCE)
 set(USE_SYSTEM_MALLOC OFF CACHE BOOL "" FORCE)
 set(ENABLE_API_TESTS OFF CACHE BOOL "" FORCE)

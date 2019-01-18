@@ -1,0 +1,12 @@
+!.git
+.svn
+**/.svn
+**/.git
+vendor/webkit/.svn
+vendor/webkit/*Tests
+vendor/webkit/Websites
+cmake-build-debug
+cmake-build-release
+docs
+examples
+

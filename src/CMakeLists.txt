@@ -100,6 +100,10 @@ add_executable(nexus ${INCLUDES}
     "${CMAKE_BINARY_DIR}/cmakeconfig.h"
     )
 
+set_property(TARGET nexus PROPERTY CXX_STANDARD 17)
+
+cotire(nexus)
+
 WEBKIT_FRAMEWORK(nexus)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -113,6 +117,7 @@ endif()
 if (COMPILER_IS_GCC_OR_CLANG)
   add_definitions(-include "${CMAKE_BINARY_DIR}/cmakeconfig.h")
   WEBKIT_ADD_TARGET_CXX_FLAGS(nexus -fexceptions -ffp-contract=off -fPIE -fno-strict-aliasing)
+  WEBKIT_ADD_TARGET_CXX_FLAGS(nexus -Wno-unused-parameter -Wno-missing-field-initializers)
 endif ()
 
 add_definitions(-DSTATICALLY_LINKED_WITH_JavaScriptCore -DASSERT_MSG_DISABLED)
@@ -130,10 +135,6 @@ target_include_directories(nexus
 link_directories(${Boost_LIBRARY_DIRS})
 
 include(WebKitCommon)
-
-
-
-#cotire(nexus)
 
 install(TARGETS nexus RUNTIME DESTINATION bin)
 

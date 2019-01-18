@@ -14,14 +14,23 @@ Simply clone Nexus using git to your chosen directory.
 
 ```
 git clone https://github.com/voodooattack/nexusjs.git nexusjs
-cd nexusjs 
-git submodule update --init --recursive
 ```
 
-If you're facing problems, try:
+## Dependencies Required
+
+You need the following:
+
+- CMake 3.3 (or newer)
+- g++ 8
+- ICU 6.0
+- libcurl
+- boost
+- ruby and perl (for building WebKit)
+- xdd (for JavaScript file embedding)
 
 ```
-git submodule sync
+apt-get install build-essential cmake libboost-all-dev curl libcurl4-openssl-dev g++ \
+  libicu-dev ruby perl xxd libicu60
 ```
 
 ## Building Nexus.js
@@ -34,3 +43,10 @@ $ cd build/
 $ ccmake ..
 $ make
 ```
+
+### WebAssembly Support
+
+To enable WebAssembly support, invoke the build with the following defined:
+
+`cmake -DENABLE_WEBASSEMBLY=ON`
+

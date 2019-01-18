@@ -68,7 +68,7 @@ bool NX::Nexus::parseArguments()
     ("version,v", "print version and exit")
     ("silent,s", "don't print errors")
     ("concurrency", po::value<unsigned int>(&nThreads)->default_value(boost::thread::hardware_concurrency()),
-      "maximum threads in the task scheduler's pool (defaults to the available number of cores)")
+      "maximum threads in the task scheduler's pool (defaults to the available number of threads)")
     ("loader,l", po::value<std::vector<std::string>>(), "ES6 module loader to use - must export `resolve()`")
     ("module,m", po::value<std::string>(), "module to load");
   po::positional_options_description module;
@@ -78,8 +78,13 @@ bool NX::Nexus::parseArguments()
   po::notify(vm);
   if (this->argc <= 1 || vm.count("help")) {
     std::cout << "Nexus.js - The next-gen JavaScript platform" << std::endl;
+    std::cout << "Version: " << NEXUS_VERSION << std::endl;
     std::cout << std::endl;
     std::cout << desc << std::endl;
+    return true;
+  }
+  if (vm.count("version")) {
+    std::cout << NEXUS_VERSION << std::endl;
     return true;
   }
   myScriptPath = boost::filesystem::absolute(vm["module"].as<std::string>()).string();
