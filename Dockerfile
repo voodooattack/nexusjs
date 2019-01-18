@@ -3,8 +3,6 @@ FROM ubuntu:18.10
 MAINTAINER Abdullah Ali <voodooattack@hotmail.com>
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN echo 'Acquire::HTTP::Proxy "http://172.17.0.1:3142";' >> /etc/apt/apt.conf.d/01proxy \
-  && echo 'Acquire::HTTPS::Proxy "false";' >> /etc/apt/apt.conf.d/01proxy
 RUN apt-get update
 RUN apt-get --yes --no-install-recommends install git-all build-essential cmake libboost-all-dev curl \
   libcurl4-openssl-dev ninja-build g++ libicu-dev ruby perl xxd libicu60
